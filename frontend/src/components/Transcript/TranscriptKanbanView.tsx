@@ -36,14 +36,18 @@ function KanbanBubble({
   indexed,
   displayText,
   isActive,
+  speakers,
   handleEditText,
   onSeekToSegment,
+  onMoveSegmentSpeaker,
 }: {
   indexed: IndexedSegment;
   displayText?: string;
   isActive: boolean;
+  speakers: string[];
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
+  onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
 }) {
   const { segment, index } = indexed;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -103,6 +107,28 @@ function KanbanBubble({
         </div>
       </div>
       <p className="mb-0 small">{displayText ?? segment.text}</p>
+      {speakers.length > 1 && (
+        <select
+          className="form-select form-select-sm kanban-bubble-speaker-select kanban-bubble-action mt-1"
+          aria-label="Move to speaker"
+          title="Move to speaker (keyboard-accessible alternative to dragging)"
+          value={segment.speaker}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onChange={(e) => {
+            const newSpeaker = e.target.value;
+            if (newSpeaker !== segment.speaker) {
+              onMoveSegmentSpeaker(index, newSpeaker);
+            }
+          }}
+        >
+          {speakers.map((speaker) => (
+            <option key={speaker} value={speaker}>
+              {speaker}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }
@@ -113,15 +139,19 @@ function KanbanColumn({
   bubbles,
   displayTextByIndex,
   activeSegmentIndex,
+  speakers,
   handleEditText,
   onSeekToSegment,
+  onMoveSegmentSpeaker,
 }: {
   speaker: string;
   bubbles: IndexedSegment[];
   displayTextByIndex?: string[];
   activeSegmentIndex: number;
+  speakers: string[];
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
+  onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: speaker });
   const color = getSpeakerColor(speaker);
@@ -152,8 +182,10 @@ function KanbanColumn({
               indexed={indexed}
               displayText={displayTextByIndex?.[indexed.index]}
               isActive={indexed.index === activeSegmentIndex}
+              speakers={speakers}
               handleEditText={handleEditText}
               onSeekToSegment={onSeekToSegment}
+              onMoveSegmentSpeaker={onMoveSegmentSpeaker}
             />
           ))
         )}
@@ -235,8 +267,10 @@ export default function TranscriptKanbanView({
             bubbles={columns.get(speaker) ?? []}
             displayTextByIndex={displayTextByIndex}
             activeSegmentIndex={activeSegmentIndex}
+            speakers={speakers}
             handleEditText={handleEditText}
             onSeekToSegment={onSeekToSegment}
+            onMoveSegmentSpeaker={onMoveSegmentSpeaker}
           />
         ))}
       </div>

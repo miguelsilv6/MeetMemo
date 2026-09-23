@@ -644,6 +644,20 @@
   transition: opacity 0.2s ease;
 }
 
-.kanban-bubble:hover .kanban-bubble-action {
+.kanban-bubble:hover .kanban-bubble-action,
+.kanban-bubble:focus-within .kanban-bubble-action {
   opacity: 1;
+}
+
+/* Keep the visible action focused via keyboard from disappearing again. */
+.kanban-bubble-action:focus {
+  opacity: 1;
+}
+
+.kanban-bubble-speaker-select {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  font-size: 0.7rem;
+  padding: 0.1rem 1.5rem 0.1rem 0.4rem;
 }

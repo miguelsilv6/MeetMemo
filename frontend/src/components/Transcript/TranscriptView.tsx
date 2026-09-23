@@ -1,8 +1,7 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Row, Col, Card, Button, ButtonGroup } from '@govtechsg/sgds-react';
 import { FileText, Users, LayoutList, LayoutGrid, Languages } from 'lucide-react';
 import TranscriptSegment from './TranscriptSegment';
-import TranscriptKanbanView from './TranscriptKanbanView';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
@@ -13,6 +12,10 @@ import type {
 } from '../../types/api';
 
 type TranscriptDisplayMode = 'list' | 'kanban';
+
+// Pulls in @dnd-kit/core; only fetched once the user actually switches to the
+// Kanban view instead of bloating the initial transcript-view bundle.
+const TranscriptKanbanView = lazy(() => import('./TranscriptKanbanView'));
 
 interface TranscriptViewProps {
   transcript: Transcript | null;
@@ -158,14 +161,27 @@ export default function TranscriptView({
           <Card.Body>
             {transcript && transcript.segments ? (
               displayMode === 'kanban' ? (
-                <TranscriptKanbanView
-                  segments={transcript.segments}
-                  displayTextByIndex={displayTextByIndex}
-                  activeSegmentIndex={activeSegmentIndex}
-                  handleEditText={handleEditText}
-                  onSeekToSegment={handleSeekToSegment}
-                  onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
-                />
+                <Suspense
+                  fallback={
+                    <div className="text-center text-muted py-5">
+                      <span
+                        className="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      Loading Kanban view…
+                    </div>
+                  }
+                >
+                  <TranscriptKanbanView
+                    segments={transcript.segments}
+                    displayTextByIndex={displayTextByIndex}
+                    activeSegmentIndex={activeSegmentIndex}
+                    handleEditText={handleEditText}
+                    onSeekToSegment={handleSeekToSegment}
+                    onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                  />
+                </Suspense>
               ) : (
                 <div className="transcript-content">
                   {transcript.segments.map((segment, index) => (
