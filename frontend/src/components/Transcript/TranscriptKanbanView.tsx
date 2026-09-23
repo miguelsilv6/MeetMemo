@@ -10,10 +10,11 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { Badge, Button } from '@govtechsg/sgds-react';
-import { Pencil, Play } from 'lucide-react';
+import { Badge, Button, Form } from '@govtechsg/sgds-react';
+import { Pencil, Play, Plus, X } from 'lucide-react';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
+import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 
 interface IndexedSegment {
@@ -29,6 +30,8 @@ interface TranscriptKanbanViewProps {
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  onBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
+  onDeleteSegments: (indices: number[]) => void;
 }
 
 /** A single draggable chat bubble inside a Kanban column. */
@@ -143,6 +146,7 @@ function KanbanColumn({
   handleEditText,
   onSeekToSegment,
   onMoveSegmentSpeaker,
+  onRequestRemoveSpeaker,
 }: {
   speaker: string;
   bubbles: IndexedSegment[];
@@ -152,6 +156,7 @@ function KanbanColumn({
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  onRequestRemoveSpeaker: (speaker: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: speaker });
   const color = getSpeakerColor(speaker);
@@ -170,7 +175,19 @@ function KanbanColumn({
         >
           {speaker}
         </Badge>
-        <small className="text-muted">{bubbles.length}</small>
+        <div className="d-flex align-items-center gap-1">
+          <small className="text-muted">{bubbles.length}</small>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 kanban-column-remove-btn"
+            onClick={() => onRequestRemoveSpeaker(speaker)}
+            title={`Remove ${speaker}`}
+            style={{ color: 'var(--mm-danger, #dc3545)' }}
+          >
+            <X size={16} />
+          </Button>
+        </div>
       </div>
       <div className="kanban-column-body">
         {bubbles.length === 0 ? (
@@ -194,10 +211,54 @@ function KanbanColumn({
   );
 }
 
+/** Trailing card that lets the user add a new, initially empty, speaker column. */
+function AddSpeakerColumn({ onAdd }: { onAdd: (name: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState('');
+
+  const commit = () => {
+    const trimmed = name.trim();
+    if (trimmed) onAdd(trimmed);
+    setName('');
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <button type="button" className="kanban-add-column" onClick={() => setEditing(true)}>
+        <Plus size={16} className="me-1" />
+        Add speaker
+      </button>
+    );
+  }
+
+  return (
+    <div className="kanban-add-column kanban-add-column-editing">
+      <Form.Control
+        autoFocus
+        size="sm"
+        placeholder="Speaker name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit();
+          if (e.key === 'Escape') {
+            setName('');
+            setEditing(false);
+          }
+        }}
+        onBlur={commit}
+      />
+    </div>
+  );
+}
+
 /**
  * Kanban-style transcript view: one column per speaker, bubbles ordered by
  * timestamp within each column. Dragging a bubble to another column reassigns
  * that segment's speaker, so misattributed lines can be corrected in place.
+ * Speakers can also be added (an empty column to drag/move lines into) or
+ * removed (moving or deleting their lines first).
  */
 export default function TranscriptKanbanView({
   segments,
@@ -206,8 +267,15 @@ export default function TranscriptKanbanView({
   handleEditText,
   onSeekToSegment,
   onMoveSegmentSpeaker,
+  onBulkMoveSegments,
+  onDeleteSegments,
 }: TranscriptKanbanViewProps) {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  // Speakers added via "Add speaker" that have no segments yet. Purely a UI
+  // placeholder — there is nothing to persist until a segment actually moves
+  // into one, so this does not survive a reload.
+  const [extraSpeakers, setExtraSpeakers] = useState<string[]>([]);
+  const [removingSpeaker, setRemovingSpeaker] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -217,7 +285,11 @@ export default function TranscriptKanbanView({
     })
   );
 
-  const speakers = useMemo(() => [...new Set(segments.map((s) => s.speaker))], [segments]);
+  const dataSpeakers = useMemo(() => [...new Set(segments.map((s) => s.speaker))], [segments]);
+  const speakers = useMemo(
+    () => [...dataSpeakers, ...extraSpeakers.filter((s) => !dataSpeakers.includes(s))],
+    [dataSpeakers, extraSpeakers]
+  );
 
   const columns = useMemo(() => {
     const bySpeaker = new Map<string, IndexedSegment[]>();
@@ -248,45 +320,88 @@ export default function TranscriptKanbanView({
     }
   };
 
-  if (speakers.length === 0) {
+  const handleAddSpeaker = (name: string) => {
+    const alreadyExists = speakers.some((s) => s.toLowerCase() === name.toLowerCase());
+    if (alreadyExists) return;
+    setExtraSpeakers((prev) => [...prev, name]);
+  };
+
+  const removingBubbles = removingSpeaker ? (columns.get(removingSpeaker) ?? []) : [];
+  const removingIndices = removingBubbles.map((b) => b.index);
+  const otherSpeakers = removingSpeaker ? speakers.filter((s) => s !== removingSpeaker) : [];
+
+  const closeRemoveModal = () => setRemovingSpeaker(null);
+
+  const handleRequestRemoveSpeaker = (speaker: string) => {
+    const bubbles = columns.get(speaker) ?? [];
+    if (bubbles.length === 0) {
+      // Nothing to lose — just drop the empty placeholder column.
+      setExtraSpeakers((prev) => prev.filter((s) => s !== speaker));
+      return;
+    }
+    setRemovingSpeaker(speaker);
+  };
+
+  if (segments.length === 0) {
     return null;
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setDraggingIndex(null)}
-    >
-      <div className="kanban-board">
-        {speakers.map((speaker) => (
-          <KanbanColumn
-            key={speaker}
-            speaker={speaker}
-            bubbles={columns.get(speaker) ?? []}
-            displayTextByIndex={displayTextByIndex}
-            activeSegmentIndex={activeSegmentIndex}
-            speakers={speakers}
-            handleEditText={handleEditText}
-            onSeekToSegment={onSeekToSegment}
-            onMoveSegmentSpeaker={onMoveSegmentSpeaker}
-          />
-        ))}
-      </div>
-      <DragOverlay>
-        {draggingSegment ? (
-          <div
-            className="kanban-bubble kanban-bubble-overlay p-2"
-            style={{ borderColor: getSpeakerBorderColor(draggingSegment.speaker) }}
-          >
-            <p className="mb-0 small">
-              {(draggingIndex !== null && displayTextByIndex?.[draggingIndex]) ??
-                draggingSegment.text}
-            </p>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+    <>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setDraggingIndex(null)}
+      >
+        <div className="kanban-board">
+          {speakers.map((speaker) => (
+            <KanbanColumn
+              key={speaker}
+              speaker={speaker}
+              bubbles={columns.get(speaker) ?? []}
+              displayTextByIndex={displayTextByIndex}
+              activeSegmentIndex={activeSegmentIndex}
+              speakers={speakers}
+              handleEditText={handleEditText}
+              onSeekToSegment={onSeekToSegment}
+              onMoveSegmentSpeaker={onMoveSegmentSpeaker}
+              onRequestRemoveSpeaker={handleRequestRemoveSpeaker}
+            />
+          ))}
+          <AddSpeakerColumn onAdd={handleAddSpeaker} />
+        </div>
+        <DragOverlay>
+          {draggingSegment ? (
+            <div
+              className="kanban-bubble kanban-bubble-overlay p-2"
+              style={{ borderColor: getSpeakerBorderColor(draggingSegment.speaker) }}
+            >
+              <p className="mb-0 small">
+                {(draggingIndex !== null && displayTextByIndex?.[draggingIndex]) ??
+                  draggingSegment.text}
+              </p>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      <RemoveSpeakerModal
+        key={removingSpeaker ?? 'none'}
+        show={removingSpeaker !== null}
+        onHide={closeRemoveModal}
+        speaker={removingSpeaker}
+        segmentCount={removingIndices.length}
+        otherSpeakers={otherSpeakers}
+        onMove={(targetSpeaker) => {
+          onBulkMoveSegments(removingIndices, targetSpeaker);
+          closeRemoveModal();
+        }}
+        onDelete={() => {
+          onDeleteSegments(removingIndices);
+          closeRemoveModal();
+        }}
+      />
+    </>
   );
 }

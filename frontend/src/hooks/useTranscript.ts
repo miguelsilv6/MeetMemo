@@ -77,6 +77,51 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     }
   };
 
+  // Reassign several segments to a different speaker at once (e.g. removing a
+  // speaker column and moving all its lines to another one). One optimistic
+  // update + one API call for the whole batch, rolled back together on failure.
+  const handleBulkMoveSegments = async (indices: number[], newSpeaker: string) => {
+    if (!transcript || !jobId || indices.length === 0) return;
+
+    const previousTranscript = transcript;
+    const updatedSegments = [...(transcript.segments ?? [])];
+    for (const index of indices) {
+      if (updatedSegments[index]) {
+        updatedSegments[index] = { ...updatedSegments[index], speaker: newSpeaker };
+      }
+    }
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, updatedSegments);
+    } catch (err) {
+      setTranscriptWithColors(previousTranscript);
+      setError((err as Error).message || 'Failed to move segments to speaker');
+    }
+  };
+
+  // Permanently remove segments from the transcript (e.g. deleting a speaker
+  // and its lines instead of reassigning them). Rolled back on failure.
+  const handleDeleteSegments = async (indices: number[]) => {
+    if (!transcript || !jobId || indices.length === 0) return;
+
+    const previousTranscript = transcript;
+    const indexSet = new Set(indices);
+    const updatedSegments = (transcript.segments ?? []).filter((_, i) => !indexSet.has(i));
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, updatedSegments);
+    } catch (err) {
+      setTranscriptWithColors(previousTranscript);
+      setError((err as Error).message || 'Failed to delete segments');
+    }
+  };
+
   return {
     transcript,
     setTranscriptWithColors,
@@ -87,5 +132,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     handleEditText,
     handleSaveSegmentText,
     handleMoveSegmentSpeaker,
+    handleBulkMoveSegments,
+    handleDeleteSegments,
   };
 }
