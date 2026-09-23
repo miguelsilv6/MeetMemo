@@ -6,6 +6,7 @@ import {
   generateMarkdownFilename,
   generateTranscriptPDFFilename,
   generateTranscriptMarkdownFilename,
+  generateTranscriptDocxFilename,
 } from '../utils/fileNaming';
 import type {
   ApiError,
@@ -19,6 +20,7 @@ import type {
   TranscriptSegment,
   TranslateResponse,
   UploadResponse,
+  WaveformResponse,
 } from '../types/api';
 
 const API_BASE_URL = '/api/v1';
@@ -188,6 +190,21 @@ export async function getJobStatus(uuid: string): Promise<JobStatus> {
 // Get transcript
 export async function getTranscript(uuid: string): Promise<Transcript> {
   return await apiCall<Transcript>(`/jobs/${uuid}/transcripts`);
+}
+
+// Get downsampled waveform peaks for a time range, for the split-segment scrubber
+export async function getWaveformPeaks(
+  uuid: string,
+  start: number,
+  end: number,
+  buckets = 100
+): Promise<WaveformResponse> {
+  const params = new URLSearchParams({
+    start: String(start),
+    end: String(end),
+    buckets: String(buckets),
+  });
+  return await apiCall<WaveformResponse>(`/jobs/${uuid}/waveform?${params}`);
 }
 
 // Identify speakers with AI
@@ -400,6 +417,35 @@ export async function downloadTranscriptMarkdown(
     return { success: true };
   } catch (error) {
     console.error('Transcript Markdown Download Error:', error);
+    throw error;
+  }
+}
+
+// Download Transcript Word document (transcript only, no AI summary)
+export async function downloadTranscriptDocx(
+  uuid: string,
+  originalFilename: string | null | undefined
+): Promise<DownloadResult> {
+  try {
+    const url = `${API_BASE_URL}/jobs/${uuid}/exports/transcript/docx`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    triggerBlobDownload(blob, generateTranscriptDocxFilename(originalFilename));
+
+    return { success: true };
+  } catch (error) {
+    console.error('Transcript DOCX Download Error:', error);
     throw error;
   }
 }

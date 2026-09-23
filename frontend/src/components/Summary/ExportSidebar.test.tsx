@@ -22,6 +22,18 @@ describe('ExportSidebar', () => {
     expect(api.downloadPDF).toHaveBeenCalledWith('job1', 'meeting.mp3');
   });
 
+  it('exports the transcript-only Word document with the job id and filename', () => {
+    render(
+      <ExportSidebar
+        jobId="job1"
+        selectedFile={{ name: 'meeting.mp3' }}
+        handleStartNewMeeting={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByText('Export Word'));
+    expect(api.downloadTranscriptDocx).toHaveBeenCalledWith('job1', 'meeting.mp3');
+  });
+
   it('starts a new meeting via the handler', () => {
     const handleStartNewMeeting = vi.fn();
     render(

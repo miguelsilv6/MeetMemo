@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Modal, Button, Form } from '@govtechsg/sgds-react';
 import { Scissors } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import useWaveformPeaks from '../../hooks/useWaveformPeaks';
+import WaveformScrubber from './WaveformScrubber';
 import type { EditingSegment } from '../../hooks/useTranscript';
 import type { SpeakerMapping } from '../../types/api';
 
@@ -9,9 +11,16 @@ interface SplitSegmentModalProps {
   show: boolean;
   onHide: () => void;
   segment: EditingSegment | null;
+  jobId: string | null;
   speakers: string[];
   editingSpeakers: SpeakerMapping;
-  onSplit: (index: number, firstText: string, secondText: string, secondSpeaker: string) => void;
+  onSplit: (
+    index: number,
+    firstText: string,
+    secondText: string,
+    secondSpeaker: string,
+    splitRatio?: number
+  ) => void;
 }
 
 /**
@@ -39,6 +48,7 @@ export default function SplitSegmentModal({
   show,
   onHide,
   segment,
+  jobId,
   speakers,
   editingSpeakers,
   onSplit,
@@ -46,10 +56,20 @@ export default function SplitSegmentModal({
   const { t } = useTranslation();
   const [defaultFirst, defaultSecond] = segment ? defaultSplit(segment.text) : ['', ''];
   const otherSpeakers = segment ? speakers.filter((s) => s !== segment.speaker) : speakers;
+  // Starts at the same text-proportional split the backend falls back to, so
+  // the outcome is unchanged until the user actually drags the waveform.
+  const defaultRatio = segment?.text.length ? defaultFirst.length / segment.text.length : 0.5;
 
   const [firstText, setFirstText] = useState(defaultFirst);
   const [secondText, setSecondText] = useState(defaultSecond);
   const [secondSpeaker, setSecondSpeaker] = useState(otherSpeakers[0] ?? '');
+  const [splitRatio, setSplitRatio] = useState(defaultRatio);
+
+  const { peaks, loading, error } = useWaveformPeaks(
+    jobId,
+    Number(segment?.start ?? 0),
+    Number(segment?.end ?? 0)
+  );
 
   if (!segment) return null;
 
@@ -57,7 +77,7 @@ export default function SplitSegmentModal({
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    onSplit(segment.index, firstText.trim(), secondText.trim(), secondSpeaker);
+    onSplit(segment.index, firstText.trim(), secondText.trim(), secondSpeaker, splitRatio);
   };
 
   return (
@@ -70,6 +90,13 @@ export default function SplitSegmentModal({
       </Modal.Header>
       <Modal.Body>
         <p className="text-muted mb-3">{t('modals.splitSegment.description')}</p>
+        <WaveformScrubber
+          peaks={peaks}
+          loading={loading}
+          error={error}
+          splitRatio={splitRatio}
+          onSplitRatioChange={setSplitRatio}
+        />
         <Form.Group className="mb-3">
           <Form.Label>
             {t('modals.splitSegment.firstPartLabel', { speaker: segment.speaker })}

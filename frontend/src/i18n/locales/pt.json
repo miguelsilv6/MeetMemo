@@ -87,7 +87,10 @@
     "editThisSegment": "Editar este segmento",
     "editHint": "Duplo clique para editar",
     "insertSegmentAfter": "Inserir segmento a seguir a este",
-    "splitSegment": "Dividir em dois interlocutores"
+    "splitSegment": "Dividir em dois interlocutores",
+    "undo": "Desfazer última alteração",
+    "selectSegments": "Selecionar vários segmentos",
+    "selectSegment": "Selecionar este segmento"
   },
   "kanban": {
     "moveToSpeaker": "Mover para interlocutor",
@@ -96,6 +99,17 @@
     "removeSpeaker": "Remover {{speaker}}",
     "addSpeaker": "Adicionar interlocutor",
     "speakerNamePlaceholder": "Nome do interlocutor"
+  },
+  "bulkActions": {
+    "selectedCount_one": "{{count}} segmento selecionado",
+    "selectedCount_other": "{{count}} segmentos selecionados",
+    "moveTo": "Mover para interlocutor...",
+    "move": "Mover",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "deleteConfirmTitle": "Eliminar segmentos selecionados",
+    "deleteConfirmBody_one": "Eliminar este segmento? Podes desfazer esta ação a seguir com o botão Desfazer.",
+    "deleteConfirmBody_other": "Eliminar estes {{count}} segmentos? Podes desfazer esta ação a seguir com o botão Desfazer."
   },
   "meetingInfo": {
     "title": "Informação da Reunião",
@@ -110,7 +124,8 @@
     "generatingSummary": "A gerar...",
     "generateSummary": "Gerar Resumo com IA",
     "exportMarkdown": "Exportar Markdown",
-    "exportPdf": "Exportar PDF"
+    "exportPdf": "Exportar PDF",
+    "exportWord": "Exportar Word"
   },
   "modals": {
     "editSpeakers": {
@@ -142,7 +157,10 @@
       "secondSpeakerLabel": "Interlocutor da segunda parte",
       "newSpeakerPrompt": "Introduz o nome do novo interlocutor (ex.: João Silva ou SPEAKER_03):",
       "addNewSpeaker": "+ Adicionar Novo Interlocutor",
-      "confirmButton": "Dividir Segmento"
+      "confirmButton": "Dividir Segmento",
+      "loadingWaveform": "A carregar forma de onda…",
+      "waveformLabel": "Ponto de divisão no áudio",
+      "waveformHint": "Arrasta o marcador (ou usa as setas do teclado) para definir exatamente onde o áudio se divide."
     },
     "editSummary": {
       "title": "Editar Resumo da IA",
@@ -179,6 +197,7 @@
     "summaryPlusTranscript": "Resumo IA + Transcrição",
     "exportPdf": "Exportar PDF",
     "exportMarkdown": "Exportar Markdown",
+    "exportWord": "Exportar Word",
     "transcriptOnly": "Apenas Transcrição",
     "startNewMeeting": "Iniciar Nova Reunião"
   },
@@ -231,6 +250,7 @@
     "moveSegments": "Falha ao mover os segmentos para o interlocutor",
     "deleteSegments": "Falha ao eliminar os segmentos",
     "splitSegment": "Falha ao dividir o segmento",
+    "undo": "Falha ao desfazer a última alteração",
     "updateSpeakers": "Falha ao atualizar os interlocutores",
     "identifySpeakers": "Falha ao identificar interlocutores automaticamente",
     "translateTranscript": "Falha ao traduzir a transcrição",

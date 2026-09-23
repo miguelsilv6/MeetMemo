@@ -170,6 +170,8 @@ def generate_professional_filename(
         base_name = f"{clean_title}_summary"
     elif file_type == 'markdown':
         base_name = f"{clean_title}_summary"
+    elif file_type == 'docx':
+        base_name = f"{clean_title}_summary"
     elif file_type == 'json':
         base_name = f"{clean_title}_transcript"
     else:

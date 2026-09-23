@@ -82,4 +82,44 @@ describe('TranscriptSegment', () => {
     fireEvent.click(screen.getByTitle('Split into two speakers'));
     expect(onSplitSegment).toHaveBeenCalledWith(segment, 1);
   });
+
+  it('shows a checkbox and hides the action buttons in select mode', () => {
+    renderSegment({ selectMode: true });
+    expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    expect(screen.queryByTitle('Edit this segment')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Insert segment after this one')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Split into two speakers')).not.toBeInTheDocument();
+  });
+
+  it('toggles selection when clicked in select mode, instead of seeking', () => {
+    const onToggleSelect = vi.fn();
+    const onSeekToSegment = vi.fn();
+    renderSegment({ selectMode: true, index: 2, onToggleSelect, onSeekToSegment });
+
+    fireEvent.click(screen.getByText('Welcome everyone'));
+
+    expect(onToggleSelect).toHaveBeenCalledWith(2);
+    expect(onSeekToSegment).not.toHaveBeenCalled();
+  });
+
+  it('toggles selection via the checkbox itself', () => {
+    const onToggleSelect = vi.fn();
+    renderSegment({ selectMode: true, index: 5, onToggleSelect });
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    expect(onToggleSelect).toHaveBeenCalledWith(5);
+  });
+
+  it('reflects the isSelected prop on the checkbox', () => {
+    renderSegment({ selectMode: true, isSelected: true });
+    expect(screen.getByRole('checkbox')).toBeChecked();
+  });
+
+  it('does not open the edit modal on double-click while in select mode', () => {
+    const handleEditText = vi.fn();
+    renderSegment({ selectMode: true, handleEditText });
+    fireEvent.doubleClick(screen.getByText('Welcome everyone'));
+    expect(handleEditText).not.toHaveBeenCalled();
+  });
 });

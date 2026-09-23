@@ -65,6 +65,8 @@ function App() {
     handleRequestSplitSegment,
     handleCancelSplitSegment,
     handleSplitSegment,
+    canUndo,
+    handleUndo,
   } = useTranscript(jobId, setError);
 
   // Transcript translation (Portuguese)
@@ -230,6 +232,8 @@ function App() {
             translating={translating}
             showTranslation={showTranslation}
             handleToggleTranslation={handleToggleTranslation}
+            canUndo={canUndo}
+            handleUndo={handleUndo}
           />
         )}
 
@@ -276,6 +280,7 @@ function App() {
         show={showSplitModal}
         onHide={handleCancelSplitSegment}
         segment={splittingSegment}
+        jobId={jobId}
         speakers={[...new Set((transcript?.segments ?? []).map((s) => s.speaker))]}
         editingSpeakers={editingSpeakers}
         onSplit={handleSplitSegment}

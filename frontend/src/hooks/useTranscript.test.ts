@@ -281,6 +281,24 @@ describe('useTranscript', () => {
     });
   });
 
+  it('splits at an explicit splitRatio (e.g. picked on the waveform) instead of the text-length estimate', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({
+        segments: [{ speaker: 'SPEAKER_00', start: 0, end: 10, text: 'aaaaabbbbb' }],
+      });
+    });
+    await act(async () => {
+      await result.current.handleSplitSegment(0, 'aaaaa', 'bbbbb', 'SPEAKER_01', 0.2);
+    });
+
+    const updated = result.current.transcript?.segments;
+    expect(updated?.[0]).toMatchObject({ end: 2 });
+    expect(updated?.[1]).toMatchObject({ start: 2, end: 10 });
+  });
+
   it('rolls back a split if the API call fails', async () => {
     const setError = vi.fn();
     vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
@@ -295,5 +313,120 @@ describe('useTranscript', () => {
 
     expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
     expect(setError).toHaveBeenCalledWith('network down');
+  });
+
+  it('has no undo history for a freshly-loaded transcript', () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it('tracks undo history after a mutation and steps back through it', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    await act(async () => {
+      await result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
+    });
+
+    expect(result.current.canUndo).toBe(true);
+    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_01');
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    expect(result.current.transcript?.segments).toEqual(segments);
+    expect(result.current.canUndo).toBe(false);
+    // The undo itself is persisted to the backend.
+    expect(api.updateTranscript).toHaveBeenLastCalledWith('job1', segments);
+  });
+
+  it('does nothing when there is no history to undo', async () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    expect(api.updateTranscript).not.toHaveBeenCalled();
+    expect(result.current.transcript?.segments).toEqual(segments);
+  });
+
+  it('rolls back an undo if the API call fails, restoring the history entry', async () => {
+    const setError = vi.fn();
+    vi.mocked(api.updateTranscript).mockResolvedValueOnce({});
+    const { result } = renderHook(() => useTranscript('job1', setError));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    await act(async () => {
+      await result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
+    });
+    expect(result.current.canUndo).toBe(true);
+
+    vi.mocked(api.updateTranscript).mockRejectedValueOnce(new Error('network down'));
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_01');
+    expect(result.current.canUndo).toBe(true);
+    expect(setError).toHaveBeenCalledWith('network down');
+  });
+
+  it('does not add an unsaved, cancelled insert to the undo history', () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    act(() => {
+      result.current.handleInsertSegmentAfter(0);
+    });
+    act(() => {
+      result.current.handleCancelEditText();
+    });
+
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it('undoing a saved insert restores the pre-insert persisted state, not the blank placeholder', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    act(() => {
+      result.current.handleInsertSegmentAfter(0);
+    });
+    act(() => {
+      result.current.setEditingSegment({
+        speaker: 'SPEAKER_00',
+        start: 2,
+        end: 3,
+        text: 'Filled in',
+        index: 1,
+      });
+    });
+    await act(async () => {
+      await result.current.handleSaveSegmentText();
+    });
+    expect(result.current.transcript?.segments).toHaveLength(4);
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
   });
 });

@@ -1,6 +1,15 @@
 import { useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { Row, Col, Card, Button, ButtonGroup } from '@govtechsg/sgds-react';
-import { FileText, Users, LayoutList, LayoutGrid, Languages } from 'lucide-react';
+import { Row, Col, Card, Button, ButtonGroup, Modal, Form } from '@govtechsg/sgds-react';
+import {
+  FileText,
+  Users,
+  LayoutList,
+  LayoutGrid,
+  Languages,
+  CheckSquare,
+  Undo2,
+  Trash2,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import TranscriptSegment from './TranscriptSegment';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
@@ -36,6 +45,8 @@ interface TranscriptViewProps {
   translating: boolean;
   showTranslation: boolean;
   handleToggleTranslation: (segments: TranscriptSegmentType[] | undefined) => void;
+  canUndo: boolean;
+  handleUndo: () => void;
 }
 
 /**
@@ -82,11 +93,56 @@ export default function TranscriptView({
   translating,
   showTranslation,
   handleToggleTranslation,
+  canUndo,
+  handleUndo,
 }: TranscriptViewProps) {
   const { t } = useTranslation();
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
   const [displayMode, setDisplayMode] = useState<TranscriptDisplayMode>('list');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+  const [bulkMoveTarget, setBulkMoveTarget] = useState('');
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const audioPlayerRef = useRef<AudioPlayerHandle | null>(null);
+
+  const speakers = useMemo(
+    () => [...new Set((transcript?.segments ?? []).map((s) => s.speaker))],
+    [transcript]
+  );
+
+  const toggleSelectMode = () => {
+    setSelectMode((prev) => !prev);
+    setSelectedIndices(new Set());
+  };
+
+  const handleToggleSelect = useCallback((index: number) => {
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  }, []);
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIndices(new Set());
+  };
+
+  const handleBulkMove = () => {
+    if (!bulkMoveTarget || selectedIndices.size === 0) return;
+    handleBulkMoveSegments([...selectedIndices], bulkMoveTarget);
+    exitSelectMode();
+  };
+
+  const handleConfirmBulkDelete = () => {
+    handleDeleteSegments([...selectedIndices]);
+    setShowBulkDeleteConfirm(false);
+    exitSelectMode();
+  };
 
   // Translated text to display in place of each segment's original text, by
   // index, when a Portuguese translation is active. Segments themselves (and
@@ -168,8 +224,67 @@ export default function TranscriptView({
                 <Users size={16} className="me-1" />
                 {t('transcript.editSpeakers')}
               </Button>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={handleUndo}
+                disabled={!canUndo}
+                title={t('transcript.undo')}
+              >
+                <Undo2 size={16} />
+              </Button>
+              <Button
+                variant={selectMode ? 'primary' : 'outline-secondary'}
+                size="sm"
+                onClick={toggleSelectMode}
+                disabled={!transcript?.segments?.length}
+                title={t('transcript.selectSegments')}
+              >
+                <CheckSquare size={16} />
+              </Button>
             </div>
           </Card.Header>
+          {selectMode && (
+            <div className="bulk-actions-bar d-flex flex-wrap gap-2 align-items-center px-3 py-2 border-bottom">
+              <span className="text-muted small">
+                {t('bulkActions.selectedCount', { count: selectedIndices.size })}
+              </span>
+              <Form.Select
+                size="sm"
+                style={{ width: 'auto' }}
+                value={bulkMoveTarget}
+                onChange={(e) => setBulkMoveTarget(e.target.value)}
+                disabled={selectedIndices.size === 0}
+              >
+                <option value="">{t('bulkActions.moveTo')}</option>
+                {speakers.map((speaker) => (
+                  <option key={speaker} value={speaker}>
+                    {speaker}
+                  </option>
+                ))}
+              </Form.Select>
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={handleBulkMove}
+                disabled={selectedIndices.size === 0 || !bulkMoveTarget}
+              >
+                {t('bulkActions.move')}
+              </Button>
+              <Button
+                variant="outline-danger"
+                size="sm"
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                disabled={selectedIndices.size === 0}
+              >
+                <Trash2 size={14} className="me-1" />
+                {t('bulkActions.delete')}
+              </Button>
+              <Button variant="link" size="sm" onClick={exitSelectMode}>
+                {t('bulkActions.cancel')}
+              </Button>
+            </div>
+          )}
           <Card.Body>
             {transcript && transcript.segments ? (
               displayMode === 'kanban' ? (
@@ -196,6 +311,9 @@ export default function TranscriptView({
                     onDeleteSegments={handleDeleteSegments}
                     onInsertSegmentAfter={handleInsertSegmentAfter}
                     onSplitSegment={handleRequestSplitSegment}
+                    selectMode={selectMode}
+                    selectedIndices={selectedIndices}
+                    onToggleSelect={handleToggleSelect}
                   />
                 </Suspense>
               ) : (
@@ -211,6 +329,9 @@ export default function TranscriptView({
                       onSeekToSegment={handleSeekToSegment}
                       onInsertSegmentAfter={handleInsertSegmentAfter}
                       onSplitSegment={handleRequestSplitSegment}
+                      selectMode={selectMode}
+                      isSelected={selectedIndices.has(index)}
+                      onToggleSelect={handleToggleSelect}
                     />
                   ))}
                 </div>
@@ -240,6 +361,23 @@ export default function TranscriptView({
           jobId={jobId}
         />
       </Col>
+
+      <Modal show={showBulkDeleteConfirm} onHide={() => setShowBulkDeleteConfirm(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{t('bulkActions.deleteConfirmTitle')}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {t('bulkActions.deleteConfirmBody', { count: selectedIndices.size })}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setShowBulkDeleteConfirm(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="outline-danger" onClick={handleConfirmBulkDelete}>
+            {t('common.delete')}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Row>
   );
 }

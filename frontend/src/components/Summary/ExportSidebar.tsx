@@ -52,11 +52,19 @@ export default function ExportSidebar({
         </Button>
         <Button
           variant="outline-secondary"
-          className="w-100 mb-3"
+          className="w-100 mb-2"
           onClick={() => jobId && api.downloadTranscriptMarkdown(jobId, selectedFile?.name)}
         >
           <Download size={18} className="me-2" />
           {t('summary.exportMarkdown')}
+        </Button>
+        <Button
+          variant="outline-secondary"
+          className="w-100 mb-3"
+          onClick={() => jobId && api.downloadTranscriptDocx(jobId, selectedFile?.name)}
+        >
+          <Download size={18} className="me-2" />
+          {t('summary.exportWord')}
         </Button>
 
         <hr />

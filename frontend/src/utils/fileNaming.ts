@@ -82,3 +82,16 @@ export function generateTranscriptMarkdownFilename(
   const timestamp = getTimestamp();
   return `${baseName}_Transcript_${timestamp}.md`;
 }
+
+/**
+ * Generate filename for transcript-only Word document
+ * @param {string} originalFilename - Original audio filename
+ * @returns {string} - e.g., "MeetMemo_Team_Meeting_Transcript_2024-01-15_14-30.docx"
+ */
+export function generateTranscriptDocxFilename(
+  originalFilename: string | null | undefined
+): string {
+  const baseName = sanitizeFilename(originalFilename);
+  const timestamp = getTimestamp();
+  return `${baseName}_Transcript_${timestamp}.docx`;
+}
