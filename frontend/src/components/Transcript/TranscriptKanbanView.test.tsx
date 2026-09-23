@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TranscriptKanbanView from './TranscriptKanbanView';
@@ -9,17 +10,23 @@ const segments: TranscriptSegmentType[] = [
   { speaker: 'SPEAKER_00', start: 4, end: 6, text: 'How are you' },
 ];
 
+function renderKanban(overrides: Partial<ComponentProps<typeof TranscriptKanbanView>> = {}) {
+  const props = {
+    segments,
+    activeSegmentIndex: -1,
+    handleEditText: vi.fn(),
+    onSeekToSegment: vi.fn(),
+    onMoveSegmentSpeaker: vi.fn(),
+    onBulkMoveSegments: vi.fn(),
+    onDeleteSegments: vi.fn(),
+    ...overrides,
+  };
+  return { ...render(<TranscriptKanbanView {...props} />), props };
+}
+
 describe('TranscriptKanbanView', () => {
   it('groups segments into one column per speaker, ordered by timestamp', () => {
-    render(
-      <TranscriptKanbanView
-        segments={segments}
-        activeSegmentIndex={-1}
-        handleEditText={vi.fn()}
-        onSeekToSegment={vi.fn()}
-        onMoveSegmentSpeaker={vi.fn()}
-      />
-    );
+    renderKanban();
 
     // Column header badges carry a `title` matching the speaker, which
     // disambiguates them from the speaker name also appearing as an
@@ -32,16 +39,9 @@ describe('TranscriptKanbanView', () => {
   });
 
   it('renders translated text in place of the original when provided', () => {
-    render(
-      <TranscriptKanbanView
-        segments={segments}
-        displayTextByIndex={['Ola a todos', undefined as unknown as string, 'Como estas']}
-        activeSegmentIndex={-1}
-        handleEditText={vi.fn()}
-        onSeekToSegment={vi.fn()}
-        onMoveSegmentSpeaker={vi.fn()}
-      />
-    );
+    renderKanban({
+      displayTextByIndex: ['Ola a todos', undefined as unknown as string, 'Como estas'],
+    });
 
     expect(screen.getByText('Ola a todos')).toBeInTheDocument();
     expect(screen.getByText('Hi there')).toBeInTheDocument();
@@ -52,20 +52,15 @@ describe('TranscriptKanbanView', () => {
   it('seeks to a bubble start time when clicked, and edits with the original segment', () => {
     const onSeekToSegment = vi.fn();
     const handleEditText = vi.fn();
-    render(
-      <TranscriptKanbanView
-        segments={segments}
-        displayTextByIndex={[
-          'Ola a todos',
-          undefined as unknown as string,
-          undefined as unknown as string,
-        ]}
-        activeSegmentIndex={-1}
-        handleEditText={handleEditText}
-        onSeekToSegment={onSeekToSegment}
-        onMoveSegmentSpeaker={vi.fn()}
-      />
-    );
+    renderKanban({
+      displayTextByIndex: [
+        'Ola a todos',
+        undefined as unknown as string,
+        undefined as unknown as string,
+      ],
+      handleEditText,
+      onSeekToSegment,
+    });
 
     fireEvent.click(screen.getByText('Ola a todos'));
     expect(onSeekToSegment).toHaveBeenCalledWith(0);
@@ -77,15 +72,7 @@ describe('TranscriptKanbanView', () => {
   it('reassigns a segment via the keyboard-accessible speaker select, without triggering seek', () => {
     const onSeekToSegment = vi.fn();
     const onMoveSegmentSpeaker = vi.fn();
-    render(
-      <TranscriptKanbanView
-        segments={segments}
-        activeSegmentIndex={-1}
-        handleEditText={vi.fn()}
-        onSeekToSegment={onSeekToSegment}
-        onMoveSegmentSpeaker={onMoveSegmentSpeaker}
-      />
-    );
+    renderKanban({ onSeekToSegment, onMoveSegmentSpeaker });
 
     const selects = screen.getAllByLabelText('Move to speaker');
     expect(selects[0]).toHaveValue('SPEAKER_00');
@@ -100,29 +87,80 @@ describe('TranscriptKanbanView', () => {
     const singleSpeakerSegments: TranscriptSegmentType[] = [
       { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Hello everyone' },
     ];
-    render(
-      <TranscriptKanbanView
-        segments={singleSpeakerSegments}
-        activeSegmentIndex={-1}
-        handleEditText={vi.fn()}
-        onSeekToSegment={vi.fn()}
-        onMoveSegmentSpeaker={vi.fn()}
-      />
-    );
+    renderKanban({ segments: singleSpeakerSegments });
 
     expect(screen.queryByLabelText('Move to speaker')).not.toBeInTheDocument();
   });
 
   it('renders nothing when there are no segments', () => {
-    const { container } = render(
-      <TranscriptKanbanView
-        segments={[]}
-        activeSegmentIndex={-1}
-        handleEditText={vi.fn()}
-        onSeekToSegment={vi.fn()}
-        onMoveSegmentSpeaker={vi.fn()}
-      />
-    );
+    const { container } = renderKanban({ segments: [] });
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('adds a new empty speaker column that segments can be reassigned into', () => {
+    renderKanban();
+
+    fireEvent.click(screen.getByRole('button', { name: /add speaker/i }));
+    fireEvent.change(screen.getByPlaceholderText('Speaker name'), {
+      target: { value: 'Moderator' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText('Speaker name'), { key: 'Enter' });
+
+    expect(screen.getByTitle('Moderator')).toBeInTheDocument();
+    // The new column's select options include the newly added speaker.
+    const selects = screen.getAllByLabelText('Move to speaker');
+    expect(selects[0]).toContainHTML('Moderator');
+  });
+
+  it('does not add a duplicate speaker (case-insensitive)', () => {
+    renderKanban();
+
+    fireEvent.click(screen.getByRole('button', { name: /add speaker/i }));
+    fireEvent.change(screen.getByPlaceholderText('Speaker name'), {
+      target: { value: 'speaker_00' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText('Speaker name'), { key: 'Enter' });
+
+    expect(screen.getAllByTitle('SPEAKER_00')).toHaveLength(1);
+  });
+
+  it('removes an empty speaker column immediately, without a confirmation modal', () => {
+    renderKanban();
+
+    fireEvent.click(screen.getByRole('button', { name: /add speaker/i }));
+    fireEvent.change(screen.getByPlaceholderText('Speaker name'), {
+      target: { value: 'Moderator' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText('Speaker name'), { key: 'Enter' });
+    expect(screen.getByTitle('Moderator')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTitle('Remove Moderator'));
+
+    expect(screen.queryByTitle('Moderator')).not.toBeInTheDocument();
+    expect(screen.queryByText(/remove speaker/i)).not.toBeInTheDocument();
+  });
+
+  it('prompts to move or delete when removing a speaker that has segments', () => {
+    const onBulkMoveSegments = vi.fn();
+    renderKanban({ onBulkMoveSegments });
+
+    fireEvent.click(screen.getByTitle('Remove SPEAKER_00'));
+
+    expect(screen.getByText(/has 2 segments/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move Segments' }));
+
+    expect(onBulkMoveSegments).toHaveBeenCalledWith([0, 2], 'SPEAKER_01');
+  });
+
+  it('deletes a speaker and its segments when that option is chosen', () => {
+    const onDeleteSegments = vi.fn();
+    renderKanban({ onDeleteSegments });
+
+    fireEvent.click(screen.getByTitle('Remove SPEAKER_00'));
+    fireEvent.click(screen.getByLabelText(/delete these segments permanently/i));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Segments' }));
+
+    expect(onDeleteSegments).toHaveBeenCalledWith([0, 2]);
   });
 });

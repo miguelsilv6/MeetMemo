@@ -56,6 +56,8 @@ function App() {
     handleEditText,
     handleSaveSegmentText,
     handleMoveSegmentSpeaker,
+    handleBulkMoveSegments,
+    handleDeleteSegments,
   } = useTranscript(jobId, setError);
 
   // Transcript translation (Portuguese)
@@ -210,6 +212,8 @@ function App() {
             handleEditSpeakers={handleEditSpeakers}
             handleEditText={handleEditText}
             handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+            handleBulkMoveSegments={handleBulkMoveSegments}
+            handleDeleteSegments={handleDeleteSegments}
             handleGenerateSummary={handleGenerateSummary}
             generatingSummary={generatingSummary}
             identifyingSpeakers={identifyingSpeakers}

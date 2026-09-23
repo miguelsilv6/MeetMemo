@@ -1,0 +1,238 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save Changes",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "close": "Close",
+    "errorPrefix": "Error:",
+    "unknown": "Unknown",
+    "notAvailable": "N/A"
+  },
+  "app": {
+    "name": "MeetMemo",
+    "tagline": "AI Meeting Summary",
+    "footer": "MeetMemo © 2025 - AI-Powered Meeting Transcription with Speaker Diarization"
+  },
+  "workflowSteps": {
+    "upload": "Upload Audio",
+    "processing": "AI Processing",
+    "transcript": "Review Transcript",
+    "summary": "Get Summary"
+  },
+  "systemInfoBar": {
+    "title": "Detected hardware and active models",
+    "cpu": "CPU",
+    "profile": "profile",
+    "whisper": "whisper",
+    "diarization": "diarization"
+  },
+  "upload": {
+    "title": "Start Your Meeting Transcription",
+    "subtitle": "Upload a recording or record live to get AI-powered transcription with speaker identification"
+  },
+  "fileUpload": {
+    "title": "Upload Audio File",
+    "languageLabel": "Transcription Language",
+    "clickToBrowse": "Click to browse",
+    "orDragDrop": "or drag & drop",
+    "supportedFormats": "Supports MP3, WAV, M4A, WEBM (max 500MB)",
+    "uploading": "Uploading..."
+  },
+  "recording": {
+    "title": "Record Live Meeting",
+    "subtitle": "Record audio directly from your microphone",
+    "tipLabel": "Tip:",
+    "tipText": "For best results, use a quality microphone and minimize background noise",
+    "recording": "Recording...",
+    "startRecording": "Start Recording",
+    "notSupported": "Your browser does not support audio recording",
+    "requiresHttps": "Recording requires HTTPS. Please access this page via HTTPS to enable microphone access"
+  },
+  "recentJobs": {
+    "title": "Recent Meetings",
+    "loading": "Loading recent meetings...",
+    "untitled": "Untitled Recording",
+    "dateUnknown": "Date unknown",
+    "statusComplete": "Complete",
+    "statusProcessing": "Processing",
+    "statusFailed": "Failed",
+    "deleteThis": "Delete this meeting",
+    "empty": "No recent meetings. Upload or record your first meeting to get started!",
+    "retentionNotice": "Meetings are automatically deleted after 12 hours",
+    "deleteModalTitle": "Delete Meeting",
+    "deleteModalBody": "Are you sure you want to delete this meeting? This action cannot be undone."
+  },
+  "processing": {
+    "title": "Processing Your Meeting",
+    "subtitle": "Our AI is transcribing audio and identifying speakers",
+    "stepUploaded": "Audio uploaded successfully",
+    "stepTranscribing": "Transcribing with Whisper AI...",
+    "stepDiarizing": "Identifying speakers with PyAnnote (slowest step)",
+    "stepAligning": "Aligning speakers with text",
+    "etaNotice": "This usually takes 2-3 minutes for a 10-minute recording"
+  },
+  "transcript": {
+    "title": "Meeting Transcript",
+    "listViewTitle": "List view",
+    "kanbanViewTitle": "Kanban view (drag between speakers)",
+    "translateToPortuguese": "Translate to Portuguese",
+    "showOriginal": "Show Original",
+    "editSpeakers": "Edit Speakers",
+    "placeholder": "Transcript will appear here after processing",
+    "loadingKanban": "Loading Kanban view…",
+    "currentlyPlaying": "Currently playing",
+    "playFromHere": "Play from here",
+    "editThisSegment": "Edit this segment"
+  },
+  "kanban": {
+    "moveToSpeaker": "Move to speaker",
+    "moveToSpeakerHint": "Move to speaker (keyboard-accessible alternative to dragging)",
+    "dropHere": "Drop here",
+    "removeSpeaker": "Remove {{speaker}}",
+    "addSpeaker": "Add speaker",
+    "speakerNamePlaceholder": "Speaker name"
+  },
+  "meetingInfo": {
+    "title": "Meeting Info",
+    "fileName": "File Name",
+    "duration": "Duration",
+    "detectedLanguage": "Detected Language",
+    "confidenceTitle": "Confidence reported by the speech recognition model",
+    "speakers": "Speakers",
+    "identifyingSpeakers": "AI is identifying speakers...",
+    "speakerHint": "Speaker names are auto-identified by AI when possible. Use \"Edit Speakers\" to make changes.",
+    "nextSteps": "Next Steps",
+    "generatingSummary": "Generating...",
+    "generateSummary": "Generate AI Summary",
+    "exportMarkdown": "Export Markdown",
+    "exportPdf": "Export PDF"
+  },
+  "modals": {
+    "editSpeakers": {
+      "title": "Edit Speaker Names",
+      "description": "Replace speaker labels with actual names. AI suggestions are automatically applied when available.",
+      "tip": "Tip: To add a new speaker, use the ✏️ button on any transcript segment.",
+      "identifying": "Identifying speakers...",
+      "aiSuggestions": "AI Suggestions",
+      "acceptSuggestion": "Accept this suggestion",
+      "dismissSuggestion": "Dismiss this suggestion",
+      "speakerNames": "Speaker Names",
+      "namePlaceholder": "Enter speaker name"
+    },
+    "editText": {
+      "title": "Edit Transcript Segment",
+      "speakerLabel": "Speaker",
+      "newSpeakerPrompt": "Enter new speaker name (e.g., John Smith or SPEAKER_03):",
+      "addNewSpeaker": "+ Add New Speaker",
+      "speakerHint": "Select an existing speaker or add a new one",
+      "textLabel": "Transcript Text"
+    },
+    "editSummary": {
+      "title": "Edit AI Summary",
+      "description": "Edit the AI-generated summary to correct any inaccuracies or add additional details before exporting.",
+      "textLabel": "Summary Text",
+      "placeholder": "Enter summary text..."
+    },
+    "recording": {
+      "title": "Recording in Progress",
+      "subtitle": "Recording audio from your microphone...",
+      "hint": "Click \"Stop Recording\" when you're finished",
+      "stopRecording": "Stop Recording"
+    },
+    "removeSpeaker": {
+      "title": "Remove Speaker",
+      "description_one": "<strong>{{speaker}}</strong> has {{count}} segment. What should happen to it?",
+      "description_other": "<strong>{{speaker}}</strong> has {{count}} segments. What should happen to them?",
+      "moveToAnother": "Move to another speaker",
+      "deleteLabel_one": "Delete this segment permanently",
+      "deleteLabel_other": "Delete these segments permanently",
+      "deleteButton": "Delete Segments",
+      "moveButton": "Move Segments"
+    }
+  },
+  "summary": {
+    "title": "AI-Generated Summary",
+    "placeholder": "AI summary will appear here",
+    "summaryHeading": "Summary",
+    "keyPoints": "Key Points",
+    "actionItems": "Action Items",
+    "fullTranscript": "Full Transcript",
+    "noTranscript": "No transcript available",
+    "exportOptions": "Export Options",
+    "summaryPlusTranscript": "AI Summary + Transcript",
+    "exportPdf": "Export PDF",
+    "exportMarkdown": "Export Markdown",
+    "transcriptOnly": "Transcript Only",
+    "startNewMeeting": "Start New Meeting"
+  },
+  "audioPlayer": {
+    "loadFailed": "Failed to load audio file",
+    "playbackFailed": "Playback failed. Please try again.",
+    "loading": "Loading audio...",
+    "progress": "Audio progress",
+    "skipBack": "Skip back 10 seconds",
+    "skipForward": "Skip forward 10 seconds",
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume"
+  },
+  "loadingScreen": {
+    "connectionError": "Connection Error",
+    "connectionHint": "Please ensure the backend service is running and try refreshing the page.",
+    "retry": "Retry Connection",
+    "tagline": "AI-Powered Meeting Transcription",
+    "connecting": "Connecting to backend services...",
+    "backendNotResponding": "Backend is not responding. Please check if the service is running."
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "The application encountered an unexpected error. This has been logged for investigation.",
+    "detailsSummary": "Error Details (Development Only)",
+    "reload": "Reload Application",
+    "goHome": "Go to Home"
+  },
+  "themeSwitcher": {
+    "light": "Light mode — click for dark",
+    "dark": "Dark mode — click for system",
+    "system": "System mode — click for light"
+  },
+  "languageSwitcher": {
+    "switchToEnglish": "Switch to English",
+    "switchToPortuguese": "Mudar para Português"
+  },
+  "errors": {
+    "network": "Unable to connect to the server. Please check your internet connection.",
+    "notFound": "The requested resource was not found.",
+    "unauthorized": "You are not authorized to access this resource.",
+    "client": "Invalid request. Please try again.",
+    "server": "Server error. Please try again later.",
+    "unknown": "An unexpected error occurred. Please try again.",
+    "updateSegment": "Failed to update segment",
+    "moveSegment": "Failed to move segment to speaker",
+    "moveSegments": "Failed to move segments to speaker",
+    "deleteSegments": "Failed to delete segments",
+    "updateSpeakers": "Failed to update speakers",
+    "identifySpeakers": "Failed to identify speakers automatically",
+    "translateTranscript": "Failed to translate transcript",
+    "generateSummary": "Failed to generate summary",
+    "updateSummary": "Failed to update summary",
+    "uploadFile": "Failed to upload file",
+    "uploadRecording": "Failed to upload recording",
+    "micDenied": "Microphone access denied. Please allow microphone access to record.",
+    "micNotFound": "No microphone found. Please connect a microphone and try again.",
+    "startRecordingFailed": "Failed to start recording: {{message}}",
+    "loadJob": "Failed to load job",
+    "deleteMeeting": "Failed to delete meeting",
+    "transcriptNotFound": "Transcript not found for this meeting. It may have been deleted or failed to process.",
+    "startTranscription": "Failed to start transcription. Please try again.",
+    "startDiarization": "Failed to start speaker identification. Please try again.",
+    "startAlignment": "Failed to start alignment. Please try again.",
+    "loadTranscript": "Failed to load transcript. Please refresh and try again.",
+    "processingFailed": "Processing failed. Please try again.",
+    "processingGeneric": "An error occurred while processing. Please try again."
+  }
+}

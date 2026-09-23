@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import '@govtechsg/sgds/css/sgds.css';
 import './themes.css';
 import './index.css';
+import './i18n';
 import App from './App';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 

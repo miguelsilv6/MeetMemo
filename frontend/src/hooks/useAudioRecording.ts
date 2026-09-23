@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
 import type { AxiosError } from 'axios';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import type { UploadResponse } from '../types/api';
@@ -21,6 +22,7 @@ export default function useAudioRecording(
   setTranscript: SetTranscriptWithColors,
   startPolling: StartPolling
 ) {
+  const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -72,7 +74,7 @@ export default function useAudioRecording(
       } catch (err) {
         console.error('Error uploading recording:', err);
         const axiosErr = err as AxiosError<{ detail?: string }>;
-        setError(axiosErr.response?.data?.detail || 'Failed to upload recording');
+        setError(axiosErr.response?.data?.detail || t('errors.uploadRecording'));
         setCurrentStep('upload');
         setProcessingProgress(0);
       } finally {
@@ -81,7 +83,7 @@ export default function useAudioRecording(
         audioChunksRef.current = [];
       }
     },
-    [setCurrentStep, setProcessingProgress, setJobId, setTranscript, startPolling, setError]
+    [setCurrentStep, setProcessingProgress, setJobId, setTranscript, startPolling, setError, t]
   );
 
   // Start recording
@@ -154,14 +156,14 @@ export default function useAudioRecording(
 
       const error = err as DOMException;
       if (error.name === 'NotAllowedError') {
-        setError('Microphone access denied. Please allow microphone access to record.');
+        setError(t('errors.micDenied'));
       } else if (error.name === 'NotFoundError') {
-        setError('No microphone found. Please connect a microphone and try again.');
+        setError(t('errors.micNotFound'));
       } else {
-        setError(`Failed to start recording: ${error.message}`);
+        setError(t('errors.startRecordingFailed', { message: error.message }));
       }
     }
-  }, [setError, uploadRecording]);
+  }, [setError, uploadRecording, t]);
 
   // Stop recording
   const stopRecording = useCallback(() => {

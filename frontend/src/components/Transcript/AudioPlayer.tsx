@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import type { ChangeEvent, MouseEvent, RefObject } from 'react';
 import { Card, Button } from '@govtechsg/sgds-react';
 import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../../services/api';
 import { formatTime } from '../../utils/timeFormat';
 
@@ -20,6 +21,7 @@ interface AudioPlayerProps {
  * Syncs with transcript segments via onTimeUpdate callback.
  */
 export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: AudioPlayerProps) {
+  const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,9 +62,9 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
 
   // Handle audio error
   const handleError = useCallback(() => {
-    setError('Failed to load audio file');
+    setError(t('audioPlayer.loadFailed'));
     setIsLoading(false);
-  }, []);
+  }, [t]);
 
   // Handle can play
   const handleCanPlay = useCallback(() => {
@@ -80,11 +82,11 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
       } else {
         audioRef.current.play().catch((err) => {
           console.error('Playback failed:', err);
-          setError('Playback failed. Please try again.');
+          setError(t('audioPlayer.playbackFailed'));
         });
       }
     }
-  }, [isPlaying]);
+  }, [isPlaying, t]);
 
   // Toggle mute
   const toggleMute = useCallback(() => {
@@ -176,7 +178,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
 
           {/* Loading state */}
           {isLoading && !error && (
-            <div className="audio-loading text-muted small mb-2">Loading audio...</div>
+            <div className="audio-loading text-muted small mb-2">{t('audioPlayer.loading')}</div>
           )}
 
           {/* Progress bar */}
@@ -185,7 +187,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
             className="audio-progress-container"
             onClick={handleProgressClick}
             role="slider"
-            aria-label="Audio progress"
+            aria-label={t('audioPlayer.progress')}
             aria-valuenow={currentTime}
             aria-valuemin={0}
             aria-valuemax={duration}
@@ -211,7 +213,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
               size="sm"
               className="audio-control-btn p-1"
               onClick={skipBackward}
-              title="Skip back 10 seconds"
+              title={t('audioPlayer.skipBack')}
               disabled={isLoading}
             >
               <SkipBack size={18} />
@@ -223,7 +225,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
               size="sm"
               className="audio-play-btn rounded-circle p-2"
               onClick={togglePlay}
-              title={isPlaying ? 'Pause' : 'Play'}
+              title={isPlaying ? t('audioPlayer.pause') : t('audioPlayer.play')}
               disabled={isLoading || !!error}
             >
               {isPlaying ? <Pause size={20} /> : <Play size={20} />}
@@ -235,7 +237,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
               size="sm"
               className="audio-control-btn p-1"
               onClick={skipForward}
-              title="Skip forward 10 seconds"
+              title={t('audioPlayer.skipForward')}
               disabled={isLoading}
             >
               <SkipForward size={18} />
@@ -248,7 +250,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
                 size="sm"
                 className="audio-control-btn p-1"
                 onClick={toggleMute}
-                title={isMuted ? 'Unmute' : 'Mute'}
+                title={isMuted ? t('audioPlayer.unmute') : t('audioPlayer.mute')}
               >
                 {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </Button>
@@ -260,7 +262,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
                 value={isMuted ? 0 : volume}
                 onChange={handleVolumeChange}
                 className="audio-volume-slider"
-                aria-label="Volume"
+                aria-label={t('audioPlayer.volume')}
               />
             </div>
           </div>

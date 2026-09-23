@@ -1,5 +1,6 @@
 import { Card, Button, Alert } from '@govtechsg/sgds-react';
 import { Mic, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getRecordingUnavailableReason } from '../../utils/browserUtils';
 
 interface RecordingCardProps {
@@ -8,6 +9,7 @@ interface RecordingCardProps {
 }
 
 export default function RecordingCard({ onStartRecording, isRecording }: RecordingCardProps) {
+  const { t } = useTranslation();
   const unavailableReason = getRecordingUnavailableReason();
   const isDisabled = !!unavailableReason || isRecording;
 
@@ -17,8 +19,8 @@ export default function RecordingCard({ onStartRecording, isRecording }: Recordi
         <div className="record-icon my-4">
           <Mic size={64} strokeWidth={1.5} className="text-danger" />
         </div>
-        <h4 className="mb-3">Record Live Meeting</h4>
-        <p className="text-muted mb-4">Record audio directly from your microphone</p>
+        <h4 className="mb-3">{t('recording.title')}</h4>
+        <p className="text-muted mb-4">{t('recording.subtitle')}</p>
         <div className="record-info mb-4">
           {unavailableReason ? (
             <Alert variant="warning" className="mb-0">
@@ -30,8 +32,7 @@ export default function RecordingCard({ onStartRecording, isRecording }: Recordi
           ) : (
             <Alert variant="info" className="mb-0">
               <small>
-                <strong>Tip:</strong> For best results, use a quality microphone and minimize
-                background noise
+                <strong>{t('recording.tipLabel')}</strong> {t('recording.tipText')}
               </small>
             </Alert>
           )}
@@ -45,7 +46,7 @@ export default function RecordingCard({ onStartRecording, isRecording }: Recordi
             onClick={onStartRecording}
           >
             <Mic size={20} className="me-2" />
-            {isRecording ? 'Recording...' : 'Start Recording'}
+            {isRecording ? t('recording.recording') : t('recording.startRecording')}
           </Button>
         </div>
       </Card.Body>

@@ -1,11 +1,14 @@
 import { Container, Row, Col, Card, ProgressBar, Button, Alert } from '@govtechsg/sgds-react';
 import { FileText, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface LoadingScreenProps {
   backendError: string | null;
 }
 
 export default function LoadingScreen({ backendError }: LoadingScreenProps) {
+  const { t } = useTranslation();
+
   // Show error screen if backend failed to load
   if (backendError) {
     return (
@@ -19,15 +22,13 @@ export default function LoadingScreen({ backendError }: LoadingScreenProps) {
               <Card className="shadow-sm border-0">
                 <Card.Body className="p-5">
                   <AlertCircle size={64} className="text-secondary mb-4" />
-                  <h2 className="mb-3">Connection Error</h2>
+                  <h2 className="mb-3">{t('loadingScreen.connectionError')}</h2>
                   <Alert variant="danger" className="mb-4">
                     {backendError}
                   </Alert>
-                  <p className="text-muted mb-4">
-                    Please ensure the backend service is running and try refreshing the page.
-                  </p>
+                  <p className="text-muted mb-4">{t('loadingScreen.connectionHint')}</p>
                   <Button variant="primary" onClick={() => window.location.reload()}>
-                    Retry Connection
+                    {t('loadingScreen.retry')}
                   </Button>
                 </Card.Body>
               </Card>
@@ -50,12 +51,12 @@ export default function LoadingScreen({ backendError }: LoadingScreenProps) {
             <Card className="shadow-sm border-0">
               <Card.Body className="p-5">
                 <FileText size={64} className="text-primary my-4" />
-                <h2 className="mb-3">MeetMemo</h2>
-                <p className="text-muted mb-4">AI-Powered Meeting Transcription</p>
+                <h2 className="mb-3">{t('app.name')}</h2>
+                <p className="text-muted mb-4">{t('loadingScreen.tagline')}</p>
                 <div className="spinner-border text-primary mb-3" role="status">
-                  <span className="visually-hidden">Loading...</span>
+                  <span className="visually-hidden">{t('common.loading')}</span>
                 </div>
-                <p className="text-muted small">Connecting to backend services...</p>
+                <p className="text-muted small">{t('loadingScreen.connecting')}</p>
               </Card.Body>
             </Card>
           </Col>

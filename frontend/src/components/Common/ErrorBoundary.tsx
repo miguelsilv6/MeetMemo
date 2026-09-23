@@ -2,6 +2,7 @@ import React from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { Container, Alert } from '@govtechsg/sgds-react';
 import { AlertTriangle } from 'lucide-react';
+import i18n from '../../i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -62,16 +63,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
             <div className="d-flex align-items-start">
               <AlertTriangle className="me-3 flex-shrink-0" size={24} />
               <div className="flex-grow-1">
-                <h4 className="alert-heading mb-3">Something went wrong</h4>
-                <p className="mb-3">
-                  The application encountered an unexpected error. This has been logged for
-                  investigation.
-                </p>
+                <h4 className="alert-heading mb-3">{i18n.t('errorBoundary.title')}</h4>
+                <p className="mb-3">{i18n.t('errorBoundary.description')}</p>
 
                 {import.meta.env.DEV && this.state.error && (
                   <details className="mb-3">
                     <summary className="mb-2" style={{ cursor: 'pointer' }}>
-                      <strong>Error Details (Development Only)</strong>
+                      <strong>{i18n.t('errorBoundary.detailsSummary')}</strong>
                     </summary>
                     <pre className="bg-light p-3 rounded" style={{ fontSize: '0.875rem' }}>
                       <code>{this.state.error.toString()}</code>
@@ -89,13 +87,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
                 <div className="d-flex gap-2">
                   <button className="btn btn-primary" onClick={this.handleReset}>
-                    Reload Application
+                    {i18n.t('errorBoundary.reload')}
                   </button>
                   <button
                     className="btn btn-outline-secondary"
                     onClick={() => (window.location.href = '/')}
                   >
-                    Go to Home
+                    {i18n.t('errorBoundary.goHome')}
                   </button>
                 </div>
               </div>

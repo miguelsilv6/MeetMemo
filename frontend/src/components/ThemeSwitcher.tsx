@@ -1,5 +1,6 @@
 import { useState, useEffect, useSyncExternalStore } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -11,10 +12,10 @@ const ICONS: Record<ThemeMode, typeof Sun> = {
   system: Monitor,
 };
 
-const LABELS: Record<ThemeMode, string> = {
-  light: 'Light mode — click for dark',
-  dark: 'Dark mode — click for system',
-  system: 'System mode — click for light',
+const LABEL_KEYS: Record<ThemeMode, string> = {
+  light: 'themeSwitcher.light',
+  dark: 'themeSwitcher.dark',
+  system: 'themeSwitcher.system',
 };
 
 const PREFERS_DARK_QUERY = '(prefers-color-scheme: dark)';
@@ -40,6 +41,7 @@ function useResolvedDark(themeMode: ThemeMode): boolean {
 }
 
 function ThemeSwitcher() {
+  const { t } = useTranslation();
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     return (localStorage.getItem('meetmemo-theme') as ThemeMode) || 'system';
   });
@@ -57,14 +59,15 @@ function ThemeSwitcher() {
   };
 
   const Icon = ICONS[themeMode];
+  const label = t(LABEL_KEYS[themeMode]);
 
   return (
     <button
       type="button"
       className="btn btn-sm btn-outline-secondary"
       onClick={cycleTheme}
-      aria-label={LABELS[themeMode]}
-      title={LABELS[themeMode]}
+      aria-label={label}
+      title={label}
     >
       <Icon size={16} />
     </button>

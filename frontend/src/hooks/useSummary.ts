@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import type { Summary } from '../types/api';
 import type { SetCurrentStep, SetError } from '../types/ui';
@@ -12,6 +13,7 @@ export default function useSummary(
   setCurrentStep: SetCurrentStep,
   setError: SetError
 ) {
+  const { t } = useTranslation();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [editingSummary, setEditingSummary] = useState('');
@@ -28,7 +30,7 @@ export default function useSummary(
       setSummary(summaryData);
       setCurrentStep('summary');
     } catch (err) {
-      setError((err as Error).message || 'Failed to generate summary');
+      setError((err as Error).message || t('errors.generateSummary'));
     } finally {
       setGeneratingSummary(false);
     }
@@ -58,7 +60,7 @@ export default function useSummary(
       });
       setShowEditSummaryModal(false);
     } catch (err) {
-      setError((err as Error).message || 'Failed to update summary');
+      setError((err as Error).message || t('errors.updateSummary'));
     }
   };
 

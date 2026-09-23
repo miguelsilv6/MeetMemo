@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import type { ApiError } from '../types/api';
@@ -21,6 +22,7 @@ export default function useTranscriptPolling(
   setError: SetError,
   autoIdentifySpeakers: AutoIdentifySpeakers | null
 ) {
+  const { t } = useTranslation();
   const [processingProgress, setProcessingProgress] = useState(0);
 
   // Track which workflow steps have been started (to prevent race conditions)
@@ -95,7 +97,7 @@ export default function useTranscriptPolling(
             } catch (err) {
               console.error('Failed to start transcription:', err);
               workflowStepsStarted.current.delete('transcription');
-              handlePollingErrorAndStop('Failed to start transcription. Please try again.');
+              handlePollingErrorAndStop(t('errors.startTranscription'));
               return;
             }
           }
@@ -115,9 +117,7 @@ export default function useTranscriptPolling(
             } catch (err) {
               console.error('Failed to start diarization:', err);
               workflowStepsStarted.current.delete('diarization');
-              handlePollingErrorAndStop(
-                'Failed to start speaker identification. Please try again.'
-              );
+              handlePollingErrorAndStop(t('errors.startDiarization'));
               return;
             }
           }
@@ -137,7 +137,7 @@ export default function useTranscriptPolling(
             } catch (err) {
               console.error('Failed to start alignment:', err);
               workflowStepsStarted.current.delete('alignment');
-              handlePollingErrorAndStop('Failed to start alignment. Please try again.');
+              handlePollingErrorAndStop(t('errors.startAlignment'));
               return;
             }
           }
@@ -165,9 +165,7 @@ export default function useTranscriptPolling(
           } catch (err) {
             console.error('Failed to fetch transcript:', err);
             if (setUploading) setUploading(false);
-            setError(
-              (err as Error).message || 'Failed to load transcript. Please refresh and try again.'
-            );
+            setError((err as Error).message || t('errors.loadTranscript'));
             // Don't re-throw, we've already handled it
           }
           return;
@@ -178,7 +176,7 @@ export default function useTranscriptPolling(
         ) {
           clearTimeout(pollingIntervalRef.current ?? undefined);
           pollingIntervalRef.current = null;
-          const errorMsg = status.error_message || 'Processing failed. Please try again.';
+          const errorMsg = status.error_message || t('errors.processingFailed');
           throw new Error(errorMsg);
         }
 
@@ -215,8 +213,7 @@ export default function useTranscriptPolling(
         if (setUploading) setUploading(false);
 
         // Propagate error to UI
-        const errorMessage =
-          error.message || 'An error occurred while processing. Please try again.';
+        const errorMessage = error.message || t('errors.processingGeneric');
         setError(errorMessage);
       }
     };

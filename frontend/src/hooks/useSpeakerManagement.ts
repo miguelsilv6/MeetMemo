@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import type { SpeakerMapping, SpeakerSuggestions, Transcript } from '../types/api';
@@ -14,6 +15,7 @@ export default function useSpeakerManagement(
   setTranscriptWithColors: SetTranscriptWithColors,
   setError: SetError
 ) {
+  const { t } = useTranslation();
   const [identifyingSpeakers, setIdentifyingSpeakers] = useState(false);
   const [speakerSuggestions, setSpeakerSuggestions] = useState<SpeakerSuggestions | null>(null);
   const [editingSpeakers, setEditingSpeakers] = useState<SpeakerMapping>({});
@@ -76,7 +78,7 @@ export default function useSpeakerManagement(
     } catch (err) {
       console.error('Failed to auto-identify speakers:', err);
       // Show error to user so they know speaker identification failed
-      const errorMessage = (err as Error).message || 'Failed to identify speakers automatically';
+      const errorMessage = (err as Error).message || t('errors.identifySpeakers');
       setError(errorMessage);
     } finally {
       setIdentifyingSpeakers(false);
@@ -145,7 +147,7 @@ export default function useSpeakerManagement(
       setTranscriptWithColors({ ...transcript, segments: updatedSegments });
       setShowEditSpeakersModal(false);
     } catch (err) {
-      setError((err as Error).message || 'Failed to update speakers');
+      setError((err as Error).message || t('errors.updateSpeakers'));
     }
   };
 

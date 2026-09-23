@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation as useI18n } from 'react-i18next';
 import * as api from '../services/api';
 import type { TranscriptSegment } from '../types/api';
 import type { SetError } from '../types/ui';
@@ -13,6 +14,7 @@ import type { SetError } from '../types/ui';
  * an unchanged transcript is cheap.
  */
 export default function useTranslation(jobId: string | null, setError: SetError) {
+  const { t } = useI18n();
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptSegment[] | null>(null);
   const [translatedFor, setTranslatedFor] = useState<TranscriptSegment[] | undefined>(undefined);
   const [showTranslation, setShowTranslation] = useState(false);
@@ -40,7 +42,7 @@ export default function useTranslation(jobId: string | null, setError: SetError)
       setTranslatedFor(segments);
       setShowTranslation(true);
     } catch (err) {
-      setError((err as Error).message || 'Failed to translate transcript');
+      setError((err as Error).message || t('errors.translateTranscript'));
     } finally {
       setTranslating(false);
     }

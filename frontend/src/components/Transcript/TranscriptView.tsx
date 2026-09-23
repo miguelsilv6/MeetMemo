@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Row, Col, Card, Button, ButtonGroup } from '@govtechsg/sgds-react';
 import { FileText, Users, LayoutList, LayoutGrid, Languages } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import TranscriptSegment from './TranscriptSegment';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
@@ -24,6 +25,8 @@ interface TranscriptViewProps {
   handleEditSpeakers: () => void;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   handleMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
+  handleDeleteSegments: (indices: number[]) => void;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
   identifyingSpeakers: boolean;
@@ -66,6 +69,8 @@ export default function TranscriptView({
   handleEditSpeakers,
   handleEditText,
   handleMoveSegmentSpeaker,
+  handleBulkMoveSegments,
+  handleDeleteSegments,
   handleGenerateSummary,
   generatingSummary,
   identifyingSpeakers,
@@ -74,6 +79,7 @@ export default function TranscriptView({
   showTranslation,
   handleToggleTranslation,
 }: TranscriptViewProps) {
+  const { t } = useTranslation();
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
   const [displayMode, setDisplayMode] = useState<TranscriptDisplayMode>('list');
   const audioPlayerRef = useRef<AudioPlayerHandle | null>(null);
@@ -113,7 +119,7 @@ export default function TranscriptView({
           <Card.Header className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0">
               <FileText size={20} className="me-2" />
-              Meeting Transcript
+              {t('transcript.title')}
             </h5>
             <div className="d-flex gap-2 align-items-center">
               <ButtonGroup>
@@ -121,7 +127,7 @@ export default function TranscriptView({
                   variant={displayMode === 'list' ? 'primary' : 'outline-primary'}
                   size="sm"
                   onClick={() => setDisplayMode('list')}
-                  title="List view"
+                  title={t('transcript.listViewTitle')}
                 >
                   <LayoutList size={16} />
                 </Button>
@@ -129,7 +135,7 @@ export default function TranscriptView({
                   variant={displayMode === 'kanban' ? 'primary' : 'outline-primary'}
                   size="sm"
                   onClick={() => setDisplayMode('kanban')}
-                  title="Kanban view (drag between speakers)"
+                  title={t('transcript.kanbanViewTitle')}
                 >
                   <LayoutGrid size={16} />
                 </Button>
@@ -139,7 +145,7 @@ export default function TranscriptView({
                 size="sm"
                 onClick={() => handleToggleTranslation(transcript?.segments)}
                 disabled={translating || !transcript?.segments?.length}
-                title="Translate to Portuguese"
+                title={t('transcript.translateToPortuguese')}
               >
                 {translating ? (
                   <span
@@ -150,11 +156,13 @@ export default function TranscriptView({
                 ) : (
                   <Languages size={16} className="me-1" />
                 )}
-                {showTranslation ? 'Show Original' : 'Translate to Portuguese'}
+                {showTranslation
+                  ? t('transcript.showOriginal')
+                  : t('transcript.translateToPortuguese')}
               </Button>
               <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
                 <Users size={16} className="me-1" />
-                Edit Speakers
+                {t('transcript.editSpeakers')}
               </Button>
             </div>
           </Card.Header>
@@ -169,7 +177,7 @@ export default function TranscriptView({
                         role="status"
                         aria-hidden="true"
                       ></span>
-                      Loading Kanban view…
+                      {t('transcript.loadingKanban')}
                     </div>
                   }
                 >
@@ -180,6 +188,8 @@ export default function TranscriptView({
                     handleEditText={handleEditText}
                     onSeekToSegment={handleSeekToSegment}
                     onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                    onBulkMoveSegments={handleBulkMoveSegments}
+                    onDeleteSegments={handleDeleteSegments}
                   />
                 </Suspense>
               ) : (
@@ -200,7 +210,7 @@ export default function TranscriptView({
             ) : (
               <div className="transcript-placeholder text-center text-muted py-5">
                 <FileText size={48} className="mb-3 opacity-50" />
-                <p>Transcript will appear here after processing</p>
+                <p>{t('transcript.placeholder')}</p>
               </div>
             )}
           </Card.Body>

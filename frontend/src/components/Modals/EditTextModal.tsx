@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Modal, Button, Form } from '@govtechsg/sgds-react';
 import { Edit2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { SpeakerMapping, Transcript } from '../../types/api';
 import type { EditingSegment } from '../../hooks/useTranscript';
 
@@ -23,12 +24,14 @@ export default function EditTextModal({
   transcript,
   editingSpeakers,
 }: EditTextModalProps) {
+  const { t } = useTranslation();
+
   return (
     <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
           <Edit2 size={20} className="me-2" />
-          Edit Transcript Segment
+          {t('modals.editText.title')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -43,15 +46,13 @@ export default function EditTextModal({
               </small>
             </div>
             <Form.Group className="mb-3">
-              <Form.Label>Speaker</Form.Label>
+              <Form.Label>{t('modals.editText.speakerLabel')}</Form.Label>
               <Form.Select
                 value={editingSegment.speaker}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === '__new__') {
-                    const newSpeaker = prompt(
-                      'Enter new speaker name (e.g., John Smith or SPEAKER_03):'
-                    );
+                    const newSpeaker = prompt(t('modals.editText.newSpeakerPrompt'));
                     if (newSpeaker && newSpeaker.trim()) {
                       setEditingSegment({
                         ...editingSegment,
@@ -87,14 +88,12 @@ export default function EditTextModal({
                       </option>
                     ));
                   })()}
-                <option value="__new__">+ Add New Speaker</option>
+                <option value="__new__">{t('modals.editText.addNewSpeaker')}</option>
               </Form.Select>
-              <Form.Text className="text-muted">
-                Select an existing speaker or add a new one
-              </Form.Text>
+              <Form.Text className="text-muted">{t('modals.editText.speakerHint')}</Form.Text>
             </Form.Group>
             <Form.Group>
-              <Form.Label>Transcript Text</Form.Label>
+              <Form.Label>{t('modals.editText.textLabel')}</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={4}
@@ -112,10 +111,10 @@ export default function EditTextModal({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" onClick={handleSaveSegmentText}>
-          Save Changes
+          {t('common.save')}
         </Button>
       </Modal.Footer>
     </Modal>

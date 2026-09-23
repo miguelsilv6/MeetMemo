@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Cpu } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../../services/api';
 import type { SystemInfo } from '../../types/api';
 
@@ -11,6 +12,7 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
  * it never disrupts the footer on older backends or in demo mode.
  */
 export default function SystemInfoBar() {
+  const { t } = useTranslation();
   const [info, setInfo] = useState<SystemInfo | null>(null);
 
   useEffect(() => {
@@ -33,24 +35,25 @@ export default function SystemInfoBar() {
 
   const gpu = info.gpu_name
     ? `${info.gpu_name}${info.vram_gb ? ` · ${info.vram_gb} GB` : ''}`
-    : 'CPU';
+    : t('systemInfoBar.cpu');
   const diarization = info.pyannote_model_name.split('/').pop() ?? info.pyannote_model_name;
 
   return (
-    <div
-      className="system-info-bar text-muted small mt-2"
-      title="Detected hardware and active models"
-    >
+    <div className="system-info-bar text-muted small mt-2" title={t('systemInfoBar.title')}>
       <Cpu size={12} className="me-1" style={{ verticalAlign: '-2px' }} />
       <span>{gpu}</span>
       {' · '}
       <span>
-        profile: <strong>{info.resolved_profile}</strong>
+        {t('systemInfoBar.profile')}: <strong>{info.resolved_profile}</strong>
       </span>
       {' · '}
-      <span>whisper: {info.whisper_model_name}</span>
+      <span>
+        {t('systemInfoBar.whisper')}: {info.whisper_model_name}
+      </span>
       {' · '}
-      <span>diarization: {diarization}</span>
+      <span>
+        {t('systemInfoBar.diarization')}: {diarization}
+      </span>
       {info.warnings.map((warning) => (
         <span key={warning} className="text-warning d-block mt-1" role="status">
           ⚠ {warning}

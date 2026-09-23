@@ -661,3 +661,39 @@
   font-size: 0.7rem;
   padding: 0.1rem 1.5rem 0.1rem 0.4rem;
 }
+
+.kanban-column-remove-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.kanban-column:hover .kanban-column-remove-btn,
+.kanban-column-remove-btn:focus {
+  opacity: 1;
+}
+
+.kanban-add-column {
+  flex: 0 0 260px;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.6rem;
+  background: transparent;
+  border: 2px dashed var(--mm-border, var(--border));
+  border-radius: 0.5rem;
+  color: var(--mm-text-muted, var(--text-secondary));
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+button.kanban-add-column:hover {
+  border-color: var(--mm-primary, var(--primary));
+  color: var(--mm-primary, var(--primary));
+}
+
+.kanban-add-column-editing {
+  border-style: solid;
+  padding: 0.5rem;
+}

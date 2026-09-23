@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Modal, Button, Form } from '@govtechsg/sgds-react';
 import { Edit2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface EditSummaryModalProps {
   show: boolean;
@@ -17,36 +18,35 @@ export default function EditSummaryModal({
   setEditingSummary,
   handleSaveSummary,
 }: EditSummaryModalProps) {
+  const { t } = useTranslation();
+
   return (
     <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
           <Edit2 size={20} className="me-2" />
-          Edit AI Summary
+          {t('modals.editSummary.title')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p className="text-muted mb-3">
-          Edit the AI-generated summary to correct any inaccuracies or add additional details before
-          exporting.
-        </p>
+        <p className="text-muted mb-3">{t('modals.editSummary.description')}</p>
         <Form.Group>
-          <Form.Label>Summary Text</Form.Label>
+          <Form.Label>{t('modals.editSummary.textLabel')}</Form.Label>
           <Form.Control
             as="textarea"
             rows={15}
             value={editingSummary}
             onChange={(e) => setEditingSummary(e.target.value)}
-            placeholder="Enter summary text..."
+            placeholder={t('modals.editSummary.placeholder')}
           />
         </Form.Group>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" onClick={handleSaveSummary}>
-          Save Changes
+          {t('common.save')}
         </Button>
       </Modal.Footer>
     </Modal>

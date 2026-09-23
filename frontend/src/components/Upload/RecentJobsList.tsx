@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Card, Badge, Button, Modal } from '@govtechsg/sgds-react';
 import { Clock, AlertCircle, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { RecentJob } from '../../types/api';
 
 const DATE_TIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
@@ -25,6 +26,7 @@ export default function RecentJobsList({
   handleLoadJob,
   handleDeleteJob,
 }: RecentJobsListProps) {
+  const { t } = useTranslation();
   const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(null);
 
   const onDeleteClick = (uuid: string, e: MouseEvent) => {
@@ -45,16 +47,16 @@ export default function RecentJobsList({
         <Card.Header>
           <h5 className="mb-0">
             <Clock size={20} className="me-2" />
-            Recent Meetings
+            {t('recentJobs.title')}
           </h5>
         </Card.Header>
         <Card.Body className="p-0">
           {loadingJobs ? (
             <div className="text-center text-muted py-4">
               <div className="spinner-border spinner-border-sm me-2" role="status">
-                <span className="visually-hidden">Loading...</span>
+                <span className="visually-hidden">{t('common.loading')}</span>
               </div>
-              <span>Loading recent meetings...</span>
+              <span>{t('recentJobs.loading')}</span>
             </div>
           ) : recentJobs.length > 0 ? (
             <div className="list-group list-group-flush">
@@ -66,11 +68,11 @@ export default function RecentJobsList({
                   onClick={() => handleLoadJob(job)}
                 >
                   <div className="flex-grow-1">
-                    <div className="fw-medium">{job.filename || 'Untitled Recording'}</div>
+                    <div className="fw-medium">{job.filename || t('recentJobs.untitled')}</div>
                     <small className="text-muted">
                       {job.created_at
                         ? new Date(job.created_at).toLocaleString('en-GB', DATE_TIME_FORMAT_OPTIONS)
-                        : 'Date unknown'}
+                        : t('recentJobs.dateUnknown')}
                     </small>
                   </div>
                   <div className="d-flex gap-2 align-items-center">
@@ -84,17 +86,17 @@ export default function RecentJobsList({
                       }
                     >
                       {job.status_code === 200 || job.status_code === '200'
-                        ? 'Complete'
+                        ? t('recentJobs.statusComplete')
                         : job.status_code === 202 || job.status_code === '202'
-                          ? 'Processing'
-                          : 'Failed'}
+                          ? t('recentJobs.statusProcessing')
+                          : t('recentJobs.statusFailed')}
                     </Badge>
                     <Button
                       variant="link"
                       size="sm"
                       className="p-0 text-danger d-flex align-items-center"
                       onClick={(e) => onDeleteClick(job.uuid, e)}
-                      title="Delete this meeting"
+                      title={t('recentJobs.deleteThis')}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -104,35 +106,31 @@ export default function RecentJobsList({
             </div>
           ) : (
             <div className="text-center text-muted py-4">
-              <p className="mb-0">
-                No recent meetings. Upload or record your first meeting to get started!
-              </p>
+              <p className="mb-0">{t('recentJobs.empty')}</p>
             </div>
           )}
           <div className="card-footer text-muted small">
             <AlertCircle size={14} className="me-1" />
-            Meetings are automatically deleted after 12 hours
+            {t('recentJobs.retentionNotice')}
           </div>
         </Card.Body>
       </Card>
 
       <Modal show={!!pendingDeleteUuid} onHide={() => setPendingDeleteUuid(null)}>
         <Modal.Header closeButton>
-          <Modal.Title>Delete Meeting</Modal.Title>
+          <Modal.Title>{t('recentJobs.deleteModalTitle')}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete this meeting? This action cannot be undone.
-        </Modal.Body>
+        <Modal.Body>{t('recentJobs.deleteModalBody')}</Modal.Body>
         <Modal.Footer>
           <button
             type="button"
             className="btn btn-outline-secondary"
             onClick={() => setPendingDeleteUuid(null)}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="button" className="btn btn-outline-danger" onClick={onConfirmDelete}>
-            Delete
+            {t('common.delete')}
           </button>
         </Modal.Footer>
       </Modal>

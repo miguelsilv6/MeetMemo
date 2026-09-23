@@ -1,5 +1,6 @@
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
 import { Row, Col } from '@govtechsg/sgds-react';
+import { useTranslation } from 'react-i18next';
 import FileUploadCard from './FileUploadCard';
 import RecordingCard from './RecordingCard';
 import RecentJobsList from './RecentJobsList';
@@ -36,15 +37,14 @@ export default function UploadView({
   selectedLanguage,
   onLanguageChange,
 }: UploadViewProps) {
+  const { t } = useTranslation();
+
   return (
     <Row className="justify-content-center">
       <Col lg={10}>
         <div className="text-center mb-4">
-          <h2 className="mb-2">Start Your Meeting Transcription</h2>
-          <p className="text-muted">
-            Upload a recording or record live to get AI-powered transcription with speaker
-            identification
-          </p>
+          <h2 className="mb-2">{t('upload.title')}</h2>
+          <p className="text-muted">{t('upload.subtitle')}</p>
         </div>
 
         <Row className="g-4">
