@@ -37,7 +37,7 @@
     "languageLabel": "Transcription Language",
     "clickToBrowse": "Click to browse",
     "orDragDrop": "or drag & drop",
-    "supportedFormats": "Supports MP3, WAV, M4A, WEBM (max 500MB)",
+    "supportedFormats": "Supports MP3, WAV, M4A, WEBM, FLAC, OGG, AAC (max 100MB)",
     "uploading": "Uploading..."
   },
   "recording": {
@@ -84,7 +84,10 @@
     "loadingKanban": "Loading Kanban view…",
     "currentlyPlaying": "Currently playing",
     "playFromHere": "Play from here",
-    "editThisSegment": "Edit this segment"
+    "editThisSegment": "Edit this segment",
+    "editHint": "Double-click to edit",
+    "insertSegmentAfter": "Insert segment after this one",
+    "splitSegment": "Split into two speakers"
   },
   "kanban": {
     "moveToSpeaker": "Move to speaker",
@@ -127,7 +130,19 @@
       "newSpeakerPrompt": "Enter new speaker name (e.g., John Smith or SPEAKER_03):",
       "addNewSpeaker": "+ Add New Speaker",
       "speakerHint": "Select an existing speaker or add a new one",
-      "textLabel": "Transcript Text"
+      "textLabel": "Transcript Text",
+      "startLabel": "Start (seconds)",
+      "endLabel": "End (seconds)"
+    },
+    "splitSegment": {
+      "title": "Split Segment",
+      "description": "Adjust where the text splits, then choose who said the second part.",
+      "firstPartLabel": "First part (stays with {{speaker}})",
+      "secondPartLabel": "Second part",
+      "secondSpeakerLabel": "Second part speaker",
+      "newSpeakerPrompt": "Enter new speaker name (e.g., John Smith or SPEAKER_03):",
+      "addNewSpeaker": "+ Add New Speaker",
+      "confirmButton": "Split Segment"
     },
     "editSummary": {
       "title": "Edit AI Summary",
@@ -215,6 +230,7 @@
     "moveSegment": "Failed to move segment to speaker",
     "moveSegments": "Failed to move segments to speaker",
     "deleteSegments": "Failed to delete segments",
+    "splitSegment": "Failed to split segment",
     "updateSpeakers": "Failed to update speakers",
     "identifySpeakers": "Failed to identify speakers automatically",
     "translateTranscript": "Failed to translate transcript",

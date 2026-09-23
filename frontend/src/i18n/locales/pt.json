@@ -37,7 +37,7 @@
     "languageLabel": "Idioma da Transcrição",
     "clickToBrowse": "Clica para escolher",
     "orDragDrop": "ou arrasta e larga",
-    "supportedFormats": "Suporta MP3, WAV, M4A, WEBM (máx. 500MB)",
+    "supportedFormats": "Suporta MP3, WAV, M4A, WEBM, FLAC, OGG, AAC (máx. 100MB)",
     "uploading": "A carregar..."
   },
   "recording": {
@@ -84,7 +84,10 @@
     "loadingKanban": "A carregar vista Kanban…",
     "currentlyPlaying": "A reproduzir atualmente",
     "playFromHere": "Reproduzir a partir daqui",
-    "editThisSegment": "Editar este segmento"
+    "editThisSegment": "Editar este segmento",
+    "editHint": "Duplo clique para editar",
+    "insertSegmentAfter": "Inserir segmento a seguir a este",
+    "splitSegment": "Dividir em dois interlocutores"
   },
   "kanban": {
     "moveToSpeaker": "Mover para interlocutor",
@@ -127,7 +130,19 @@
       "newSpeakerPrompt": "Introduz o nome do novo interlocutor (ex.: João Silva ou SPEAKER_03):",
       "addNewSpeaker": "+ Adicionar Novo Interlocutor",
       "speakerHint": "Seleciona um interlocutor existente ou adiciona um novo",
-      "textLabel": "Texto da Transcrição"
+      "textLabel": "Texto da Transcrição",
+      "startLabel": "Início (segundos)",
+      "endLabel": "Fim (segundos)"
+    },
+    "splitSegment": {
+      "title": "Dividir Segmento",
+      "description": "Ajusta onde o texto se divide e escolhe quem disse a segunda parte.",
+      "firstPartLabel": "Primeira parte (fica com {{speaker}})",
+      "secondPartLabel": "Segunda parte",
+      "secondSpeakerLabel": "Interlocutor da segunda parte",
+      "newSpeakerPrompt": "Introduz o nome do novo interlocutor (ex.: João Silva ou SPEAKER_03):",
+      "addNewSpeaker": "+ Adicionar Novo Interlocutor",
+      "confirmButton": "Dividir Segmento"
     },
     "editSummary": {
       "title": "Editar Resumo da IA",
@@ -215,6 +230,7 @@
     "moveSegment": "Falha ao mover o segmento para o interlocutor",
     "moveSegments": "Falha ao mover os segmentos para o interlocutor",
     "deleteSegments": "Falha ao eliminar os segmentos",
+    "splitSegment": "Falha ao dividir o segmento",
     "updateSpeakers": "Falha ao atualizar os interlocutores",
     "identifySpeakers": "Falha ao identificar interlocutores automaticamente",
     "translateTranscript": "Falha ao traduzir a transcrição",

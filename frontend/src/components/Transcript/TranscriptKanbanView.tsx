@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
-import { Pencil, Play, Plus, X } from 'lucide-react';
+import { Pencil, Play, Plus, Scissors, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
@@ -33,6 +33,8 @@ interface TranscriptKanbanViewProps {
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   onBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   onDeleteSegments: (indices: number[]) => void;
+  onInsertSegmentAfter: (index: number) => void;
+  onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
 }
 
 /** A single draggable chat bubble inside a Kanban column. */
@@ -44,6 +46,8 @@ function KanbanBubble({
   handleEditText,
   onSeekToSegment,
   onMoveSegmentSpeaker,
+  onInsertSegmentAfter,
+  onSplitSegment,
 }: {
   indexed: IndexedSegment;
   displayText?: string;
@@ -52,6 +56,8 @@ function KanbanBubble({
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  onInsertSegmentAfter: (index: number) => void;
+  onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
 }) {
   const { t } = useTranslation();
   const { segment, index } = indexed;
@@ -75,6 +81,11 @@ function KanbanBubble({
       }`}
       style={{ borderColor: getSpeakerBorderColor(segment.speaker) }}
       onClick={handlePlayFromHere}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        handleEditText(segment, index);
+      }}
+      title={t('transcript.editHint')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -108,6 +119,32 @@ function KanbanBubble({
             style={{ color: '#f0ad4e' }}
           >
             <Pencil size={12} />
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 kanban-bubble-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInsertSegmentAfter(index);
+            }}
+            title={t('transcript.insertSegmentAfter')}
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Plus size={12} />
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 kanban-bubble-action"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSplitSegment(segment, index);
+            }}
+            title={t('transcript.splitSegment')}
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Scissors size={12} />
           </Button>
         </div>
       </div>
@@ -149,6 +186,8 @@ function KanbanColumn({
   onSeekToSegment,
   onMoveSegmentSpeaker,
   onRequestRemoveSpeaker,
+  onInsertSegmentAfter,
+  onSplitSegment,
 }: {
   speaker: string;
   bubbles: IndexedSegment[];
@@ -159,6 +198,8 @@ function KanbanColumn({
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   onRequestRemoveSpeaker: (speaker: string) => void;
+  onInsertSegmentAfter: (index: number) => void;
+  onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
 }) {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: speaker });
@@ -206,6 +247,8 @@ function KanbanColumn({
               handleEditText={handleEditText}
               onSeekToSegment={onSeekToSegment}
               onMoveSegmentSpeaker={onMoveSegmentSpeaker}
+              onInsertSegmentAfter={onInsertSegmentAfter}
+              onSplitSegment={onSplitSegment}
             />
           ))
         )}
@@ -273,6 +316,8 @@ export default function TranscriptKanbanView({
   onMoveSegmentSpeaker,
   onBulkMoveSegments,
   onDeleteSegments,
+  onInsertSegmentAfter,
+  onSplitSegment,
 }: TranscriptKanbanViewProps) {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   // Speakers added via "Add speaker" that have no segments yet. Purely a UI
@@ -371,6 +416,8 @@ export default function TranscriptKanbanView({
               onSeekToSegment={onSeekToSegment}
               onMoveSegmentSpeaker={onMoveSegmentSpeaker}
               onRequestRemoveSpeaker={handleRequestRemoveSpeaker}
+              onInsertSegmentAfter={onInsertSegmentAfter}
+              onSplitSegment={onSplitSegment}
             />
           ))}
           <AddSpeakerColumn onAdd={handleAddSpeaker} />

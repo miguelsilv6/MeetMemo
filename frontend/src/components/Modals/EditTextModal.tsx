@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { Modal, Button, Form } from '@govtechsg/sgds-react';
+import { Modal, Button, Form, Row, Col } from '@govtechsg/sgds-react';
 import { Edit2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SpeakerMapping, Transcript } from '../../types/api';
@@ -37,14 +37,42 @@ export default function EditTextModal({
       <Modal.Body>
         {editingSegment && (
           <>
-            <div className="mb-3">
-              <small className="text-muted">
-                {Math.floor(editingSegment.start / 60)}:
-                {String(Math.floor(editingSegment.start % 60)).padStart(2, '0')} -{' '}
-                {Math.floor(editingSegment.end / 60)}:
-                {String(Math.floor(editingSegment.end % 60)).padStart(2, '0')}
-              </small>
-            </div>
+            <Row className="mb-3">
+              <Col xs={6}>
+                <Form.Group>
+                  <Form.Label>{t('modals.editText.startLabel')}</Form.Label>
+                  <Form.Control
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    value={editingSegment.start}
+                    onChange={(e) =>
+                      setEditingSegment({
+                        ...editingSegment,
+                        start: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col xs={6}>
+                <Form.Group>
+                  <Form.Label>{t('modals.editText.endLabel')}</Form.Label>
+                  <Form.Control
+                    type="number"
+                    step="0.1"
+                    min={0}
+                    value={editingSegment.end}
+                    onChange={(e) =>
+                      setEditingSegment({
+                        ...editingSegment,
+                        end: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
             <Form.Group className="mb-3">
               <Form.Label>{t('modals.editText.speakerLabel')}</Form.Label>
               <Form.Select

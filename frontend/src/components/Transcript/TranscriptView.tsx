@@ -27,6 +27,8 @@ interface TranscriptViewProps {
   handleMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   handleDeleteSegments: (indices: number[]) => void;
+  handleInsertSegmentAfter: (index: number) => void;
+  handleRequestSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
   identifyingSpeakers: boolean;
@@ -71,6 +73,8 @@ export default function TranscriptView({
   handleMoveSegmentSpeaker,
   handleBulkMoveSegments,
   handleDeleteSegments,
+  handleInsertSegmentAfter,
+  handleRequestSplitSegment,
   handleGenerateSummary,
   generatingSummary,
   identifyingSpeakers,
@@ -190,6 +194,8 @@ export default function TranscriptView({
                     onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
                     onBulkMoveSegments={handleBulkMoveSegments}
                     onDeleteSegments={handleDeleteSegments}
+                    onInsertSegmentAfter={handleInsertSegmentAfter}
+                    onSplitSegment={handleRequestSplitSegment}
                   />
                 </Suspense>
               ) : (
@@ -203,6 +209,8 @@ export default function TranscriptView({
                       handleEditText={handleEditText}
                       isActive={index === activeSegmentIndex}
                       onSeekToSegment={handleSeekToSegment}
+                      onInsertSegmentAfter={handleInsertSegmentAfter}
+                      onSplitSegment={handleRequestSplitSegment}
                     />
                   ))}
                 </div>

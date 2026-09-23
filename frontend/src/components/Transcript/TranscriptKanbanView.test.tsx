@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import TranscriptKanbanView from './TranscriptKanbanView';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 
@@ -19,6 +19,8 @@ function renderKanban(overrides: Partial<ComponentProps<typeof TranscriptKanbanV
     onMoveSegmentSpeaker: vi.fn(),
     onBulkMoveSegments: vi.fn(),
     onDeleteSegments: vi.fn(),
+    onInsertSegmentAfter: vi.fn(),
+    onSplitSegment: vi.fn(),
     ...overrides,
   };
   return { ...render(<TranscriptKanbanView {...props} />), props };
@@ -162,5 +164,31 @@ describe('TranscriptKanbanView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete Segments' }));
 
     expect(onDeleteSegments).toHaveBeenCalledWith([0, 2]);
+  });
+
+  it('opens the edit modal on double-click', () => {
+    const handleEditText = vi.fn();
+    renderKanban({ handleEditText });
+
+    fireEvent.doubleClick(screen.getByText('Hi there'));
+    expect(handleEditText).toHaveBeenCalledWith(segments[1], 1);
+  });
+
+  it('requests inserting a segment after a bubble', () => {
+    const onInsertSegmentAfter = vi.fn();
+    renderKanban({ onInsertSegmentAfter });
+
+    const bubble = screen.getByText('Hi there').closest('.kanban-bubble') as HTMLElement;
+    fireEvent.click(within(bubble).getByTitle('Insert segment after this one'));
+    expect(onInsertSegmentAfter).toHaveBeenCalledWith(1);
+  });
+
+  it('requests splitting a bubble', () => {
+    const onSplitSegment = vi.fn();
+    renderKanban({ onSplitSegment });
+
+    const bubble = screen.getByText('Hi there').closest('.kanban-bubble') as HTMLElement;
+    fireEvent.click(within(bubble).getByTitle('Split into two speakers'));
+    expect(onSplitSegment).toHaveBeenCalledWith(segments[1], 1);
   });
 });

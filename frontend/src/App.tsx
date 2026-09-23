@@ -33,6 +33,7 @@ import EditSpeakersModal from './components/Modals/EditSpeakersModal';
 import EditTextModal from './components/Modals/EditTextModal';
 import EditSummaryModal from './components/Modals/EditSummaryModal';
 import RecordingModal from './components/Modals/RecordingModal';
+import SplitSegmentModal from './components/Modals/SplitSegmentModal';
 
 import './App.css';
 
@@ -52,12 +53,18 @@ function App() {
     editingSegment,
     setEditingSegment,
     showEditTextModal,
-    setShowEditTextModal,
     handleEditText,
     handleSaveSegmentText,
+    handleCancelEditText,
+    handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
     handleBulkMoveSegments,
     handleDeleteSegments,
+    splittingSegment,
+    showSplitModal,
+    handleRequestSplitSegment,
+    handleCancelSplitSegment,
+    handleSplitSegment,
   } = useTranscript(jobId, setError);
 
   // Transcript translation (Portuguese)
@@ -214,6 +221,8 @@ function App() {
             handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
             handleBulkMoveSegments={handleBulkMoveSegments}
             handleDeleteSegments={handleDeleteSegments}
+            handleInsertSegmentAfter={handleInsertSegmentAfter}
+            handleRequestSplitSegment={handleRequestSplitSegment}
             handleGenerateSummary={handleGenerateSummary}
             generatingSummary={generatingSummary}
             identifyingSpeakers={identifyingSpeakers}
@@ -254,12 +263,22 @@ function App() {
 
       <EditTextModal
         show={showEditTextModal}
-        onHide={() => setShowEditTextModal(false)}
+        onHide={handleCancelEditText}
         editingSegment={editingSegment}
         setEditingSegment={setEditingSegment}
         handleSaveSegmentText={handleSaveSegmentText}
         transcript={transcript}
         editingSpeakers={editingSpeakers}
+      />
+
+      <SplitSegmentModal
+        key={splittingSegment?.index ?? 'none'}
+        show={showSplitModal}
+        onHide={handleCancelSplitSegment}
+        segment={splittingSegment}
+        speakers={[...new Set((transcript?.segments ?? []).map((s) => s.speaker))]}
+        editingSpeakers={editingSpeakers}
+        onSplit={handleSplitSegment}
       />
 
       <EditSummaryModal
