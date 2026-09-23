@@ -10,6 +10,7 @@ from io import BytesIO
 
 from config import Settings
 from repositories.export_repository import ExportRepository
+from utils.docx_generator import generate_transcript_docx
 from utils.formatters import generate_professional_filename
 from utils.markdown_generator import (
     generate_summary_markdown,
@@ -169,6 +170,32 @@ class ExportService:
         transcript_data = json.loads(transcript_json) if transcript_json else []
 
         return generate_transcript_markdown(
+            meeting_title,
+            transcript_data,
+            generated_on,
+            self.settings
+        )
+
+    def generate_transcript_docx_export(
+        self,
+        meeting_title: str,
+        transcript_json: str,
+        generated_on: str = None
+    ) -> BytesIO:
+        """
+        Generate DOCX export with transcript only (no summary).
+
+        Args:
+            meeting_title: Meeting title/filename
+            transcript_json: JSON string of transcript data
+            generated_on: Optional formatted timestamp
+
+        Returns:
+            BytesIO buffer containing the DOCX file
+        """
+        transcript_data = json.loads(transcript_json) if transcript_json else []
+
+        return generate_transcript_docx(
             meeting_title,
             transcript_data,
             generated_on,

@@ -35,6 +35,10 @@ interface TranscriptKanbanViewProps {
   onDeleteSegments: (indices: number[]) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
+  /** When true, bubbles render as checkbox rows for bulk actions instead of their normal controls/drag handle. */
+  selectMode?: boolean;
+  selectedIndices?: Set<number>;
+  onToggleSelect?: (index: number) => void;
 }
 
 /** A single draggable chat bubble inside a Kanban column. */
@@ -48,6 +52,9 @@ function KanbanBubble({
   onMoveSegmentSpeaker,
   onInsertSegmentAfter,
   onSplitSegment,
+  selectMode,
+  isSelected,
+  onToggleSelect,
 }: {
   indexed: IndexedSegment;
   displayText?: string;
@@ -58,12 +65,16 @@ function KanbanBubble({
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
+  selectMode: boolean;
+  isSelected: boolean;
+  onToggleSelect?: (index: number) => void;
 }) {
   const { t } = useTranslation();
   const { segment, index } = indexed;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: String(index),
     data: { index, speaker: segment.speaker },
+    disabled: selectMode,
   });
 
   const handlePlayFromHere = (e: SyntheticEvent) => {
@@ -71,85 +82,104 @@ function KanbanBubble({
     onSeekToSegment(Number(segment.start));
   };
 
+  const handleClick = selectMode ? () => onToggleSelect?.(index) : handlePlayFromHere;
+
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
+      {...(selectMode ? {} : listeners)}
+      {...(selectMode ? {} : attributes)}
       className={`kanban-bubble mb-2 p-2 ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
-      }`}
+      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''}`}
       style={{ borderColor: getSpeakerBorderColor(segment.speaker) }}
-      onClick={handlePlayFromHere}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        handleEditText(segment, index);
-      }}
-      title={t('transcript.editHint')}
+      onClick={handleClick}
+      onDoubleClick={
+        selectMode
+          ? undefined
+          : (e) => {
+              e.stopPropagation();
+              handleEditText(segment, index);
+            }
+      }
+      title={selectMode ? undefined : t('transcript.editHint')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') handlePlayFromHere(e);
+        if (e.key === 'Enter' || e.key === ' ') handleClick(e);
       }}
     >
       <div className="d-flex justify-content-between align-items-center mb-1">
-        <small className="text-muted kanban-bubble-timestamp">
-          {formatTime(segment.start)} - {formatTime(segment.end)}
-        </small>
-        <div className="d-flex gap-1">
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 kanban-bubble-action"
-            onClick={handlePlayFromHere}
-            title={t('transcript.playFromHere')}
-            style={{ color: 'var(--primary)' }}
-          >
-            <Play size={12} />
-          </Button>
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 kanban-bubble-action"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEditText(segment, index);
-            }}
-            title={t('transcript.editThisSegment')}
-            style={{ color: '#f0ad4e' }}
-          >
-            <Pencil size={12} />
-          </Button>
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 kanban-bubble-action"
-            onClick={(e) => {
-              e.stopPropagation();
-              onInsertSegmentAfter(index);
-            }}
-            title={t('transcript.insertSegmentAfter')}
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <Plus size={12} />
-          </Button>
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 kanban-bubble-action"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSplitSegment(segment, index);
-            }}
-            title={t('transcript.splitSegment')}
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            <Scissors size={12} />
-          </Button>
+        <div className="d-flex align-items-center gap-1">
+          {selectMode && (
+            <Form.Check
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect?.(index)}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={t('transcript.selectSegment')}
+            />
+          )}
+          <small className="text-muted kanban-bubble-timestamp">
+            {formatTime(segment.start)} - {formatTime(segment.end)}
+          </small>
         </div>
+        {!selectMode && (
+          <div className="d-flex gap-1">
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 kanban-bubble-action"
+              onClick={handlePlayFromHere}
+              title={t('transcript.playFromHere')}
+              style={{ color: 'var(--primary)' }}
+            >
+              <Play size={12} />
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 kanban-bubble-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditText(segment, index);
+              }}
+              title={t('transcript.editThisSegment')}
+              style={{ color: '#f0ad4e' }}
+            >
+              <Pencil size={12} />
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 kanban-bubble-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                onInsertSegmentAfter(index);
+              }}
+              title={t('transcript.insertSegmentAfter')}
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Plus size={12} />
+            </Button>
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 kanban-bubble-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSplitSegment(segment, index);
+              }}
+              title={t('transcript.splitSegment')}
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Scissors size={12} />
+            </Button>
+          </div>
+        )}
       </div>
       <p className="mb-0 small">{displayText ?? segment.text}</p>
-      {speakers.length > 1 && (
+      {!selectMode && speakers.length > 1 && (
         <select
           className="form-select form-select-sm kanban-bubble-speaker-select kanban-bubble-action mt-1"
           aria-label={t('kanban.moveToSpeaker')}
@@ -188,6 +218,9 @@ function KanbanColumn({
   onRequestRemoveSpeaker,
   onInsertSegmentAfter,
   onSplitSegment,
+  selectMode,
+  selectedIndices,
+  onToggleSelect,
 }: {
   speaker: string;
   bubbles: IndexedSegment[];
@@ -200,6 +233,9 @@ function KanbanColumn({
   onRequestRemoveSpeaker: (speaker: string) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
+  selectMode: boolean;
+  selectedIndices: Set<number>;
+  onToggleSelect?: (index: number) => void;
 }) {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: speaker });
@@ -221,16 +257,18 @@ function KanbanColumn({
         </Badge>
         <div className="d-flex align-items-center gap-1">
           <small className="text-muted">{bubbles.length}</small>
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 kanban-column-remove-btn"
-            onClick={() => onRequestRemoveSpeaker(speaker)}
-            title={t('kanban.removeSpeaker', { speaker })}
-            style={{ color: 'var(--mm-danger, #dc3545)' }}
-          >
-            <X size={16} />
-          </Button>
+          {!selectMode && (
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 kanban-column-remove-btn"
+              onClick={() => onRequestRemoveSpeaker(speaker)}
+              title={t('kanban.removeSpeaker', { speaker })}
+              style={{ color: 'var(--mm-danger, #dc3545)' }}
+            >
+              <X size={16} />
+            </Button>
+          )}
         </div>
       </div>
       <div className="kanban-column-body">
@@ -249,6 +287,9 @@ function KanbanColumn({
               onMoveSegmentSpeaker={onMoveSegmentSpeaker}
               onInsertSegmentAfter={onInsertSegmentAfter}
               onSplitSegment={onSplitSegment}
+              selectMode={selectMode}
+              isSelected={selectedIndices.has(indexed.index)}
+              onToggleSelect={onToggleSelect}
             />
           ))
         )}
@@ -318,6 +359,9 @@ export default function TranscriptKanbanView({
   onDeleteSegments,
   onInsertSegmentAfter,
   onSplitSegment,
+  selectMode = false,
+  selectedIndices = new Set<number>(),
+  onToggleSelect,
 }: TranscriptKanbanViewProps) {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   // Speakers added via "Add speaker" that have no segments yet. Purely a UI
@@ -418,9 +462,12 @@ export default function TranscriptKanbanView({
               onRequestRemoveSpeaker={handleRequestRemoveSpeaker}
               onInsertSegmentAfter={onInsertSegmentAfter}
               onSplitSegment={onSplitSegment}
+              selectMode={selectMode}
+              selectedIndices={selectedIndices}
+              onToggleSelect={onToggleSelect}
             />
           ))}
-          <AddSpeakerColumn onAdd={handleAddSpeaker} />
+          {!selectMode && <AddSpeakerColumn onAdd={handleAddSpeaker} />}
         </div>
         <DragOverlay>
           {draggingSegment ? (

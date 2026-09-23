@@ -191,4 +191,31 @@ describe('TranscriptKanbanView', () => {
     fireEvent.click(within(bubble).getByTitle('Split into two speakers'));
     expect(onSplitSegment).toHaveBeenCalledWith(segments[1], 1);
   });
+
+  it('shows checkboxes and hides bubble actions and the add-speaker column in select mode', () => {
+    renderKanban({ selectMode: true });
+
+    expect(screen.getAllByRole('checkbox')).toHaveLength(segments.length);
+    expect(screen.queryByTitle('Edit this segment')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Insert segment after this one')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /add speaker/i })).not.toBeInTheDocument();
+  });
+
+  it('toggles selection when a bubble is clicked in select mode, instead of seeking', () => {
+    const onToggleSelect = vi.fn();
+    const onSeekToSegment = vi.fn();
+    renderKanban({ selectMode: true, onToggleSelect, onSeekToSegment });
+
+    fireEvent.click(screen.getByText('Hi there'));
+
+    expect(onToggleSelect).toHaveBeenCalledWith(1);
+    expect(onSeekToSegment).not.toHaveBeenCalled();
+  });
+
+  it('reflects selectedIndices on the matching bubble checkbox', () => {
+    renderKanban({ selectMode: true, selectedIndices: new Set([1]) });
+
+    const bubble = screen.getByText('Hi there').closest('.kanban-bubble') as HTMLElement;
+    expect(within(bubble).getByRole('checkbox')).toBeChecked();
+  });
 });

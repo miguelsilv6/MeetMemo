@@ -7,6 +7,9 @@ import type { SetError } from '../types/ui';
 
 export type EditingSegment = TranscriptSegment & { index: number };
 
+// How many past persisted states handleUndo can step back through.
+const MAX_UNDO_HISTORY = 20;
+
 /**
  * Custom hook for transcript data management and editing
  * Handles transcript state and segment editing
@@ -22,6 +25,24 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
   const [pendingNewSegmentIndex, setPendingNewSegmentIndex] = useState<number | null>(null);
   const [splittingSegment, setSplittingSegment] = useState<EditingSegment | null>(null);
   const [showSplitModal, setShowSplitModal] = useState(false);
+  // Stack of previously-persisted segment arrays, most recent last. Each
+  // mutating action pushes the state it is about to replace, so handleUndo
+  // can step back through them one at a time.
+  const [history, setHistory] = useState<TranscriptSegment[][]>([]);
+  // Tracks the jobId the history above belongs to. A freshly-loaded
+  // transcript (new job, or a reload) starts with no undo history of its
+  // own — history from a previous job must never leak in. Adjusted during
+  // render (React's documented alternative to an effect for this) rather
+  // than in an effect, which would call setState synchronously on mount.
+  const [historyJobId, setHistoryJobId] = useState(jobId);
+  if (jobId !== historyJobId) {
+    setHistoryJobId(jobId);
+    setHistory([]);
+  }
+
+  const pushHistory = (segments: TranscriptSegment[]) => {
+    setHistory((prev) => [...prev.slice(-(MAX_UNDO_HISTORY - 1)), segments]);
+  };
 
   // Helper function to set transcript and initialize speaker colors
   const setTranscriptWithColors = (transcriptData: Transcript | null) => {
@@ -44,6 +65,14 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     try {
       setError(null);
 
+      // The undo target is the last *persisted* state. If this save is
+      // completing a pending insert, that placeholder was never saved, so it
+      // must not become what undo restores to.
+      const previouslyPersisted =
+        pendingNewSegmentIndex !== null
+          ? (transcript.segments ?? []).filter((_, i) => i !== pendingNewSegmentIndex)
+          : (transcript.segments ?? []);
+
       const updatedSegments = [...(transcript.segments ?? [])];
       updatedSegments[editingSegment.index] = {
         ...updatedSegments[editingSegment.index],
@@ -55,6 +84,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
 
       // Call backend API to persist transcript changes (including speaker reassignment)
       await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(previouslyPersisted);
 
       setTranscriptWithColors({ ...transcript, segments: updatedSegments });
       setShowEditTextModal(false);
@@ -119,14 +149,16 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
   };
 
   // Split one segment's text into two, attributing the second half to a
-  // different speaker. Timing is divided proportionally to how the text was
-  // split (no waveform to align to), which is an approximation but keeps
-  // both halves inside the original segment's time range.
+  // different speaker. Timing splits at `splitRatio` (0-1 through the
+  // segment, picked on the modal's waveform scrubber) when given; otherwise
+  // falls back to dividing proportionally to how the text was split, which
+  // is only an approximation (no waveform to align to).
   const handleSplitSegment = async (
     index: number,
     firstText: string,
     secondText: string,
-    secondSpeaker: string
+    secondSpeaker: string,
+    splitRatio?: number
   ) => {
     if (!transcript || !jobId) return;
 
@@ -135,7 +167,10 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     if (!original) return;
 
     const originalLength = original.text.length || 1;
-    const ratio = Math.min(Math.max(firstText.length / originalLength, 0.05), 0.95);
+    const ratio =
+      splitRatio !== undefined
+        ? Math.min(Math.max(splitRatio, 0.02), 0.98)
+        : Math.min(Math.max(firstText.length / originalLength, 0.05), 0.95);
     const start = Number(original.start);
     const end = Number(original.end);
     const splitTime = start + (end - start) * ratio;
@@ -157,6 +192,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     try {
       setError(null);
       await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(segments);
       setShowSplitModal(false);
       setSplittingSegment(null);
     } catch (err) {
@@ -174,7 +210,8 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     if (!segment || segment.speaker === newSpeaker) return;
 
     const previousTranscript = transcript;
-    const updatedSegments = [...(transcript.segments ?? [])];
+    const previousSegments = transcript.segments ?? [];
+    const updatedSegments = [...previousSegments];
     updatedSegments[index] = { ...updatedSegments[index], speaker: newSpeaker };
 
     setTranscriptWithColors({ ...transcript, segments: updatedSegments });
@@ -182,6 +219,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     try {
       setError(null);
       await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(previousSegments);
     } catch (err) {
       setTranscriptWithColors(previousTranscript);
       setError((err as Error).message || t('errors.moveSegment'));
@@ -195,7 +233,8 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     if (!transcript || !jobId || indices.length === 0) return;
 
     const previousTranscript = transcript;
-    const updatedSegments = [...(transcript.segments ?? [])];
+    const previousSegments = transcript.segments ?? [];
+    const updatedSegments = [...previousSegments];
     for (const index of indices) {
       if (updatedSegments[index]) {
         updatedSegments[index] = { ...updatedSegments[index], speaker: newSpeaker };
@@ -207,6 +246,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     try {
       setError(null);
       await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(previousSegments);
     } catch (err) {
       setTranscriptWithColors(previousTranscript);
       setError((err as Error).message || t('errors.moveSegments'));
@@ -219,17 +259,41 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     if (!transcript || !jobId || indices.length === 0) return;
 
     const previousTranscript = transcript;
+    const previousSegments = transcript.segments ?? [];
     const indexSet = new Set(indices);
-    const updatedSegments = (transcript.segments ?? []).filter((_, i) => !indexSet.has(i));
+    const updatedSegments = previousSegments.filter((_, i) => !indexSet.has(i));
 
     setTranscriptWithColors({ ...transcript, segments: updatedSegments });
 
     try {
       setError(null);
       await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(previousSegments);
     } catch (err) {
       setTranscriptWithColors(previousTranscript);
       setError((err as Error).message || t('errors.deleteSegments'));
+    }
+  };
+
+  // Step back one entry in the undo history, restoring and persisting that
+  // earlier segment array. Rolled back (both the local state and the popped
+  // history entry) if the backend save fails.
+  const handleUndo = async () => {
+    if (!transcript || !jobId || history.length === 0) return;
+
+    const targetSegments = history[history.length - 1];
+    const currentSegments = transcript.segments ?? [];
+
+    setHistory((prev) => prev.slice(0, -1));
+    setTranscriptWithColors({ ...transcript, segments: targetSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, targetSegments);
+    } catch (err) {
+      setTranscriptWithColors({ ...transcript, segments: currentSegments });
+      setHistory((prev) => [...prev, targetSegments]);
+      setError((err as Error).message || t('errors.undo'));
     }
   };
 
@@ -252,5 +316,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     handleRequestSplitSegment,
     handleCancelSplitSegment,
     handleSplitSegment,
+    canUndo: history.length > 0,
+    handleUndo,
   };
 }

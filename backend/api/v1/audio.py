@@ -4,6 +4,7 @@ Audio router for streaming audio files.
 This router handles audio file streaming with HTTP range request support
 for seeking and efficient playback in the browser.
 """
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -12,9 +13,10 @@ import aiofiles
 import aiofiles.os
 from config import Settings, get_settings
 from dependencies import get_job_repository
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from repositories.job_repository import JobRepository
+from utils.waveform import compute_waveform_peaks
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,49 @@ async def get_file_size(file_path: str) -> int:
     """Get file size asynchronously."""
     stat_result = await aiofiles.os.stat(file_path)
     return stat_result.st_size
+
+
+async def resolve_audio_file_path(
+    uuid: str,
+    job_repo: JobRepository,
+    settings: Settings
+) -> str:
+    """
+    Look up a job's audio file and resolve it to a safe path on disk.
+
+    Args:
+        uuid: Job UUID
+        job_repo: Job repository dependency
+        settings: Application settings dependency
+
+    Returns:
+        Absolute path to the audio file
+
+    Raises:
+        HTTPException: 404 if the job or its audio file cannot be found, or
+            the resolved path would escape the upload directory
+    """
+    job = await job_repo.get(uuid)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+
+    file_name = job['file_name']
+
+    # Security: prevent path traversal attacks
+    try:
+        upload_dir_path = Path(settings.upload_dir).resolve(strict=True)
+        file_path = (upload_dir_path / file_name).resolve(strict=True)
+        # Ensure the resolved file path is within the upload directory
+        file_path.relative_to(upload_dir_path)
+    except (ValueError, FileNotFoundError):
+        logger.warning(
+            "Path traversal attempt or file not found for job %s: %s",
+            uuid,
+            file_name,
+        )
+        raise HTTPException(status_code=404, detail="Audio file not found") from None
+
+    return str(file_path)
 
 
 async def stream_audio_range(
@@ -140,32 +185,11 @@ async def stream_audio(
     Raises:
         HTTPException: 404 if job or audio file not found
     """
-    # Get job from database
-    job = await job_repo.get(uuid)
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-
-    file_name = job['file_name']
-
-    # Security: prevent path traversal attacks
-    try:
-        upload_dir_path = Path(settings.upload_dir).resolve(strict=True)
-        file_path = (upload_dir_path / file_name).resolve(strict=True)
-        # Ensure the resolved file path is within the upload directory
-        file_path.relative_to(upload_dir_path)
-    except (ValueError, FileNotFoundError):
-        logger.warning(
-            "Path traversal attempt or file not found for job %s: %s",
-            uuid,
-            file_name,
-        )
-        raise HTTPException(status_code=404, detail="Audio file not found")
-
-    file_path = str(file_path)  # Convert Path to string for aiofiles compatibility
+    file_path = await resolve_audio_file_path(uuid, job_repo, settings)
 
     # Get file size
     file_size = await get_file_size(file_path)
-    content_type = get_content_type(file_name)
+    content_type = get_content_type(os.path.basename(file_path))
 
     # Check for Range header and prepare response parameters
     range_header = request.headers.get("Range")
@@ -199,3 +223,52 @@ async def stream_audio(
         headers=headers,
         media_type=content_type
     )
+
+
+@router.get("/jobs/{uuid}/waveform")
+async def get_waveform(
+    uuid: str,
+    start: float = Query(..., ge=0),
+    end: float = Query(..., ge=0),
+    buckets: int = Query(100, ge=1, le=2000),
+    job_repo: JobRepository = Depends(get_job_repository),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Compute a downsampled waveform peak envelope for a time range of a job's
+    audio, for rendering a scrubber (e.g. picking a precise split point in
+    the transcript editor) without shipping raw audio to the client.
+
+    Args:
+        uuid: Job UUID
+        start: Range start in seconds
+        end: Range end in seconds
+        buckets: Number of min/max peak pairs to return
+        job_repo: Job repository dependency
+        settings: Application settings dependency
+
+    Returns:
+        {"peaks": [{"min": float, "max": float}, ...]}
+
+    Raises:
+        HTTPException: 404 if job or audio file not found, 400 if the range
+            is invalid, 500 on decode failure
+    """
+    if end <= start:
+        raise HTTPException(status_code=400, detail="'end' must be greater than 'start'")
+
+    file_path = await resolve_audio_file_path(uuid, job_repo, settings)
+
+    try:
+        loop = asyncio.get_event_loop()
+        peaks = await loop.run_in_executor(
+            None, compute_waveform_peaks, file_path, start, end, buckets
+        )
+    except Exception as e:
+        logger.error("Error computing waveform for job %s: %s", uuid, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error while computing waveform"
+        ) from e
+
+    return {"peaks": peaks}

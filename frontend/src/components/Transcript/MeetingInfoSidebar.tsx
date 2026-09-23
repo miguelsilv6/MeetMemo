@@ -135,6 +135,14 @@ export default function MeetingInfoSidebar({
             <Download size={18} className="me-2" />
             {t('meetingInfo.exportPdf')}
           </Button>
+          <Button
+            variant="outline-secondary"
+            className="w-100 mb-2"
+            onClick={() => jobId && api.downloadTranscriptDocx(jobId, selectedFile?.name)}
+          >
+            <Download size={18} className="me-2" />
+            {t('meetingInfo.exportWord')}
+          </Button>
         </div>
       </Card.Body>
     </Card>

@@ -87,7 +87,10 @@
     "editThisSegment": "Edit this segment",
     "editHint": "Double-click to edit",
     "insertSegmentAfter": "Insert segment after this one",
-    "splitSegment": "Split into two speakers"
+    "splitSegment": "Split into two speakers",
+    "undo": "Undo last change",
+    "selectSegments": "Select multiple segments",
+    "selectSegment": "Select this segment"
   },
   "kanban": {
     "moveToSpeaker": "Move to speaker",
@@ -96,6 +99,17 @@
     "removeSpeaker": "Remove {{speaker}}",
     "addSpeaker": "Add speaker",
     "speakerNamePlaceholder": "Speaker name"
+  },
+  "bulkActions": {
+    "selectedCount_one": "{{count}} segment selected",
+    "selectedCount_other": "{{count}} segments selected",
+    "moveTo": "Move to speaker...",
+    "move": "Move",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "deleteConfirmTitle": "Delete selected segments",
+    "deleteConfirmBody_one": "Delete this segment? You can undo this afterwards with the Undo button.",
+    "deleteConfirmBody_other": "Delete these {{count}} segments? You can undo this afterwards with the Undo button."
   },
   "meetingInfo": {
     "title": "Meeting Info",
@@ -110,7 +124,8 @@
     "generatingSummary": "Generating...",
     "generateSummary": "Generate AI Summary",
     "exportMarkdown": "Export Markdown",
-    "exportPdf": "Export PDF"
+    "exportPdf": "Export PDF",
+    "exportWord": "Export Word"
   },
   "modals": {
     "editSpeakers": {
@@ -142,7 +157,10 @@
       "secondSpeakerLabel": "Second part speaker",
       "newSpeakerPrompt": "Enter new speaker name (e.g., John Smith or SPEAKER_03):",
       "addNewSpeaker": "+ Add New Speaker",
-      "confirmButton": "Split Segment"
+      "confirmButton": "Split Segment",
+      "loadingWaveform": "Loading waveform…",
+      "waveformLabel": "Split point in the audio",
+      "waveformHint": "Drag the marker (or use arrow keys) to set exactly where the audio splits."
     },
     "editSummary": {
       "title": "Edit AI Summary",
@@ -179,6 +197,7 @@
     "summaryPlusTranscript": "AI Summary + Transcript",
     "exportPdf": "Export PDF",
     "exportMarkdown": "Export Markdown",
+    "exportWord": "Export Word",
     "transcriptOnly": "Transcript Only",
     "startNewMeeting": "Start New Meeting"
   },
@@ -231,6 +250,7 @@
     "moveSegments": "Failed to move segments to speaker",
     "deleteSegments": "Failed to delete segments",
     "splitSegment": "Failed to split segment",
+    "undo": "Failed to undo the last change",
     "updateSpeakers": "Failed to update speakers",
     "identifySpeakers": "Failed to identify speakers automatically",
     "translateTranscript": "Failed to translate transcript",

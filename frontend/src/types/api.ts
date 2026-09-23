@@ -49,6 +49,16 @@ export interface IdentifySpeakersResponse {
   suggestions?: SpeakerSuggestions;
 }
 
+/** A single min/max peak pair, normalized to [-1, 1]. */
+export interface WaveformPeak {
+  min: number;
+  max: number;
+}
+
+export interface WaveformResponse {
+  peaks: WaveformPeak[];
+}
+
 /** Response returned when uploading audio / creating a job. */
 export interface UploadResponse {
   uuid: string;

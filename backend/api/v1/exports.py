@@ -281,6 +281,71 @@ async def export_transcript_pdf(
         ) from e
 
 
+@router.post("/jobs/{uuid}/exports/transcript/docx", status_code=200)
+async def export_transcript_docx(
+    uuid: str,
+    request: ExportRequest = None,
+    job_repo: JobRepository = Depends(get_job_repository),
+    export_service: ExportService = Depends(get_export_service),
+    settings: Settings = Depends(get_settings)
+):
+    """
+    Export transcript-only Word document (no AI summary).
+
+    Args:
+        uuid: Job UUID
+        request: Optional export parameters (generated_on timestamp)
+
+    Returns:
+        DOCX file as streaming response
+    """
+    job = await job_repo.get(uuid)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+
+    try:
+        # Get data
+        meeting_title = job['file_name']
+        transcript_json = await _get_transcript_json(uuid, job, settings)
+
+        # Get optional timestamp
+        generated_on = request.generated_on if request else None
+
+        # Generate DOCX
+        docx_buffer = export_service.generate_transcript_docx_export(
+            meeting_title,
+            transcript_json,
+            generated_on
+        )
+
+        # Generate filename
+        filename = export_service.generate_filename(
+            meeting_title,
+            'docx',
+            is_transcript_only=True
+        )
+
+        logger.info("Generated transcript DOCX export for job %s", uuid)
+
+        return StreamingResponse(
+            docx_buffer,
+            media_type=(
+                "application/vnd.openxmlformats-officedocument"
+                ".wordprocessingml.document"
+            ),
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error generating transcript DOCX for job %s: %s", uuid, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during transcript DOCX generation"
+        ) from e
+
+
 @router.post("/jobs/{uuid}/exports/transcript/markdown", status_code=200)
 async def export_transcript_markdown(
     uuid: str,
