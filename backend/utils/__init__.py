@@ -2,8 +2,9 @@
 Utility functions and helpers.
 
 This module provides common utilities for formatting, file operations,
-and PDF/Markdown generation.
+and Word/Markdown generation.
 """
+from .docx_generator import generate_transcript_docx
 from .file_utils import calculate_file_hash, convert_to_wav, get_unique_filename
 from .formatters import (
     format_result,
@@ -12,7 +13,6 @@ from .formatters import (
     generate_professional_filename,
 )
 from .markdown_generator import generate_summary_markdown, generate_transcript_markdown
-from .pdf_generator import generate_summary_pdf, generate_transcript_pdf
 
 __all__ = [
     # Formatters
@@ -24,9 +24,8 @@ __all__ = [
     'get_unique_filename',
     'calculate_file_hash',
     'convert_to_wav',
-    # PDF generation
-    'generate_summary_pdf',
-    'generate_transcript_pdf',
+    # Word generation
+    'generate_transcript_docx',
     # Markdown generation
     'generate_summary_markdown',
     'generate_transcript_markdown',

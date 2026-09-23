@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Row, Col, Card, Button } from '@govtechsg/sgds-react';
-import { Sparkles, Edit2 } from 'lucide-react';
+import { Sparkles, Edit2, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SummaryContent from './SummaryContent';
 import CollapsibleTranscript from './CollapsibleTranscript';
 import ExportSidebar from './ExportSidebar';
 import type { SelectedFile, Summary, Transcript } from '../../types/api';
+import type { SetCurrentStep } from '../../types/ui';
 
 interface SummaryViewProps {
   summary: Summary | null;
@@ -14,6 +15,7 @@ interface SummaryViewProps {
   jobId: string | null;
   handleEditSummary: () => void;
   handleStartNewMeeting: () => void;
+  setCurrentStep: SetCurrentStep;
 }
 
 export default function SummaryView({
@@ -23,6 +25,7 @@ export default function SummaryView({
   jobId,
   handleEditSummary,
   handleStartNewMeeting,
+  setCurrentStep,
 }: SummaryViewProps) {
   const { t } = useTranslation();
   const [showFullTranscript, setShowFullTranscript] = useState(false);
@@ -37,6 +40,14 @@ export default function SummaryView({
               {t('summary.title')}
             </h5>
             <div className="d-flex gap-2">
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                onClick={() => setCurrentStep('transcript')}
+              >
+                <ArrowLeft size={16} className="me-1" />
+                {t('summary.backToTranscript')}
+              </Button>
               <Button
                 variant="outline-primary"
                 size="sm"

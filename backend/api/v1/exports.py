@@ -1,11 +1,10 @@
 """
-Exports router for synchronous PDF and Markdown exports.
+Exports router for synchronous Markdown and Word (transcript-only) exports.
 
 This router handles direct export generation for summaries and transcripts.
 """
 import logging
 import os
-from io import BytesIO
 
 import aiofiles
 from config import Settings, get_settings
@@ -97,67 +96,6 @@ async def _get_summary_content(
     return summary
 
 
-@router.post("/jobs/{uuid}/exports/pdf", status_code=200)
-async def export_pdf(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-    uuid: str,
-    request: ExportRequest = None,
-    job_repo: JobRepository = Depends(get_job_repository),
-    export_service: ExportService = Depends(get_export_service),
-    summary_service: SummaryService = Depends(get_summary_service),
-    settings: Settings = Depends(get_settings)
-):
-    """
-    Export job as PDF (summary + transcript).
-
-    Args:
-        uuid: Job UUID
-        request: Optional export parameters (generated_on timestamp)
-
-    Returns:
-        PDF file as streaming response
-    """
-    job = await job_repo.get(uuid)
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-
-    try:
-        # Get data
-        meeting_title = job['file_name']
-        summary_content = await _get_summary_content(uuid, job, summary_service, settings)
-        transcript_json = await _get_transcript_json(uuid, job, settings)
-
-        # Get optional timestamp
-        generated_on = request.generated_on if request else None
-
-        # Generate PDF
-        pdf_buffer = export_service.generate_summary_pdf_export(
-            meeting_title,
-            summary_content,
-            transcript_json,
-            generated_on
-        )
-
-        # Generate filename
-        filename = export_service.generate_filename(meeting_title, 'pdf')
-
-        logger.info("Generated PDF export for job %s", uuid)
-
-        return StreamingResponse(
-            BytesIO(pdf_buffer.read()),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Error generating PDF for job %s: %s", uuid, e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error during PDF generation"
-        ) from e
-
-
 @router.post("/jobs/{uuid}/exports/markdown", status_code=200)
 async def export_markdown(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     uuid: str,
@@ -216,68 +154,6 @@ async def export_markdown(  # pylint: disable=too-many-arguments,too-many-positi
         raise HTTPException(
             status_code=500,
             detail="Internal server error during Markdown generation"
-        ) from e
-
-
-@router.post("/jobs/{uuid}/exports/transcript/pdf", status_code=200)
-async def export_transcript_pdf(
-    uuid: str,
-    request: ExportRequest = None,
-    job_repo: JobRepository = Depends(get_job_repository),
-    export_service: ExportService = Depends(get_export_service),
-    settings: Settings = Depends(get_settings)
-):
-    """
-    Export transcript-only PDF (no AI summary).
-
-    Args:
-        uuid: Job UUID
-        request: Optional export parameters (generated_on timestamp)
-
-    Returns:
-        PDF file as streaming response
-    """
-    job = await job_repo.get(uuid)
-    if not job:
-        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-
-    try:
-        # Get data
-        meeting_title = job['file_name']
-        transcript_json = await _get_transcript_json(uuid, job, settings)
-
-        # Get optional timestamp
-        generated_on = request.generated_on if request else None
-
-        # Generate PDF
-        pdf_buffer = export_service.generate_transcript_pdf_export(
-            meeting_title,
-            transcript_json,
-            generated_on
-        )
-
-        # Generate filename
-        filename = export_service.generate_filename(
-            meeting_title,
-            'pdf',
-            is_transcript_only=True
-        )
-
-        logger.info("Generated transcript PDF export for job %s", uuid)
-
-        return StreamingResponse(
-            BytesIO(pdf_buffer.read()),
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Error generating transcript PDF for job %s: %s", uuid, e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error during transcript PDF generation"
         ) from e
 
 

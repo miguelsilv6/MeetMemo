@@ -17,6 +17,7 @@ import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
 import type {
   SelectedFile,
+  Summary,
   Transcript,
   TranscriptSegment as TranscriptSegmentType,
 } from '../../types/api';
@@ -40,6 +41,7 @@ interface TranscriptViewProps {
   handleRequestSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
+  summary: Summary | null;
   identifyingSpeakers: boolean;
   translatedSegments: TranscriptSegmentType[] | null;
   translating: boolean;
@@ -88,6 +90,7 @@ export default function TranscriptView({
   handleRequestSplitSegment,
   handleGenerateSummary,
   generatingSummary,
+  summary,
   identifyingSpeakers,
   translatedSegments,
   translating,
@@ -358,6 +361,7 @@ export default function TranscriptView({
           identifyingSpeakers={identifyingSpeakers}
           handleGenerateSummary={handleGenerateSummary}
           generatingSummary={generatingSummary}
+          summary={summary}
           jobId={jobId}
         />
       </Col>

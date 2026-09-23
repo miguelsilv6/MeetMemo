@@ -55,13 +55,13 @@ class ExportRequest(BaseModel):
 
 class CreateExportRequest(BaseModel):
     """Model for creating export jobs."""
-    export_type: str = Field(..., pattern="^(pdf|markdown)$")
+    export_type: str = Field(..., pattern="^markdown$")
 
     class Config:
         """Pydantic configuration for CreateExportRequest."""
         json_schema_extra = {
             "example": {
-                "export_type": "pdf"
+                "export_type": "markdown"
             }
         }
 
@@ -211,7 +211,7 @@ class ExportJobResponse(BaseModel):
             "example": {
                 "export_uuid": "650e8400-e29b-41d4-a716-446655440001",
                 "job_uuid": "550e8400-e29b-41d4-a716-446655440000",
-                "export_type": "pdf",
+                "export_type": "markdown",
                 "status_code": 202
             }
         }
@@ -233,7 +233,7 @@ class ExportJobStatusResponse(BaseModel):
             "example": {
                 "uuid": "650e8400-e29b-41d4-a716-446655440001",
                 "job_uuid": "550e8400-e29b-41d4-a716-446655440000",
-                "export_type": "pdf",
+                "export_type": "markdown",
                 "status_code": 200,
                 "progress_percentage": 100,
                 "error_message": None,

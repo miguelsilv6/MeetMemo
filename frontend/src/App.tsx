@@ -227,6 +227,7 @@ function App() {
             handleRequestSplitSegment={handleRequestSplitSegment}
             handleGenerateSummary={handleGenerateSummary}
             generatingSummary={generatingSummary}
+            summary={summary}
             identifyingSpeakers={identifyingSpeakers}
             translatedSegments={translatedSegments}
             translating={translating}
@@ -246,6 +247,7 @@ function App() {
             jobId={jobId}
             handleEditSummary={handleEditSummary}
             handleStartNewMeeting={handleStartNewMeeting}
+            setCurrentStep={setCurrentStep}
           />
         )}
       </Container>

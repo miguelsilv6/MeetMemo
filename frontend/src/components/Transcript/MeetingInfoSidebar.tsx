@@ -1,10 +1,10 @@
 import { Card, Button, Badge } from '@govtechsg/sgds-react';
-import { Sparkles, Download, AlertCircle, Languages } from 'lucide-react';
+import { Sparkles, Download, AlertCircle, Languages, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { getLanguageName } from '../../constants/languages';
 import * as api from '../../services/api';
-import type { SelectedFile, Transcript } from '../../types/api';
+import type { SelectedFile, Summary, Transcript } from '../../types/api';
 
 interface MeetingInfoSidebarProps {
   selectedFile: SelectedFile;
@@ -12,6 +12,7 @@ interface MeetingInfoSidebarProps {
   identifyingSpeakers: boolean;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
+  summary: Summary | null;
   jobId: string | null;
 }
 
@@ -21,6 +22,7 @@ export default function MeetingInfoSidebar({
   identifyingSpeakers,
   handleGenerateSummary,
   generatingSummary,
+  summary,
   jobId,
 }: MeetingInfoSidebarProps) {
   const { t } = useTranslation();
@@ -112,6 +114,11 @@ export default function MeetingInfoSidebar({
                 ></span>
                 {t('meetingInfo.generatingSummary')}
               </>
+            ) : summary?.summary ? (
+              <>
+                <FileText size={18} className="me-2" />
+                {t('meetingInfo.viewSummary')}
+              </>
             ) : (
               <>
                 <Sparkles size={18} className="me-2" />
@@ -126,14 +133,6 @@ export default function MeetingInfoSidebar({
           >
             <Download size={18} className="me-2" />
             {t('meetingInfo.exportMarkdown')}
-          </Button>
-          <Button
-            variant="outline-secondary"
-            className="w-100 mb-2"
-            onClick={() => jobId && api.downloadTranscriptPDF(jobId, selectedFile?.name)}
-          >
-            <Download size={18} className="me-2" />
-            {t('meetingInfo.exportPdf')}
           </Button>
           <Button
             variant="outline-secondary"

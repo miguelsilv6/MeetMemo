@@ -2,9 +2,7 @@
 
 import i18n from '../i18n';
 import {
-  generatePDFFilename,
   generateMarkdownFilename,
-  generateTranscriptPDFFilename,
   generateTranscriptMarkdownFilename,
   generateTranscriptDocxFilename,
 } from '../utils/fileNaming';
@@ -305,35 +303,6 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
   window.URL.revokeObjectURL(downloadUrl);
 }
 
-// Download PDF (Summary + Transcript)
-export async function downloadPDF(
-  uuid: string,
-  originalFilename: string | null | undefined
-): Promise<DownloadResult> {
-  try {
-    const url = `${API_BASE_URL}/jobs/${uuid}/exports/pdf`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status}`);
-    }
-
-    const blob = await response.blob();
-    triggerBlobDownload(blob, generatePDFFilename(originalFilename));
-
-    return { success: true };
-  } catch (error) {
-    console.error('PDF Download Error:', error);
-    throw error;
-  }
-}
-
 // Download Markdown (Summary + Transcript)
 export async function downloadMarkdown(
   uuid: string,
@@ -359,35 +328,6 @@ export async function downloadMarkdown(
     return { success: true };
   } catch (error) {
     console.error('Markdown Download Error:', error);
-    throw error;
-  }
-}
-
-// Download Transcript PDF (transcript only, no AI summary)
-export async function downloadTranscriptPDF(
-  uuid: string,
-  originalFilename: string | null | undefined
-): Promise<DownloadResult> {
-  try {
-    const url = `${API_BASE_URL}/jobs/${uuid}/exports/transcript/pdf`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({}),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status}`);
-    }
-
-    const blob = await response.blob();
-    triggerBlobDownload(blob, generateTranscriptPDFFilename(originalFilename));
-
-    return { success: true };
-  } catch (error) {
-    console.error('Transcript PDF Download Error:', error);
     throw error;
   }
 }

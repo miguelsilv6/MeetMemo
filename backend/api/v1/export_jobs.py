@@ -1,5 +1,5 @@
 """
-Export jobs router for asynchronous PDF and Markdown exports.
+Export jobs router for asynchronous Markdown exports.
 
 This router handles background export job creation, status checking, and downloads.
 """
@@ -47,7 +47,7 @@ async def _process_export_job_task(  # pylint: disable=too-many-arguments,too-ma
     Args:
         export_uuid: Export job UUID
         job_uuid: Parent job UUID
-        export_type: Export type (pdf, markdown, transcript_pdf, transcript_markdown)
+        export_type: Export type (markdown, transcript_markdown)
         job_repo: Job repository instance
         export_repo: Export repository instance
         export_service: Export service instance
@@ -86,7 +86,7 @@ async def _process_export_job_task(  # pylint: disable=too-many-arguments,too-ma
         await export_repo.update_progress(export_uuid, 30)
 
         # Generate export based on type
-        needs_summary = export_type in ['pdf', 'markdown']
+        needs_summary = export_type == 'markdown'
         summary_content = None
 
         if needs_summary:
@@ -105,21 +105,11 @@ async def _process_export_job_task(  # pylint: disable=too-many-arguments,too-ma
         file_buffer: BytesIO
         file_ext: str
 
-        if export_type == 'pdf':
-            file_buffer = export_service.generate_summary_pdf_export(
-                meeting_title, summary_content, transcript_json
-            )
-            file_ext = 'pdf'
-        elif export_type == 'markdown':
+        if export_type == 'markdown':
             file_buffer = export_service.generate_summary_markdown_export(
                 meeting_title, summary_content, transcript_json
             )
             file_ext = 'md'
-        elif export_type == 'transcript_pdf':
-            file_buffer = export_service.generate_transcript_pdf_export(
-                meeting_title, transcript_json
-            )
-            file_ext = 'pdf'
         elif export_type == 'transcript_markdown':
             file_buffer = export_service.generate_transcript_markdown_export(
                 meeting_title, transcript_json
@@ -165,7 +155,7 @@ async def create_export_job(  # pylint: disable=too-many-arguments,too-many-posi
     settings: Settings = Depends(get_settings)
 ) -> ExportJobResponse:
     """
-    Create async export job for PDF or Markdown.
+    Create async export job for Markdown.
 
     Initiates background export generation and returns export job UUID.
     """
@@ -262,7 +252,7 @@ async def download_export(
     """
     Download completed export file.
 
-    Returns FileResponse with generated PDF or Markdown file.
+    Returns FileResponse with the generated Markdown file.
     """
     job = await job_repo.get(uuid)
     if not job:
@@ -284,12 +274,12 @@ async def download_export(
         raise HTTPException(status_code=404, detail="Export file not found")
 
     # Determine media type and filename
-    export_type = export_job.get('export_type', 'pdf')
+    export_type = export_job.get('export_type', 'markdown')
     meeting_title = job['file_name']
 
     is_transcript_only = 'transcript' in export_type
-    file_ext = 'pdf' if 'pdf' in export_type else 'md'
-    media_type = 'application/pdf' if file_ext == 'pdf' else 'text/markdown'
+    file_ext = 'md'
+    media_type = 'text/markdown'
 
     filename = export_service.generate_filename(
         meeting_title,
