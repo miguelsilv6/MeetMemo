@@ -160,7 +160,9 @@ curl -H "Range: bytes=0-1000000" http://localhost/api/v1/jobs/{uuid}/audio
 
 ### GET /jobs/{uuid}/transcript
 
-Get the aligned transcript with speaker labels.
+Get the aligned transcript with speaker labels. The response also carries the
+language Whisper detected during transcription and its confidence, if known
+(`null` when transcription hasn't run yet, e.g. for a job still being aligned).
 
 **Response:**
 ```json
@@ -172,13 +174,49 @@ Get the aligned transcript with speaker labels.
       "start": 0.0,
       "end": 2.5
     }
-  ]
+  ],
+  "language": "en",
+  "language_probability": 0.97
 }
 ```
 
 ### PATCH /jobs/{uuid}/transcript
 
-Update transcript content (manual edits).
+Update transcript content (manual edits). Invalidates any cached summary and
+cached translations for this transcript, since both may now be stale.
+
+### POST /jobs/{uuid}/transcripts/translate
+
+Translate the transcript's segments into another language via the configured
+LLM (default target: Portuguese). Only segment text is translated — speaker
+and timing are preserved so the translation stays aligned with the audio.
+Results are cached on disk per transcript + target language and served from
+cache until the transcript is edited.
+
+**Request:**
+```json
+{
+  "target_language": "pt"
+}
+```
+
+**Response:**
+```json
+{
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "generated",
+  "status_code": 200,
+  "target_language": "pt",
+  "segments": [
+    {
+      "speaker": "SPEAKER_00",
+      "text": "Ola a todos",
+      "start": "0.00",
+      "end": "2.50"
+    }
+  ]
+}
+```
 
 ## Summary
 

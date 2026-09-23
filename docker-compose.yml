@@ -28,6 +28,7 @@ services:
       - logs:/app/logs
       - transcripts:/app/transcripts
       - summary:/app/summary
+      - translations:/app/translations
       - exports:/app/exports
       - whisper_cache:/root/.cache/whisper
       - huggingface_cache:/root/.cache/huggingface
@@ -93,6 +94,7 @@ volumes:
   huggingface_cache:
   torch_cache:
   summary:
+  translations:
   exports:
 
 networks:

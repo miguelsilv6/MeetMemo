@@ -86,9 +86,11 @@ describe('useFileUpload.handleUpload', () => {
       await hook.result.current.handleUpload(file);
     });
 
-    expect(setTranscriptWithColors).toHaveBeenCalledWith({
-      segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
-    });
+    expect(setTranscriptWithColors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
+      })
+    );
   });
 
   it('reports an error and returns to the upload step on failure', async () => {

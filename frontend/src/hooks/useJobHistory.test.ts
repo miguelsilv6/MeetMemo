@@ -83,9 +83,11 @@ describe('useJobHistory', () => {
       await hook.result.current.handleLoadJob({ uuid: 'u1', filename: 'a.mp3', status_code: 200 });
     });
 
-    expect(setTranscriptWithColors).toHaveBeenCalledWith({
-      segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
-    });
+    expect(setTranscriptWithColors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
+      })
+    );
     expect(setCurrentStep).toHaveBeenCalledWith('transcript');
   });
 

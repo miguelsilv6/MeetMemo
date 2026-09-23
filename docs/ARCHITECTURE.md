@@ -291,6 +291,7 @@ All runtime data is stored in Docker volumes (not local directories):
 | `meetmemo_audiofiles` | Uploaded audio files | `/app/audiofiles` |
 | `meetmemo_transcripts` | Generated transcriptions | `/app/transcripts` |
 | `meetmemo_summary` | AI summaries | `/app/summary` |
+| `meetmemo_translations` | Cached transcript translations | `/app/translations` |
 | `meetmemo_exports` | PDF/Markdown exports | `/app/exports` |
 | `meetmemo_logs` | Application logs | `/app/logs` |
 | `meetmemo_whisper_cache` | Legacy cache (unused) | `/root/.cache/whisper` |

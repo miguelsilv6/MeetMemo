@@ -74,9 +74,11 @@ describe('useTranscriptPolling', () => {
     act(() => hook.result.current.startPolling('job1'));
 
     await waitFor(() => expect(setCurrentStep).toHaveBeenCalledWith('transcript'));
-    expect(setTranscriptWithColors).toHaveBeenCalledWith({
-      segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
-    });
+    expect(setTranscriptWithColors).toHaveBeenCalledWith(
+      expect.objectContaining({
+        segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
+      })
+    );
     expect(autoIdentifySpeakers).toHaveBeenCalledWith('job1');
   });
 

@@ -33,6 +33,11 @@ class SpeakerIdentificationRequest(BaseModel):
     context: Optional[str] = None
 
 
+class TranslateRequest(BaseModel):
+    """Model for transcript translation requests."""
+    target_language: str = Field("pt", pattern="^[a-z]{2}$")
+
+
 class RenameJobRequest(BaseModel):
     """Model for renaming a job."""
     file_name: str = Field(..., min_length=1, max_length=255)
@@ -134,6 +139,8 @@ class TranscriptResponse(BaseModel):
     file_name: str
     status_code: int
     is_edited: bool
+    language: Optional[str] = None
+    language_probability: Optional[float] = None
 
 
 class SummaryResponse(BaseModel):
@@ -157,6 +164,15 @@ class RenameResponse(BaseModel):
     uuid: str
     status: str
     new_name: str
+
+
+class TranslateResponse(BaseModel):
+    """Model for transcript translation response."""
+    uuid: str
+    status: str
+    status_code: int
+    target_language: str
+    segments: list[dict]
 
 
 class SpeakerUpdateResponse(BaseModel):

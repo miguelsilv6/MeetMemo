@@ -16,7 +16,9 @@ export function normalizeTranscript(data: Transcript): Transcript {
       // Only treat it as segments if it actually parsed to an array; a non-array
       // payload would otherwise crash the downstream `.map` calls.
       if (Array.isArray(parsed)) {
-        return { segments: parsed };
+        // Preserve sibling fields (e.g. `language`, `language_probability`) that
+        // travel alongside `full_transcript` in the raw backend response.
+        return { ...data, segments: parsed };
       }
       return data;
     } catch (e) {

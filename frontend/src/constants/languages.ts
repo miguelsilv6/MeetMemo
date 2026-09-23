@@ -108,3 +108,13 @@ export const WHISPER_LANGUAGES: WhisperLanguage[] = [
   { code: 'jw', name: 'Javanese' },
   { code: 'su', name: 'Sundanese' },
 ];
+
+/**
+ * Resolve a Whisper language code (e.g. `pt`) to its display name (e.g. `Portuguese`).
+ * Falls back to the raw code when it isn't recognized.
+ */
+export function getLanguageName(code: string | null | undefined): string {
+  if (!code) return 'Unknown';
+  const match = WHISPER_LANGUAGES.find((lang) => lang.code === code);
+  return match?.name ?? code;
+}

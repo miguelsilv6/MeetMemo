@@ -16,6 +16,7 @@ import type {
   SystemInfo,
   Transcript,
   TranscriptSegment,
+  TranslateResponse,
   UploadResponse,
 } from '../types/api';
 
@@ -226,6 +227,20 @@ export async function updateTranscript(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ transcript }),
+  });
+}
+
+// Translate transcript segments (default target: Portuguese)
+export async function translateTranscript(
+  uuid: string,
+  targetLanguage: string = 'pt'
+): Promise<TranslateResponse> {
+  return await apiCall<TranslateResponse>(`/jobs/${uuid}/transcripts/translate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ target_language: targetLanguage }),
   });
 }
 

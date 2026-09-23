@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
-import { Row, Col, Card, Button } from '@govtechsg/sgds-react';
-import { FileText, Users } from 'lucide-react';
+import { useState, useRef, useCallback, useMemo } from 'react';
+import { Row, Col, Card, Button, ButtonGroup } from '@govtechsg/sgds-react';
+import { FileText, Users, LayoutList, LayoutGrid, Languages } from 'lucide-react';
 import TranscriptSegment from './TranscriptSegment';
+import TranscriptKanbanView from './TranscriptKanbanView';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
@@ -11,15 +12,22 @@ import type {
   TranscriptSegment as TranscriptSegmentType,
 } from '../../types/api';
 
+type TranscriptDisplayMode = 'list' | 'kanban';
+
 interface TranscriptViewProps {
   transcript: Transcript | null;
   selectedFile: SelectedFile;
   jobId: string | null;
   handleEditSpeakers: () => void;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
+  handleMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
   identifyingSpeakers: boolean;
+  translatedSegments: TranscriptSegmentType[] | null;
+  translating: boolean;
+  showTranslation: boolean;
+  handleToggleTranslation: (segments: TranscriptSegmentType[] | undefined) => void;
 }
 
 /**
@@ -54,12 +62,28 @@ export default function TranscriptView({
   jobId,
   handleEditSpeakers,
   handleEditText,
+  handleMoveSegmentSpeaker,
   handleGenerateSummary,
   generatingSummary,
   identifyingSpeakers,
+  translatedSegments,
+  translating,
+  showTranslation,
+  handleToggleTranslation,
 }: TranscriptViewProps) {
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
+  const [displayMode, setDisplayMode] = useState<TranscriptDisplayMode>('list');
   const audioPlayerRef = useRef<AudioPlayerHandle | null>(null);
+
+  // Translated text to display in place of each segment's original text, by
+  // index, when a Portuguese translation is active. Segments themselves (and
+  // what gets handed to the edit modal) always stay the original data — only
+  // the rendered text is swapped, so editing never overwrites the original
+  // with a translation.
+  const displayTextByIndex = useMemo(() => {
+    if (!showTranslation || !translatedSegments) return undefined;
+    return translatedSegments.map((segment) => segment.text);
+  }, [showTranslation, translatedSegments]);
 
   // Handle time update from audio player
   const handleTimeUpdate = useCallback(
@@ -88,7 +112,43 @@ export default function TranscriptView({
               <FileText size={20} className="me-2" />
               Meeting Transcript
             </h5>
-            <div className="d-flex gap-2">
+            <div className="d-flex gap-2 align-items-center">
+              <ButtonGroup>
+                <Button
+                  variant={displayMode === 'list' ? 'primary' : 'outline-primary'}
+                  size="sm"
+                  onClick={() => setDisplayMode('list')}
+                  title="List view"
+                >
+                  <LayoutList size={16} />
+                </Button>
+                <Button
+                  variant={displayMode === 'kanban' ? 'primary' : 'outline-primary'}
+                  size="sm"
+                  onClick={() => setDisplayMode('kanban')}
+                  title="Kanban view (drag between speakers)"
+                >
+                  <LayoutGrid size={16} />
+                </Button>
+              </ButtonGroup>
+              <Button
+                variant={showTranslation ? 'primary' : 'outline-primary'}
+                size="sm"
+                onClick={() => handleToggleTranslation(transcript?.segments)}
+                disabled={translating || !transcript?.segments?.length}
+                title="Translate to Portuguese"
+              >
+                {translating ? (
+                  <span
+                    className="spinner-border spinner-border-sm me-1"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                ) : (
+                  <Languages size={16} className="me-1" />
+                )}
+                {showTranslation ? 'Show Original' : 'Translate to Portuguese'}
+              </Button>
               <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
                 <Users size={16} className="me-1" />
                 Edit Speakers
@@ -97,18 +157,30 @@ export default function TranscriptView({
           </Card.Header>
           <Card.Body>
             {transcript && transcript.segments ? (
-              <div className="transcript-content">
-                {transcript.segments.map((segment, index) => (
-                  <TranscriptSegment
-                    key={index}
-                    segment={segment}
-                    index={index}
-                    handleEditText={handleEditText}
-                    isActive={index === activeSegmentIndex}
-                    onSeekToSegment={handleSeekToSegment}
-                  />
-                ))}
-              </div>
+              displayMode === 'kanban' ? (
+                <TranscriptKanbanView
+                  segments={transcript.segments}
+                  displayTextByIndex={displayTextByIndex}
+                  activeSegmentIndex={activeSegmentIndex}
+                  handleEditText={handleEditText}
+                  onSeekToSegment={handleSeekToSegment}
+                  onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                />
+              ) : (
+                <div className="transcript-content">
+                  {transcript.segments.map((segment, index) => (
+                    <TranscriptSegment
+                      key={index}
+                      segment={segment}
+                      displayText={displayTextByIndex?.[index]}
+                      index={index}
+                      handleEditText={handleEditText}
+                      isActive={index === activeSegmentIndex}
+                      onSeekToSegment={handleSeekToSegment}
+                    />
+                  ))}
+                </div>
+              )
             ) : (
               <div className="transcript-placeholder text-center text-muted py-5">
                 <FileText size={48} className="mb-3 opacity-50" />

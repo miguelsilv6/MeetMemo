@@ -4,7 +4,24 @@ import { normalizeTranscript } from './transcript';
 describe('normalizeTranscript', () => {
   it('parses a full_transcript JSON string into segments', () => {
     const segments = [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }];
-    expect(normalizeTranscript({ full_transcript: JSON.stringify(segments) })).toEqual({
+    const data = { full_transcript: JSON.stringify(segments) };
+    expect(normalizeTranscript(data)).toEqual({
+      full_transcript: data.full_transcript,
+      segments,
+    });
+  });
+
+  it('preserves sibling fields such as language alongside the parsed segments', () => {
+    const segments = [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'ola' }];
+    const data = {
+      full_transcript: JSON.stringify(segments),
+      language: 'pt',
+      language_probability: 0.97,
+    };
+    expect(normalizeTranscript(data)).toEqual({
+      full_transcript: data.full_transcript,
+      language: 'pt',
+      language_probability: 0.97,
       segments,
     });
   });

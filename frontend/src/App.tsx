@@ -11,6 +11,7 @@ import useTranscriptPolling from './hooks/useTranscriptPolling';
 import useTranscript from './hooks/useTranscript';
 import useSpeakerManagement from './hooks/useSpeakerManagement';
 import useSummary from './hooks/useSummary';
+import useTranslation from './hooks/useTranslation';
 
 // Layout Components
 import Header from './components/Layout/Header';
@@ -54,7 +55,12 @@ function App() {
     setShowEditTextModal,
     handleEditText,
     handleSaveSegmentText,
+    handleMoveSegmentSpeaker,
   } = useTranscript(jobId, setError);
+
+  // Transcript translation (Portuguese)
+  const { translatedSegments, translating, showTranslation, handleToggleTranslation } =
+    useTranslation(jobId, setError);
 
   // Speaker management
   const {
@@ -203,9 +209,14 @@ function App() {
             jobId={jobId}
             handleEditSpeakers={handleEditSpeakers}
             handleEditText={handleEditText}
+            handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
             handleGenerateSummary={handleGenerateSummary}
             generatingSummary={generatingSummary}
             identifyingSpeakers={identifyingSpeakers}
+            translatedSegments={translatedSegments}
+            translating={translating}
+            showTranslation={showTranslation}
+            handleToggleTranslation={handleToggleTranslation}
           />
         )}
 

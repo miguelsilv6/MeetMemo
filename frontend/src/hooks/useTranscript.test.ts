@@ -63,4 +63,38 @@ describe('useTranscript', () => {
     expect(result.current.transcript?.segments?.[0].text).toBe('Hello, everyone');
     expect(result.current.showEditTextModal).toBe(false);
   });
+
+  it('reassigns a segment to another speaker via the API and updates state', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    await act(async () => {
+      await result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
+    });
+
+    expect(api.updateTranscript).toHaveBeenCalledTimes(1);
+    const [uuid, updated] = vi.mocked(api.updateTranscript).mock.calls[0];
+    expect(uuid).toBe('job1');
+    expect(updated[0].speaker).toBe('SPEAKER_01');
+    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_01');
+  });
+
+  it('rolls back the speaker change if the API call fails', async () => {
+    const setError = vi.fn();
+    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useTranscript('job1', setError));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    await act(async () => {
+      await result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
+    });
+
+    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_00');
+    expect(setError).toHaveBeenCalledWith('network down');
+  });
 });

@@ -565,3 +565,85 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
   font-size: 0.75rem;
 }
+
+/* ============================================================================
+   Transcript Kanban View
+   ============================================================================ */
+
+.kanban-board {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  max-height: 600px;
+}
+
+.kanban-column {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--mm-bg-subtle, var(--background));
+  border: 1px solid var(--mm-border, var(--border));
+  border-top-width: 3px;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.kanban-column-over {
+  background-color: var(--mm-primary-subtle, var(--primary-light));
+}
+
+.kanban-column-header {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--mm-border, var(--border));
+  background-color: var(--mm-surface, var(--surface));
+}
+
+.kanban-column-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+  min-height: 120px;
+}
+
+.kanban-bubble {
+  background-color: var(--mm-surface, var(--surface));
+  border: 1px solid var(--mm-border, var(--border));
+  border-left-width: 3px;
+  border-radius: 0.75rem;
+  cursor: grab;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.kanban-bubble:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.kanban-bubble-active {
+  background-color: var(--primary-light);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.kanban-bubble-dragging {
+  opacity: 0.4;
+}
+
+.kanban-bubble-overlay {
+  cursor: grabbing;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  width: 220px;
+}
+
+.kanban-bubble-timestamp {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: 0.7rem;
+}
+
+.kanban-bubble-action {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.kanban-bubble:hover .kanban-bubble-action {
+  opacity: 1;
+}
