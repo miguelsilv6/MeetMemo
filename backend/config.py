@@ -67,7 +67,9 @@ class Settings(BaseSettings):
         'audio/x-m4a',
         'audio/webm',
         'audio/flac',
-        'audio/ogg'
+        'audio/ogg',
+        'audio/aac',
+        'audio/x-aac'
     ]
 
     # Processing Configuration

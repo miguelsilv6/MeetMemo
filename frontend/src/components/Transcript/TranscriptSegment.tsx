@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import type { SyntheticEvent } from 'react';
 import { Badge, Button } from '@govtechsg/sgds-react';
-import { Pencil, Play } from 'lucide-react';
+import { Pencil, Play, Plus, Scissors } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
@@ -15,6 +15,8 @@ interface TranscriptSegmentProps {
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   isActive: boolean;
   onSeekToSegment: (time: number) => void;
+  onInsertSegmentAfter: (index: number) => void;
+  onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
 }
 
 export default function TranscriptSegment({
@@ -24,6 +26,8 @@ export default function TranscriptSegment({
   handleEditText,
   isActive,
   onSeekToSegment,
+  onInsertSegmentAfter,
+  onSplitSegment,
 }: TranscriptSegmentProps) {
   const { t } = useTranslation();
   const segmentRef = useRef<HTMLDivElement | null>(null);
@@ -54,6 +58,11 @@ export default function TranscriptSegment({
       className={`transcript-segment mb-3 p-3 border-start border-3 ${isActive ? 'transcript-segment-active' : ''}`}
       style={{ borderColor: getSpeakerBorderColor(segment.speaker) }}
       onClick={handlePlayFromHere}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        handleEditText(segment, index);
+      }}
+      title={t('transcript.editHint')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -104,6 +113,32 @@ export default function TranscriptSegment({
             style={{ color: '#f0ad4e' }}
           >
             <Pencil size={14} />
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onInsertSegmentAfter(index);
+            }}
+            title={t('transcript.insertSegmentAfter')}
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Plus size={14} />
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSplitSegment(segment, index);
+            }}
+            title={t('transcript.splitSegment')}
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <Scissors size={14} />
           </Button>
         </div>
       </div>

@@ -175,4 +175,125 @@ describe('useTranscript', () => {
     expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
     expect(setError).toHaveBeenCalledWith('network down');
   });
+
+  it('saves edited start/end alongside text and speaker', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    act(() => {
+      result.current.handleEditText(segments[0], 0);
+    });
+    act(() => {
+      result.current.setEditingSegment({
+        speaker: 'SPEAKER_00',
+        start: 1,
+        end: 3,
+        text: 'Hello',
+        index: 0,
+      });
+    });
+    await act(async () => {
+      await result.current.handleSaveSegmentText();
+    });
+
+    expect(result.current.transcript?.segments?.[0]).toMatchObject({ start: 1, end: 3 });
+  });
+
+  it('inserts a blank segment after the given index, defaulting to the same speaker, and opens it for editing', () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    act(() => {
+      result.current.handleInsertSegmentAfter(0);
+    });
+
+    expect(result.current.transcript?.segments).toHaveLength(4);
+    const inserted = result.current.transcript?.segments?.[1];
+    expect(inserted).toMatchObject({ speaker: 'SPEAKER_00', text: '' });
+    expect(inserted?.start).toBe(2); // end of segment 0
+    expect(result.current.showEditTextModal).toBe(true);
+    expect(result.current.editingSegment).toMatchObject({ index: 1, text: '' });
+    expect(api.updateTranscript).not.toHaveBeenCalled(); // nothing persisted until Save
+  });
+
+  it('removes an inserted-but-unsaved segment when the edit modal is cancelled', () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    act(() => {
+      result.current.handleInsertSegmentAfter(0);
+    });
+    expect(result.current.transcript?.segments).toHaveLength(4);
+
+    act(() => {
+      result.current.handleCancelEditText();
+    });
+
+    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
+    expect(result.current.showEditTextModal).toBe(false);
+  });
+
+  it('cancelling an edit of an existing (not freshly-inserted) segment does not remove it', () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    act(() => {
+      result.current.handleEditText(segments[0], 0);
+    });
+    act(() => {
+      result.current.handleCancelEditText();
+    });
+
+    expect(result.current.transcript?.segments).toEqual(segments);
+  });
+
+  it('splits a segment into two, dividing time proportionally to the text split', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({
+        segments: [{ speaker: 'SPEAKER_00', start: 0, end: 10, text: 'aaaaabbbbb' }],
+      });
+    });
+    await act(async () => {
+      await result.current.handleSplitSegment(0, 'aaaaa', 'bbbbb', 'SPEAKER_01');
+    });
+
+    expect(api.updateTranscript).toHaveBeenCalledTimes(1);
+    const updated = result.current.transcript?.segments;
+    expect(updated).toHaveLength(2);
+    expect(updated?.[0]).toMatchObject({ speaker: 'SPEAKER_00', text: 'aaaaa', start: 0, end: 5 });
+    expect(updated?.[1]).toMatchObject({
+      speaker: 'SPEAKER_01',
+      text: 'bbbbb',
+      start: 5,
+      end: 10,
+    });
+  });
+
+  it('rolls back a split if the API call fails', async () => {
+    const setError = vi.fn();
+    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useTranscript('job1', setError));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    await act(async () => {
+      await result.current.handleSplitSegment(0, 'Hel', 'lo', 'SPEAKER_01');
+    });
+
+    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
+    expect(setError).toHaveBeenCalledWith('network down');
+  });
 });

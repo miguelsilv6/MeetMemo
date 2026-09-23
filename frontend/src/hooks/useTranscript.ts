@@ -16,6 +16,12 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [editingSegment, setEditingSegment] = useState<EditingSegment | null>(null);
   const [showEditTextModal, setShowEditTextModal] = useState(false);
+  // Index of a segment inserted via handleInsertSegmentAfter that hasn't been
+  // saved yet. If the edit modal is cancelled while this is set, the blank
+  // segment is removed instead of being left behind as a stray empty bubble.
+  const [pendingNewSegmentIndex, setPendingNewSegmentIndex] = useState<number | null>(null);
+  const [splittingSegment, setSplittingSegment] = useState<EditingSegment | null>(null);
+  const [showSplitModal, setShowSplitModal] = useState(false);
 
   // Helper function to set transcript and initialize speaker colors
   const setTranscriptWithColors = (transcriptData: Transcript | null) => {
@@ -31,7 +37,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     setShowEditTextModal(true);
   };
 
-  // Save edited segment text and speaker
+  // Save edited segment text, speaker, and timing
   const handleSaveSegmentText = async () => {
     if (!editingSegment || !transcript || !jobId) return;
 
@@ -43,6 +49,8 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
         ...updatedSegments[editingSegment.index],
         text: editingSegment.text,
         speaker: editingSegment.speaker,
+        start: editingSegment.start,
+        end: editingSegment.end,
       };
 
       // Call backend API to persist transcript changes (including speaker reassignment)
@@ -51,8 +59,109 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       setTranscriptWithColors({ ...transcript, segments: updatedSegments });
       setShowEditTextModal(false);
       setEditingSegment(null);
+      setPendingNewSegmentIndex(null);
     } catch (err) {
       setError((err as Error).message || t('errors.updateSegment'));
+    }
+  };
+
+  // Close the edit modal without saving. If the segment being edited was a
+  // fresh insert (handleInsertSegmentAfter) that was never persisted, remove
+  // it rather than leaving an empty bubble behind.
+  const handleCancelEditText = () => {
+    if (pendingNewSegmentIndex !== null && transcript) {
+      const updatedSegments = (transcript.segments ?? []).filter(
+        (_, i) => i !== pendingNewSegmentIndex
+      );
+      setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+    }
+    setPendingNewSegmentIndex(null);
+    setShowEditTextModal(false);
+    setEditingSegment(null);
+  };
+
+  // Insert a new, blank segment right after `afterIndex` (or at the start if
+  // -1), defaulting to the same speaker and a short slot between the
+  // surrounding segments' timestamps, then open it for editing immediately —
+  // for lines the transcription missed entirely. Nothing is persisted until
+  // the user saves; cancelling removes the placeholder (see handleCancelEditText).
+  const handleInsertSegmentAfter = (afterIndex: number) => {
+    if (!transcript) return;
+
+    const segments = transcript.segments ?? [];
+    const prev = segments[afterIndex];
+    const next = segments[afterIndex + 1];
+    const speaker = prev?.speaker ?? segments[0]?.speaker ?? 'SPEAKER_00';
+    const start = prev ? Number(prev.end) : 0;
+    const desiredEnd = start + 2;
+    const end = next ? Math.max(start + 0.1, Math.min(desiredEnd, Number(next.start))) : desiredEnd;
+
+    const newSegment: TranscriptSegment = { speaker, text: '', start, end };
+    const insertAt = afterIndex + 1;
+    const updatedSegments = [...segments];
+    updatedSegments.splice(insertAt, 0, newSegment);
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+    setPendingNewSegmentIndex(insertAt);
+    handleEditText(newSegment, insertAt);
+  };
+
+  // Open the split-segment modal for a segment whose text actually spans a
+  // missed speaker change.
+  const handleRequestSplitSegment = (segment: TranscriptSegment, index: number) => {
+    setSplittingSegment({ ...segment, index });
+    setShowSplitModal(true);
+  };
+
+  const handleCancelSplitSegment = () => {
+    setShowSplitModal(false);
+    setSplittingSegment(null);
+  };
+
+  // Split one segment's text into two, attributing the second half to a
+  // different speaker. Timing is divided proportionally to how the text was
+  // split (no waveform to align to), which is an approximation but keeps
+  // both halves inside the original segment's time range.
+  const handleSplitSegment = async (
+    index: number,
+    firstText: string,
+    secondText: string,
+    secondSpeaker: string
+  ) => {
+    if (!transcript || !jobId) return;
+
+    const segments = transcript.segments ?? [];
+    const original = segments[index];
+    if (!original) return;
+
+    const originalLength = original.text.length || 1;
+    const ratio = Math.min(Math.max(firstText.length / originalLength, 0.05), 0.95);
+    const start = Number(original.start);
+    const end = Number(original.end);
+    const splitTime = start + (end - start) * ratio;
+
+    const firstSegment: TranscriptSegment = { ...original, text: firstText, end: splitTime };
+    const secondSegment: TranscriptSegment = {
+      speaker: secondSpeaker,
+      text: secondText,
+      start: splitTime,
+      end,
+    };
+
+    const previousTranscript = transcript;
+    const updatedSegments = [...segments];
+    updatedSegments.splice(index, 1, firstSegment, secondSegment);
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, updatedSegments);
+      setShowSplitModal(false);
+      setSplittingSegment(null);
+    } catch (err) {
+      setTranscriptWithColors(previousTranscript);
+      setError((err as Error).message || t('errors.splitSegment'));
     }
   };
 
@@ -133,8 +242,15 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     setShowEditTextModal,
     handleEditText,
     handleSaveSegmentText,
+    handleCancelEditText,
+    handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
     handleBulkMoveSegments,
     handleDeleteSegments,
+    splittingSegment,
+    showSplitModal,
+    handleRequestSplitSegment,
+    handleCancelSplitSegment,
+    handleSplitSegment,
   };
 }

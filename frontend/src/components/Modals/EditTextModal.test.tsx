@@ -20,7 +20,7 @@ const editingSegment: EditingSegment = {
 };
 
 describe('EditTextModal', () => {
-  it('renders the segment text and timestamp when shown', () => {
+  it('renders the segment text and editable start/end timestamps when shown', () => {
     render(
       <EditTextModal
         show
@@ -33,7 +33,25 @@ describe('EditTextModal', () => {
       />
     );
     expect(screen.getByDisplayValue('Hello')).toBeInTheDocument();
-    expect(screen.getByText('1:05 - 1:10')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('65')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('70')).toBeInTheDocument();
+  });
+
+  it('updates the segment start/end on edit', () => {
+    const setEditingSegment = vi.fn();
+    render(
+      <EditTextModal
+        show
+        onHide={vi.fn()}
+        editingSegment={editingSegment}
+        setEditingSegment={setEditingSegment}
+        handleSaveSegmentText={vi.fn()}
+        transcript={transcript}
+        editingSpeakers={{}}
+      />
+    );
+    fireEvent.change(screen.getByDisplayValue('65'), { target: { value: '60' } });
+    expect(setEditingSegment).toHaveBeenCalledWith(expect.objectContaining({ start: 60 }));
   });
 
   it('updates the segment text on edit', () => {
