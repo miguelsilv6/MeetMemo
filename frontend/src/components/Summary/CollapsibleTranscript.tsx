@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Card, Badge } from '@govtechsg/sgds-react';
 import { FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import type { Transcript } from '../../types/api';
 
@@ -15,6 +16,8 @@ export default function CollapsibleTranscript({
   showFullTranscript,
   setShowFullTranscript,
 }: CollapsibleTranscriptProps) {
+  const { t } = useTranslation();
+
   return (
     <Card>
       <Card.Header
@@ -24,7 +27,7 @@ export default function CollapsibleTranscript({
       >
         <h5 className="mb-0">
           <FileText size={20} className="me-2" />
-          Full Transcript
+          {t('summary.fullTranscript')}
         </h5>
         <span className="text-muted">{showFullTranscript ? '▼' : '▶'}</span>
       </Card.Header>
@@ -60,7 +63,7 @@ export default function CollapsibleTranscript({
             </div>
           ) : (
             <div className="text-center text-muted py-3">
-              <p className="mb-0">No transcript available</p>
+              <p className="mb-0">{t('summary.noTranscript')}</p>
             </div>
           )}
         </Card.Body>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import type { ApiError, RecentJob } from '../types/api';
@@ -24,6 +25,7 @@ export default function useJobHistory(
   setError: SetError,
   handleUpload: HandleUpload
 ) {
+  const { t } = useTranslation();
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
 
@@ -69,7 +71,7 @@ export default function useJobHistory(
     try {
       setError(null);
       setJobId(job.uuid);
-      setSelectedFile({ name: job.filename || 'Recording' });
+      setSelectedFile({ name: job.filename || t('recentJobs.untitled') });
 
       // Check if job is still processing
       if (job.status_code === 202 || job.status_code === '202') {
@@ -87,15 +89,13 @@ export default function useJobHistory(
       } catch (err) {
         // Transcript not found - might be incomplete job
         if ((err as ApiError).status === 404) {
-          setError(
-            'Transcript not found for this meeting. It may have been deleted or failed to process.'
-          );
+          setError(t('errors.transcriptNotFound'));
         } else {
           throw err;
         }
       }
     } catch (err) {
-      setError((err as Error).message || 'Failed to load job');
+      setError((err as Error).message || t('errors.loadJob'));
     }
   };
 
@@ -108,7 +108,7 @@ export default function useJobHistory(
       // Refresh the jobs list
       await fetchRecentJobs();
     } catch (err) {
-      setError((err as Error).message || 'Failed to delete meeting');
+      setError((err as Error).message || t('errors.deleteMeeting'));
     }
   };
 

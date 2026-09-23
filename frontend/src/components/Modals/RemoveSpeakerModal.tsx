@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Button, Form } from '@govtechsg/sgds-react';
 import { UserX } from 'lucide-react';
+import { Trans, useTranslation } from 'react-i18next';
 
 interface RemoveSpeakerModalProps {
   show: boolean;
@@ -24,6 +25,7 @@ export default function RemoveSpeakerModal({
   onMove,
   onDelete,
 }: RemoveSpeakerModalProps) {
+  const { t } = useTranslation();
   const [action, setAction] = useState<'move' | 'delete'>(
     otherSpeakers.length > 0 ? 'move' : 'delete'
   );
@@ -43,14 +45,17 @@ export default function RemoveSpeakerModal({
       <Modal.Header closeButton>
         <Modal.Title>
           <UserX size={20} className="me-2" />
-          Remove Speaker
+          {t('modals.removeSpeaker.title')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p>
-          <strong>{speaker}</strong> has {segmentCount}{' '}
-          {segmentCount === 1 ? 'segment' : 'segments'}. What should happen to{' '}
-          {segmentCount === 1 ? 'it' : 'them'}?
+          <Trans
+            i18nKey="modals.removeSpeaker.description"
+            count={segmentCount}
+            values={{ speaker }}
+            components={{ strong: <strong /> }}
+          />
         </p>
 
         {otherSpeakers.length > 0 && (
@@ -61,7 +66,7 @@ export default function RemoveSpeakerModal({
             className="mb-2"
             checked={action === 'move'}
             onChange={() => setAction('move')}
-            label="Move to another speaker"
+            label={t('modals.removeSpeaker.moveToAnother')}
           />
         )}
         {action === 'move' && otherSpeakers.length > 0 && (
@@ -87,21 +92,23 @@ export default function RemoveSpeakerModal({
           onChange={() => setAction('delete')}
           label={
             <span className="text-danger">
-              Delete {segmentCount === 1 ? 'this segment' : 'these segments'} permanently
+              {t('modals.removeSpeaker.deleteLabel', { count: segmentCount })}
             </span>
           }
         />
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           variant={action === 'delete' ? 'danger' : 'primary'}
           onClick={handleConfirm}
           disabled={action === 'move' && !targetSpeaker}
         >
-          {action === 'delete' ? 'Delete Segments' : 'Move Segments'}
+          {action === 'delete'
+            ? t('modals.removeSpeaker.deleteButton')
+            : t('modals.removeSpeaker.moveButton')}
         </Button>
       </Modal.Footer>
     </Modal>

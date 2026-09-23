@@ -1,5 +1,6 @@
 // API Service for MeetMemo Backend Communication
 
+import i18n from '../i18n';
 import {
   generatePDFFilename,
   generateMarkdownFilename,
@@ -61,7 +62,7 @@ function categorizeError(response: Response | null, error: Error): ErrorCategory
     return {
       type: 'NETWORK_ERROR',
       message: 'Network error - please check your connection',
-      userMessage: 'Unable to connect to the server. Please check your internet connection.',
+      userMessage: i18n.t('errors.network'),
     };
   }
 
@@ -71,32 +72,32 @@ function categorizeError(response: Response | null, error: Error): ErrorCategory
     return {
       type: 'NOT_FOUND',
       message: 'Resource not found',
-      userMessage: 'The requested resource was not found.',
+      userMessage: i18n.t('errors.notFound'),
     };
   } else if (status === 401 || status === 403) {
     return {
       type: 'AUTHENTICATION_ERROR',
       message: 'Authentication failed',
-      userMessage: 'You are not authorized to access this resource.',
+      userMessage: i18n.t('errors.unauthorized'),
     };
   } else if (status >= 400 && status < 500) {
     return {
       type: 'CLIENT_ERROR',
       message: `Client error: ${status}`,
-      userMessage: 'Invalid request. Please try again.',
+      userMessage: i18n.t('errors.client'),
     };
   } else if (status >= 500) {
     return {
       type: 'SERVER_ERROR',
       message: `Server error: ${status}`,
-      userMessage: 'Server error. Please try again later.',
+      userMessage: i18n.t('errors.server'),
     };
   }
 
   return {
     type: 'UNKNOWN_ERROR',
     message: error.message || 'An unknown error occurred',
-    userMessage: 'An unexpected error occurred. Please try again.',
+    userMessage: i18n.t('errors.unknown'),
   };
 }
 

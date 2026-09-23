@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Row, Col, Card, Button } from '@govtechsg/sgds-react';
 import { Sparkles, Edit2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import SummaryContent from './SummaryContent';
 import CollapsibleTranscript from './CollapsibleTranscript';
 import ExportSidebar from './ExportSidebar';
@@ -23,6 +24,7 @@ export default function SummaryView({
   handleEditSummary,
   handleStartNewMeeting,
 }: SummaryViewProps) {
+  const { t } = useTranslation();
   const [showFullTranscript, setShowFullTranscript] = useState(false);
 
   return (
@@ -32,7 +34,7 @@ export default function SummaryView({
           <Card.Header className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0">
               <Sparkles size={20} className="me-2" />
-              AI-Generated Summary
+              {t('summary.title')}
             </h5>
             <div className="d-flex gap-2">
               <Button
@@ -42,7 +44,7 @@ export default function SummaryView({
                 disabled={!summary?.summary}
               >
                 <Edit2 size={16} className="me-1" />
-                Edit
+                {t('common.edit')}
               </Button>
             </div>
           </Card.Header>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { initializeSpeakerColors } from '../utils/speakerColors';
 import type { Transcript, TranscriptSegment } from '../types/api';
@@ -11,6 +12,7 @@ export type EditingSegment = TranscriptSegment & { index: number };
  * Handles transcript state and segment editing
  */
 export default function useTranscript(jobId: string | null, setError: SetError) {
+  const { t } = useTranslation();
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [editingSegment, setEditingSegment] = useState<EditingSegment | null>(null);
   const [showEditTextModal, setShowEditTextModal] = useState(false);
@@ -50,7 +52,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       setShowEditTextModal(false);
       setEditingSegment(null);
     } catch (err) {
-      setError((err as Error).message || 'Failed to update segment');
+      setError((err as Error).message || t('errors.updateSegment'));
     }
   };
 
@@ -73,7 +75,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       await api.updateTranscript(jobId, updatedSegments);
     } catch (err) {
       setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || 'Failed to move segment to speaker');
+      setError((err as Error).message || t('errors.moveSegment'));
     }
   };
 
@@ -98,7 +100,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       await api.updateTranscript(jobId, updatedSegments);
     } catch (err) {
       setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || 'Failed to move segments to speaker');
+      setError((err as Error).message || t('errors.moveSegments'));
     }
   };
 
@@ -118,7 +120,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       await api.updateTranscript(jobId, updatedSegments);
     } catch (err) {
       setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || 'Failed to delete segments');
+      setError((err as Error).message || t('errors.deleteSegments'));
     }
   };
 

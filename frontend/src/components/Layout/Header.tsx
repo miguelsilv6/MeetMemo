@@ -1,12 +1,16 @@
 import { Container } from '@govtechsg/sgds-react';
 import { FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ThemeSwitcher from '../ThemeSwitcher';
+import LanguageSwitcher from '../LanguageSwitcher';
 
 interface HeaderProps {
   onStartNewMeeting: () => void;
 }
 
 export default function Header({ onStartNewMeeting }: HeaderProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="app-header">
       <Container>
@@ -18,11 +22,14 @@ export default function Header({ onStartNewMeeting }: HeaderProps) {
           >
             <FileText size={32} className="text-primary" />
             <div>
-              <h4 className="mb-0">MeetMemo</h4>
-              <small className="text-muted">AI Meeting Summary</small>
+              <h4 className="mb-0">{t('app.name')}</h4>
+              <small className="text-muted">{t('app.tagline')}</small>
             </div>
           </div>
-          <ThemeSwitcher />
+          <div className="d-flex align-items-center gap-2">
+            <LanguageSwitcher />
+            <ThemeSwitcher />
+          </div>
         </div>
       </Container>
     </div>

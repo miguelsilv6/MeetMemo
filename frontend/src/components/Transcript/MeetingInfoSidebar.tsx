@@ -1,5 +1,6 @@
 import { Card, Button, Badge } from '@govtechsg/sgds-react';
 import { Sparkles, Download, AlertCircle, Languages } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { getLanguageName } from '../../constants/languages';
 import * as api from '../../services/api';
@@ -22,36 +23,35 @@ export default function MeetingInfoSidebar({
   generatingSummary,
   jobId,
 }: MeetingInfoSidebarProps) {
+  const { t } = useTranslation();
+
   return (
     <Card className="sticky-sidebar">
       <Card.Header>
-        <h5 className="mb-0">Meeting Info</h5>
+        <h5 className="mb-0">{t('meetingInfo.title')}</h5>
       </Card.Header>
       <Card.Body>
         <div className="meeting-info mb-4">
           <div className="info-item mb-3">
-            <small className="text-muted">File Name</small>
-            <div>{selectedFile?.name || 'Unknown'}</div>
+            <small className="text-muted">{t('meetingInfo.fileName')}</small>
+            <div>{selectedFile?.name || t('common.unknown')}</div>
           </div>
           <div className="info-item mb-3">
-            <small className="text-muted">Duration</small>
+            <small className="text-muted">{t('meetingInfo.duration')}</small>
             <div>
               {transcript?.segments && transcript.segments.length > 0
                 ? `${Math.floor(transcript.segments[transcript.segments.length - 1].end / 60)}:${String(Math.floor(transcript.segments[transcript.segments.length - 1].end % 60)).padStart(2, '0')}`
-                : 'N/A'}
+                : t('common.notAvailable')}
             </div>
           </div>
           {transcript?.language && (
             <div className="info-item mb-3">
-              <small className="text-muted">Detected Language</small>
+              <small className="text-muted">{t('meetingInfo.detectedLanguage')}</small>
               <div className="d-flex align-items-center gap-1">
                 <Languages size={14} className="text-muted" />
                 <span>{getLanguageName(transcript.language)}</span>
                 {typeof transcript.language_probability === 'number' && (
-                  <span
-                    className="text-muted"
-                    title="Confidence reported by the speech recognition model"
-                  >
+                  <span className="text-muted" title={t('meetingInfo.confidenceTitle')}>
                     ({Math.round(transcript.language_probability * 100)}%)
                   </span>
                 )}
@@ -59,7 +59,7 @@ export default function MeetingInfoSidebar({
             </div>
           )}
           <div className="info-item mb-3">
-            <small className="text-muted">Speakers</small>
+            <small className="text-muted">{t('meetingInfo.speakers')}</small>
             <div className="mb-2 d-flex flex-wrap gap-1">
               {transcript?.segments ? (
                 [...new Set(transcript.segments.map((s) => s.speaker))].map((speaker) => (
@@ -77,19 +77,18 @@ export default function MeetingInfoSidebar({
                   </Badge>
                 ))
               ) : (
-                <span className="text-muted">N/A</span>
+                <span className="text-muted">{t('common.notAvailable')}</span>
               )}
             </div>
             {identifyingSpeakers && (
               <div className="small text-muted">
                 <Sparkles size={12} className="me-1" />
-                AI is identifying speakers...
+                {t('meetingInfo.identifyingSpeakers')}
               </div>
             )}
             <div className="small text-muted" style={{ fontSize: '0.75rem', lineHeight: '1.3' }}>
               <AlertCircle size={12} className="me-1" />
-              Speaker names are auto-identified by AI when possible. Use "Edit Speakers" to make
-              changes.
+              {t('meetingInfo.speakerHint')}
             </div>
           </div>
         </div>
@@ -97,7 +96,7 @@ export default function MeetingInfoSidebar({
         <hr />
 
         <div className="actions">
-          <h6 className="mb-3">Next Steps</h6>
+          <h6 className="mb-3">{t('meetingInfo.nextSteps')}</h6>
           <Button
             variant="primary"
             className="w-100 mb-2"
@@ -111,12 +110,12 @@ export default function MeetingInfoSidebar({
                   role="status"
                   aria-hidden="true"
                 ></span>
-                Generating...
+                {t('meetingInfo.generatingSummary')}
               </>
             ) : (
               <>
                 <Sparkles size={18} className="me-2" />
-                Generate AI Summary
+                {t('meetingInfo.generateSummary')}
               </>
             )}
           </Button>
@@ -126,7 +125,7 @@ export default function MeetingInfoSidebar({
             onClick={() => jobId && api.downloadTranscriptMarkdown(jobId, selectedFile?.name)}
           >
             <Download size={18} className="me-2" />
-            Export Markdown
+            {t('meetingInfo.exportMarkdown')}
           </Button>
           <Button
             variant="outline-secondary"
@@ -134,7 +133,7 @@ export default function MeetingInfoSidebar({
             onClick={() => jobId && api.downloadTranscriptPDF(jobId, selectedFile?.name)}
           >
             <Download size={18} className="me-2" />
-            Export PDF
+            {t('meetingInfo.exportPdf')}
           </Button>
         </div>
       </Card.Body>

@@ -1,6 +1,7 @@
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
 import { Card, Form } from '@govtechsg/sgds-react';
 import { Upload as UploadIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { WHISPER_LANGUAGES } from '../../constants/languages';
 
 interface FileUploadCardProps {
@@ -22,19 +23,21 @@ export default function FileUploadCard({
   selectedLanguage,
   onLanguageChange,
 }: FileUploadCardProps) {
+  const { t } = useTranslation();
+
   return (
     <Card className="h-100 upload-card">
       <Card.Body className="text-center p-5">
         <div className="upload-icon my-4">
           <UploadIcon size={64} strokeWidth={1.5} className="text-primary" />
         </div>
-        <h4 className="mb-3">Upload Audio File</h4>
+        <h4 className="mb-3">{t('fileUpload.title')}</h4>
 
         {/* Language Selector */}
         <div className="mb-3" style={{ maxWidth: '300px', margin: '0 auto' }}>
           <Form.Group>
             <Form.Label className="text-start d-block">
-              <small className="text-muted">Transcription Language</small>
+              <small className="text-muted">{t('fileUpload.languageLabel')}</small>
             </Form.Label>
             <Form.Select
               value={selectedLanguage || ''}
@@ -59,9 +62,9 @@ export default function FileUploadCard({
           style={{ cursor: uploading ? 'default' : 'pointer' }}
         >
           <p className="mb-2">
-            <strong>Click to browse</strong> or drag & drop
+            <strong>{t('fileUpload.clickToBrowse')}</strong> {t('fileUpload.orDragDrop')}
           </p>
-          <small className="text-muted">Supports MP3, WAV, M4A, WEBM (max 500MB)</small>
+          <small className="text-muted">{t('fileUpload.supportedFormats')}</small>
         </div>
         <input
           type="file"
@@ -77,7 +80,7 @@ export default function FileUploadCard({
               role="status"
               aria-hidden="true"
             ></span>
-            <span>Uploading...</span>
+            <span>{t('fileUpload.uploading')}</span>
           </div>
         )}
       </Card.Body>

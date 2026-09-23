@@ -1,5 +1,6 @@
 import { Container } from '@govtechsg/sgds-react';
 import { UploadIcon, Users, FileText, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { WorkflowStep } from '../../types/api';
 
 interface WorkflowStepsProps {
@@ -7,6 +8,8 @@ interface WorkflowStepsProps {
 }
 
 export default function WorkflowSteps({ currentStep }: WorkflowStepsProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="workflow-steps bg-light py-3">
       <Container>
@@ -15,7 +18,7 @@ export default function WorkflowSteps({ currentStep }: WorkflowStepsProps) {
             <div className="step-icon">
               <UploadIcon size={20} />
             </div>
-            <div className="step-label">Upload Audio</div>
+            <div className="step-label">{t('workflowSteps.upload')}</div>
           </div>
           <div className="step-divider"></div>
           <div
@@ -24,7 +27,7 @@ export default function WorkflowSteps({ currentStep }: WorkflowStepsProps) {
             <div className="step-icon">
               <Users size={20} />
             </div>
-            <div className="step-label">AI Processing</div>
+            <div className="step-label">{t('workflowSteps.processing')}</div>
           </div>
           <div className="step-divider"></div>
           <div
@@ -33,14 +36,14 @@ export default function WorkflowSteps({ currentStep }: WorkflowStepsProps) {
             <div className="step-icon">
               <FileText size={20} />
             </div>
-            <div className="step-label">Review Transcript</div>
+            <div className="step-label">{t('workflowSteps.transcript')}</div>
           </div>
           <div className="step-divider"></div>
           <div className={`step ${currentStep === 'summary' ? 'active' : ''}`}>
             <div className="step-icon">
               <Sparkles size={20} />
             </div>
-            <div className="step-label">Get Summary</div>
+            <div className="step-label">{t('workflowSteps.summary')}</div>
           </div>
         </div>
       </Container>

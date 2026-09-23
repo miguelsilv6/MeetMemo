@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 
 // Demo mode: skip backend health check (for GitHub Pages deployment)
@@ -10,6 +11,7 @@ const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
  * In demo mode, immediately returns ready state without checking backend
  */
 export default function useBackendHealth() {
+  const { t } = useTranslation();
   const [backendReady, setBackendReady] = useState<boolean>(DEMO_MODE);
   const [backendError, setBackendError] = useState<string | null>(null);
 
@@ -32,7 +34,7 @@ export default function useBackendHealth() {
         } catch {
           retryCount++;
           if (retryCount >= maxRetries) {
-            setBackendError('Backend is not responding. Please check if the service is running.');
+            setBackendError(t('loadingScreen.backendNotResponding'));
             return;
           }
           // Wait 1 second before retrying
@@ -42,6 +44,9 @@ export default function useBackendHealth() {
     };
 
     checkBackendHealth();
+    // Intentionally runs once on mount; a language switch mid-retry should not
+    // restart the 30-attempt health-check loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

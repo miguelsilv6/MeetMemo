@@ -1,0 +1,238 @@
+{
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Guardar Alterações",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "loading": "A carregar...",
+    "close": "Fechar",
+    "errorPrefix": "Erro:",
+    "unknown": "Desconhecido",
+    "notAvailable": "N/D"
+  },
+  "app": {
+    "name": "MeetMemo",
+    "tagline": "Resumo de Reuniões com IA",
+    "footer": "MeetMemo © 2025 - Transcrição de Reuniões com IA e Identificação de Interlocutores"
+  },
+  "workflowSteps": {
+    "upload": "Carregar Áudio",
+    "processing": "Processamento IA",
+    "transcript": "Rever Transcrição",
+    "summary": "Obter Resumo"
+  },
+  "systemInfoBar": {
+    "title": "Hardware detetado e modelos ativos",
+    "cpu": "CPU",
+    "profile": "perfil",
+    "whisper": "whisper",
+    "diarization": "diarização"
+  },
+  "upload": {
+    "title": "Iniciar a Transcrição da Tua Reunião",
+    "subtitle": "Carrega uma gravação ou grava ao vivo para obteres uma transcrição com IA e identificação de interlocutores"
+  },
+  "fileUpload": {
+    "title": "Carregar Ficheiro Áudio",
+    "languageLabel": "Idioma da Transcrição",
+    "clickToBrowse": "Clica para escolher",
+    "orDragDrop": "ou arrasta e larga",
+    "supportedFormats": "Suporta MP3, WAV, M4A, WEBM (máx. 500MB)",
+    "uploading": "A carregar..."
+  },
+  "recording": {
+    "title": "Gravar Reunião ao Vivo",
+    "subtitle": "Grava áudio diretamente do teu microfone",
+    "tipLabel": "Dica:",
+    "tipText": "Para melhores resultados, usa um microfone de qualidade e minimiza o ruído de fundo",
+    "recording": "A gravar...",
+    "startRecording": "Iniciar Gravação",
+    "notSupported": "O teu navegador não suporta gravação de áudio",
+    "requiresHttps": "A gravação requer HTTPS. Acede a esta página via HTTPS para ativar o acesso ao microfone"
+  },
+  "recentJobs": {
+    "title": "Reuniões Recentes",
+    "loading": "A carregar reuniões recentes...",
+    "untitled": "Gravação Sem Título",
+    "dateUnknown": "Data desconhecida",
+    "statusComplete": "Concluída",
+    "statusProcessing": "A processar",
+    "statusFailed": "Falhou",
+    "deleteThis": "Eliminar esta reunião",
+    "empty": "Ainda não há reuniões recentes. Carrega ou grava a tua primeira reunião para começar!",
+    "retentionNotice": "As reuniões são eliminadas automaticamente após 12 horas",
+    "deleteModalTitle": "Eliminar Reunião",
+    "deleteModalBody": "Tens a certeza de que queres eliminar esta reunião? Esta ação não pode ser desfeita."
+  },
+  "processing": {
+    "title": "A Processar a Tua Reunião",
+    "subtitle": "A nossa IA está a transcrever o áudio e a identificar os interlocutores",
+    "stepUploaded": "Áudio carregado com sucesso",
+    "stepTranscribing": "A transcrever com Whisper AI...",
+    "stepDiarizing": "A identificar interlocutores com PyAnnote (passo mais demorado)",
+    "stepAligning": "A alinhar interlocutores com o texto",
+    "etaNotice": "Isto demora normalmente 2-3 minutos por cada 10 minutos de gravação"
+  },
+  "transcript": {
+    "title": "Transcrição da Reunião",
+    "listViewTitle": "Vista de lista",
+    "kanbanViewTitle": "Vista Kanban (arrasta entre interlocutores)",
+    "translateToPortuguese": "Traduzir para Português",
+    "showOriginal": "Mostrar Original",
+    "editSpeakers": "Editar Interlocutores",
+    "placeholder": "A transcrição vai aparecer aqui depois do processamento",
+    "loadingKanban": "A carregar vista Kanban…",
+    "currentlyPlaying": "A reproduzir atualmente",
+    "playFromHere": "Reproduzir a partir daqui",
+    "editThisSegment": "Editar este segmento"
+  },
+  "kanban": {
+    "moveToSpeaker": "Mover para interlocutor",
+    "moveToSpeakerHint": "Mover para interlocutor (alternativa acessível por teclado ao arrastar)",
+    "dropHere": "Larga aqui",
+    "removeSpeaker": "Remover {{speaker}}",
+    "addSpeaker": "Adicionar interlocutor",
+    "speakerNamePlaceholder": "Nome do interlocutor"
+  },
+  "meetingInfo": {
+    "title": "Informação da Reunião",
+    "fileName": "Nome do Ficheiro",
+    "duration": "Duração",
+    "detectedLanguage": "Idioma Detetado",
+    "confidenceTitle": "Confiança reportada pelo modelo de reconhecimento de voz",
+    "speakers": "Interlocutores",
+    "identifyingSpeakers": "A IA está a identificar os interlocutores...",
+    "speakerHint": "Os nomes dos interlocutores são identificados automaticamente pela IA quando possível. Usa \"Editar Interlocutores\" para fazer alterações.",
+    "nextSteps": "Próximos Passos",
+    "generatingSummary": "A gerar...",
+    "generateSummary": "Gerar Resumo com IA",
+    "exportMarkdown": "Exportar Markdown",
+    "exportPdf": "Exportar PDF"
+  },
+  "modals": {
+    "editSpeakers": {
+      "title": "Editar Nomes dos Interlocutores",
+      "description": "Substitui as etiquetas dos interlocutores por nomes reais. As sugestões de IA são aplicadas automaticamente quando disponíveis.",
+      "tip": "Dica: para adicionares um novo interlocutor, usa o botão ✏️ em qualquer segmento da transcrição.",
+      "identifying": "A identificar interlocutores...",
+      "aiSuggestions": "Sugestões da IA",
+      "acceptSuggestion": "Aceitar esta sugestão",
+      "dismissSuggestion": "Rejeitar esta sugestão",
+      "speakerNames": "Nomes dos Interlocutores",
+      "namePlaceholder": "Introduz o nome do interlocutor"
+    },
+    "editText": {
+      "title": "Editar Segmento da Transcrição",
+      "speakerLabel": "Interlocutor",
+      "newSpeakerPrompt": "Introduz o nome do novo interlocutor (ex.: João Silva ou SPEAKER_03):",
+      "addNewSpeaker": "+ Adicionar Novo Interlocutor",
+      "speakerHint": "Seleciona um interlocutor existente ou adiciona um novo",
+      "textLabel": "Texto da Transcrição"
+    },
+    "editSummary": {
+      "title": "Editar Resumo da IA",
+      "description": "Edita o resumo gerado pela IA para corrigir imprecisões ou adicionar detalhes antes de exportar.",
+      "textLabel": "Texto do Resumo",
+      "placeholder": "Introduz o texto do resumo..."
+    },
+    "recording": {
+      "title": "Gravação em Curso",
+      "subtitle": "A gravar áudio do teu microfone...",
+      "hint": "Clica em \"Parar Gravação\" quando terminares",
+      "stopRecording": "Parar Gravação"
+    },
+    "removeSpeaker": {
+      "title": "Remover Interlocutor",
+      "description_one": "<strong>{{speaker}}</strong> tem {{count}} segmento. O que deve acontecer a ele?",
+      "description_other": "<strong>{{speaker}}</strong> tem {{count}} segmentos. O que deve acontecer a eles?",
+      "moveToAnother": "Mover para outro interlocutor",
+      "deleteLabel_one": "Eliminar este segmento permanentemente",
+      "deleteLabel_other": "Eliminar estes segmentos permanentemente",
+      "deleteButton": "Eliminar Segmentos",
+      "moveButton": "Mover Segmentos"
+    }
+  },
+  "summary": {
+    "title": "Resumo Gerado por IA",
+    "placeholder": "O resumo da IA vai aparecer aqui",
+    "summaryHeading": "Resumo",
+    "keyPoints": "Pontos Principais",
+    "actionItems": "Ações a Realizar",
+    "fullTranscript": "Transcrição Completa",
+    "noTranscript": "Não há transcrição disponível",
+    "exportOptions": "Opções de Exportação",
+    "summaryPlusTranscript": "Resumo IA + Transcrição",
+    "exportPdf": "Exportar PDF",
+    "exportMarkdown": "Exportar Markdown",
+    "transcriptOnly": "Apenas Transcrição",
+    "startNewMeeting": "Iniciar Nova Reunião"
+  },
+  "audioPlayer": {
+    "loadFailed": "Falha ao carregar o ficheiro de áudio",
+    "playbackFailed": "Falha na reprodução. Tenta novamente.",
+    "loading": "A carregar áudio...",
+    "progress": "Progresso do áudio",
+    "skipBack": "Recuar 10 segundos",
+    "skipForward": "Avançar 10 segundos",
+    "play": "Reproduzir",
+    "pause": "Pausar",
+    "mute": "Silenciar",
+    "unmute": "Ativar som",
+    "volume": "Volume"
+  },
+  "loadingScreen": {
+    "connectionError": "Erro de Ligação",
+    "connectionHint": "Confirma que o serviço backend está a correr e tenta atualizar a página.",
+    "retry": "Tentar Ligar Novamente",
+    "tagline": "Transcrição de Reuniões com IA",
+    "connecting": "A ligar aos serviços backend...",
+    "backendNotResponding": "O backend não está a responder. Verifica se o serviço está a correr."
+  },
+  "errorBoundary": {
+    "title": "Ocorreu um problema",
+    "description": "A aplicação encontrou um erro inesperado. Este foi registado para investigação.",
+    "detailsSummary": "Detalhes do Erro (Apenas em Desenvolvimento)",
+    "reload": "Recarregar Aplicação",
+    "goHome": "Voltar ao Início"
+  },
+  "themeSwitcher": {
+    "light": "Modo claro — clica para escuro",
+    "dark": "Modo escuro — clica para automático",
+    "system": "Modo automático — clica para claro"
+  },
+  "languageSwitcher": {
+    "switchToEnglish": "Switch to English",
+    "switchToPortuguese": "Mudar para Português"
+  },
+  "errors": {
+    "network": "Não foi possível ligar ao servidor. Verifica a tua ligação à internet.",
+    "notFound": "O recurso pedido não foi encontrado.",
+    "unauthorized": "Não tens autorização para aceder a este recurso.",
+    "client": "Pedido inválido. Tenta novamente.",
+    "server": "Erro no servidor. Tenta novamente mais tarde.",
+    "unknown": "Ocorreu um erro inesperado. Tenta novamente.",
+    "updateSegment": "Falha ao atualizar o segmento",
+    "moveSegment": "Falha ao mover o segmento para o interlocutor",
+    "moveSegments": "Falha ao mover os segmentos para o interlocutor",
+    "deleteSegments": "Falha ao eliminar os segmentos",
+    "updateSpeakers": "Falha ao atualizar os interlocutores",
+    "identifySpeakers": "Falha ao identificar interlocutores automaticamente",
+    "translateTranscript": "Falha ao traduzir a transcrição",
+    "generateSummary": "Falha ao gerar o resumo",
+    "updateSummary": "Falha ao atualizar o resumo",
+    "uploadFile": "Falha ao carregar o ficheiro",
+    "uploadRecording": "Falha ao carregar a gravação",
+    "micDenied": "Acesso ao microfone negado. Permite o acesso ao microfone para gravar.",
+    "micNotFound": "Nenhum microfone encontrado. Liga um microfone e tenta novamente.",
+    "startRecordingFailed": "Falha ao iniciar a gravação: {{message}}",
+    "loadJob": "Falha ao carregar a reunião",
+    "deleteMeeting": "Falha ao eliminar a reunião",
+    "transcriptNotFound": "Transcrição não encontrada para esta reunião. Pode ter sido eliminada ou o processamento falhou.",
+    "startTranscription": "Falha ao iniciar a transcrição. Tenta novamente.",
+    "startDiarization": "Falha ao iniciar a identificação de interlocutores. Tenta novamente.",
+    "startAlignment": "Falha ao iniciar o alinhamento. Tenta novamente.",
+    "loadTranscript": "Falha ao carregar a transcrição. Atualiza a página e tenta novamente.",
+    "processingFailed": "O processamento falhou. Tenta novamente.",
+    "processingGeneric": "Ocorreu um erro durante o processamento. Tenta novamente."
+  }
+}

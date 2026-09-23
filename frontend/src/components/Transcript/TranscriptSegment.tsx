@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import type { SyntheticEvent } from 'react';
 import { Badge, Button } from '@govtechsg/sgds-react';
 import { Pencil, Play } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
@@ -24,6 +25,7 @@ export default function TranscriptSegment({
   isActive,
   onSeekToSegment,
 }: TranscriptSegmentProps) {
+  const { t } = useTranslation();
   const segmentRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll to active segment
@@ -71,7 +73,7 @@ export default function TranscriptSegment({
             {segment.speaker}
           </Badge>
           {isActive && (
-            <span className="audio-playing-indicator" title="Currently playing">
+            <span className="audio-playing-indicator" title={t('transcript.currentlyPlaying')}>
               <span className="audio-playing-dot"></span>
             </span>
           )}
@@ -82,7 +84,7 @@ export default function TranscriptSegment({
             size="sm"
             className="p-0 segment-play-btn"
             onClick={handlePlayFromHere}
-            title="Play from here"
+            title={t('transcript.playFromHere')}
             style={{ color: 'var(--primary)' }}
           >
             <Play size={14} />
@@ -98,7 +100,7 @@ export default function TranscriptSegment({
               e.stopPropagation();
               handleEditText(segment, index);
             }}
-            title="Edit this segment"
+            title={t('transcript.editThisSegment')}
             style={{ color: '#f0ad4e' }}
           >
             <Pencil size={14} />

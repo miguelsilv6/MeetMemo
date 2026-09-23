@@ -12,6 +12,7 @@ import {
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
 import { Pencil, Play, Plus, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
 import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
@@ -52,6 +53,7 @@ function KanbanBubble({
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
 }) {
+  const { t } = useTranslation();
   const { segment, index } = indexed;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: String(index),
@@ -89,7 +91,7 @@ function KanbanBubble({
             size="sm"
             className="p-0 kanban-bubble-action"
             onClick={handlePlayFromHere}
-            title="Play from here"
+            title={t('transcript.playFromHere')}
             style={{ color: 'var(--primary)' }}
           >
             <Play size={12} />
@@ -102,7 +104,7 @@ function KanbanBubble({
               e.stopPropagation();
               handleEditText(segment, index);
             }}
-            title="Edit this segment"
+            title={t('transcript.editThisSegment')}
             style={{ color: '#f0ad4e' }}
           >
             <Pencil size={12} />
@@ -113,8 +115,8 @@ function KanbanBubble({
       {speakers.length > 1 && (
         <select
           className="form-select form-select-sm kanban-bubble-speaker-select kanban-bubble-action mt-1"
-          aria-label="Move to speaker"
-          title="Move to speaker (keyboard-accessible alternative to dragging)"
+          aria-label={t('kanban.moveToSpeaker')}
+          title={t('kanban.moveToSpeakerHint')}
           value={segment.speaker}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
@@ -158,6 +160,7 @@ function KanbanColumn({
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   onRequestRemoveSpeaker: (speaker: string) => void;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: speaker });
   const color = getSpeakerColor(speaker);
 
@@ -182,7 +185,7 @@ function KanbanColumn({
             size="sm"
             className="p-0 kanban-column-remove-btn"
             onClick={() => onRequestRemoveSpeaker(speaker)}
-            title={`Remove ${speaker}`}
+            title={t('kanban.removeSpeaker', { speaker })}
             style={{ color: 'var(--mm-danger, #dc3545)' }}
           >
             <X size={16} />
@@ -191,7 +194,7 @@ function KanbanColumn({
       </div>
       <div className="kanban-column-body">
         {bubbles.length === 0 ? (
-          <p className="text-muted small text-center py-4 mb-0">Drop here</p>
+          <p className="text-muted small text-center py-4 mb-0">{t('kanban.dropHere')}</p>
         ) : (
           bubbles.map((indexed) => (
             <KanbanBubble
@@ -213,6 +216,7 @@ function KanbanColumn({
 
 /** Trailing card that lets the user add a new, initially empty, speaker column. */
 function AddSpeakerColumn({ onAdd }: { onAdd: (name: string) => void }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
 
@@ -227,7 +231,7 @@ function AddSpeakerColumn({ onAdd }: { onAdd: (name: string) => void }) {
     return (
       <button type="button" className="kanban-add-column" onClick={() => setEditing(true)}>
         <Plus size={16} className="me-1" />
-        Add speaker
+        {t('kanban.addSpeaker')}
       </button>
     );
   }
@@ -237,7 +241,7 @@ function AddSpeakerColumn({ onAdd }: { onAdd: (name: string) => void }) {
       <Form.Control
         autoFocus
         size="sm"
-        placeholder="Speaker name"
+        placeholder={t('kanban.speakerNamePlaceholder')}
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => {

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { Modal, Button, Form, Alert } from '@govtechsg/sgds-react';
 import { Users, Sparkles, Check, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { SpeakerMapping, SpeakerSuggestions } from '../../types/api';
 
 interface EditSpeakersModalProps {
@@ -26,23 +27,20 @@ export default function EditSpeakersModal({
   handleAcceptSuggestion,
   handleRejectSuggestion,
 }: EditSpeakersModalProps) {
+  const { t } = useTranslation();
+
   return (
     <Modal show={show} onHide={onHide} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
           <Users size={20} className="me-2" />
-          Edit Speaker Names
+          {t('modals.editSpeakers.title')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <div className="mb-4">
-          <p className="text-muted mb-2">
-            Replace speaker labels with actual names. AI suggestions are automatically applied when
-            available.
-          </p>
-          <p className="text-muted small mb-2">
-            <strong>Tip:</strong> To add a new speaker, use the ✏️ button on any transcript segment.
-          </p>
+          <p className="text-muted mb-2">{t('modals.editSpeakers.description')}</p>
+          <p className="text-muted small mb-2">{t('modals.editSpeakers.tip')}</p>
           {identifyingSpeakers && (
             <div className="text-muted small">
               <span
@@ -50,7 +48,7 @@ export default function EditSpeakersModal({
                 role="status"
                 aria-hidden="true"
               ></span>
-              Identifying speakers...
+              {t('modals.editSpeakers.identifying')}
             </div>
           )}
         </div>
@@ -60,7 +58,7 @@ export default function EditSpeakersModal({
           <div className="mb-4">
             <h6 className="mb-3">
               <Sparkles size={18} className="me-2" />
-              AI Suggestions
+              {t('modals.editSpeakers.aiSuggestions')}
             </h6>
             {Object.entries(speakerSuggestions).map(([speakerLabel, suggestedName]) => {
               const isUndetermined = suggestedName === 'Cannot be determined';
@@ -82,7 +80,7 @@ export default function EditSpeakersModal({
                         variant="success"
                         size="sm"
                         onClick={() => handleAcceptSuggestion(speakerLabel, suggestedName)}
-                        title="Accept this suggestion"
+                        title={t('modals.editSpeakers.acceptSuggestion')}
                       >
                         <Check size={16} />
                       </Button>
@@ -91,7 +89,7 @@ export default function EditSpeakersModal({
                       variant={isUndetermined ? 'secondary' : 'danger'}
                       size="sm"
                       onClick={() => handleRejectSuggestion(speakerLabel)}
-                      title="Dismiss this suggestion"
+                      title={t('modals.editSpeakers.dismissSuggestion')}
                     >
                       <X size={16} />
                     </Button>
@@ -104,7 +102,7 @@ export default function EditSpeakersModal({
         )}
 
         {/* Manual Input Section */}
-        <h6 className="mb-3">Speaker Names</h6>
+        <h6 className="mb-3">{t('modals.editSpeakers.speakerNames')}</h6>
         {Object.keys(editingSpeakers).map((speaker) => (
           <Form.Group key={speaker} className="mb-3">
             <Form.Label>{speaker}</Form.Label>
@@ -117,17 +115,17 @@ export default function EditSpeakersModal({
                   [speaker]: e.target.value,
                 })
               }
-              placeholder="Enter speaker name"
+              placeholder={t('modals.editSpeakers.namePlaceholder')}
             />
           </Form.Group>
         ))}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" onClick={handleSaveSpeakers}>
-          Save Changes
+          {t('common.save')}
         </Button>
       </Modal.Footer>
     </Modal>

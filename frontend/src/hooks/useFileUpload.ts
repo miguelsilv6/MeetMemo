@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import type { SelectedFile } from '../types/api';
@@ -24,6 +25,7 @@ export default function useFileUpload(
   setTranscriptWithColors: SetTranscriptWithColors,
   startPolling: StartPolling
 ) {
+  const { t } = useTranslation();
   const [selectedFile, setSelectedFile] = useState<SelectedFile>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null); // null = auto-detect
@@ -117,7 +119,7 @@ export default function useFileUpload(
         startPolling(response.uuid);
       }
     } catch (err) {
-      setError((err as Error).message || 'Failed to upload file');
+      setError((err as Error).message || t('errors.uploadFile'));
       setUploading(false);
       setCurrentStep('upload');
       setProcessingProgress(0);

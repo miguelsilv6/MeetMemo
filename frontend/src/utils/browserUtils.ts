@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 /**
  * Check if the page is being accessed via HTTPS
  * @returns {boolean} True if protocol is HTTPS or localhost
@@ -29,11 +31,11 @@ export const isRecordingSupported = (): boolean => {
  */
 export const getRecordingUnavailableReason = (): string | null => {
   if (!isRecordingSupported()) {
-    return 'Your browser does not support audio recording';
+    return i18n.t('recording.notSupported');
   }
 
   if (!isSecureContext()) {
-    return 'Recording requires HTTPS. Please access this page via HTTPS to enable microphone access';
+    return i18n.t('recording.requiresHttps');
   }
 
   return null;
