@@ -89,6 +89,79 @@ def _extract_speaker_mapping(content: str) -> Optional[dict]:
     return None
 
 
+def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
+    """
+    Extract an ordered list of translated strings from an LLM response.
+
+    The model is asked to return a JSON array of ``{"i": <index>, "text": <translation>}``
+    objects (rather than a bare array of strings) so a translation that legitimately
+    contains stray punctuation or gets reordered by the model can still be matched back
+    to its original segment by index. Tolerates the same fenced/prose-wrapped shapes as
+    ``_extract_speaker_mapping``.
+
+    Args:
+        content: Raw assistant message content.
+        count: Expected number of segments (and highest valid index + 1).
+
+    Returns:
+        A list of `count` translated strings in original segment order, or None if no
+        valid, complete translation could be parsed.
+    """
+    if not content:
+        return None
+
+    candidates = []
+
+    if "```" in content:
+        fenced = content.split("```", 2)
+        if len(fenced) >= 2:
+            block = fenced[1]
+            if block.lstrip().lower().startswith("json"):
+                block = block.lstrip()[len("json"):]
+            candidates.append(block.strip())
+
+    candidates.append(content.strip())
+
+    # Every balanced [...] array found in the text, in order.
+    depth = 0
+    arr_start = -1
+    for i, ch in enumerate(content):
+        if ch == "[":
+            if depth == 0:
+                arr_start = i
+            depth += 1
+        elif ch == "]" and depth > 0:
+            depth -= 1
+            if depth == 0 and arr_start != -1:
+                candidates.append(content[arr_start:i + 1])
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            parsed = json.loads(candidate)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(parsed, list) or len(parsed) != count:
+            continue
+
+        try:
+            by_index = {}
+            for item in parsed:
+                if not isinstance(item, dict):
+                    raise ValueError("item is not an object")
+                index = int(item["i"])
+                by_index[index] = str(item["text"])
+            if set(by_index.keys()) != set(range(count)):
+                raise ValueError("indices do not cover the full range")
+        except (ValueError, TypeError, KeyError):
+            continue
+
+        return [by_index[i] for i in range(count)]
+
+    return None
+
+
 class SummaryService:
     """Service for LLM-based summarization and speaker identification."""
 
@@ -307,6 +380,99 @@ The recording was too brief to generate a detailed meeting summary."""
                 "status": "error",
                 "message": f"Speaker identification failed: {str(e)}"
             }
+
+    async def translate_segments(
+        self,
+        segments: list[dict],
+        target_language: str = "pt"
+    ) -> list[dict]:
+        """
+        Translate transcript segment text into another language using the LLM.
+
+        Only the `text` field of each segment is translated; `speaker`, `start`, and
+        `end` are preserved as-is so the translated transcript stays aligned with the
+        audio and with speaker attribution.
+
+        Args:
+            segments: List of transcript segment dicts (speaker, text, start, end).
+            target_language: ISO 639-1 code of the language to translate into.
+
+        Returns:
+            A new list of segment dicts with `text` replaced by its translation.
+
+        Raises:
+            HTTPException: If the LLM service is unavailable or its response could
+                not be parsed into a complete translation.
+        """
+        texts = [segment.get("text", "") for segment in segments]
+
+        if not any(text.strip() for text in texts):
+            return list(segments)
+
+        base_url = self.settings.llm_api_url
+        url = f"{base_url.rstrip('/')}/v1/chat/completions"
+        model_name = self.settings.llm_model_name
+        lang_name = LANGUAGE_NAMES.get(target_language, target_language)
+
+        system_prompt = (
+            f"You are a professional meeting transcript translator. Translate the "
+            f"\"text\" field of every object in the given JSON array into {lang_name}. "
+            "Preserve meaning, tone, and register; do not summarize or omit content. "
+            "Keep the same number of objects, in the same order, with the same \"i\" "
+            "values. Never merge, split, add, or remove entries. "
+            "Return ONLY a JSON array of objects shaped like "
+            '{"i": <index>, "text": "<translation>"}, nothing else.'
+        )
+        numbered_segments = [{"i": i, "text": text} for i, text in enumerate(texts)]
+        user_prompt = json.dumps(numbered_segments, ensure_ascii=False)
+
+        payload = {
+            "model": model_name,
+            "temperature": 0.2,
+            "max_tokens": 5000,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }
+
+        try:
+            headers = {"Content-Type": "application/json"}
+            if self.settings.llm_api_key:
+                headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
+
+            response = await self.http_client.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.settings.llm_timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data["choices"][0]["message"]["content"].strip()
+
+            translated_texts = _extract_translated_texts(content, len(texts))
+            if translated_texts is None:
+                logger.error(
+                    "Translation could not parse a complete segment list from LLM output"
+                )
+                logger.debug("Unparseable translation content: %r", content)
+                raise HTTPException(
+                    status_code=502,
+                    detail="Could not parse the translated transcript from the model response."
+                )
+
+            return [
+                {**segment, "text": translated_text}
+                for segment, translated_text in zip(segments, translated_texts)
+            ]
+
+        except httpx.HTTPError as e:
+            logger.error("LLM service error during translation: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail="Translation service temporarily unavailable"
+            ) from e
 
     async def get_cached_summary(self, job_uuid: str) -> Optional[str]:
         """

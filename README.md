@@ -43,7 +43,9 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Real-time Progress** | Live status updates and job management for long-running tasks |
 | **Speaker Management** | Edit speaker names with persistent storage across sessions |
 | **Export Options** | Professional PDF and Markdown exports for transcripts and summaries |
-| **Multi-language** | Automatic language detection or specify target language |
+| **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI |
+| **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
+| **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job) |
 
 ## Quick Start
 

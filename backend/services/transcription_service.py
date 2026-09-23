@@ -134,7 +134,10 @@ class TranscriptionService:
             transcription_data = {
                 "text": "".join(full_text),
                 "segments": segments_list,
-                "language": info.language if info.language else (language or "auto")
+                "language": info.language if info.language else (language or "auto"),
+                "language_probability": (
+                    info.language_probability if info.language else None
+                )
             }
             await self.job_repo.save_transcription(job_uuid, transcription_data)
 

@@ -8,6 +8,8 @@ import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api
 
 interface TranscriptSegmentProps {
   segment: TranscriptSegmentType;
+  /** Text to render instead of `segment.text` (e.g. an active translation). */
+  displayText?: string;
   index: number;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   isActive: boolean;
@@ -16,6 +18,7 @@ interface TranscriptSegmentProps {
 
 export default function TranscriptSegment({
   segment,
+  displayText,
   index,
   handleEditText,
   isActive,
@@ -102,7 +105,7 @@ export default function TranscriptSegment({
           </Button>
         </div>
       </div>
-      <p className="mb-0">{segment.text}</p>
+      <p className="mb-0">{displayText ?? segment.text}</p>
     </div>
   );
 }

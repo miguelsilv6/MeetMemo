@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     transcript_dir: str = "transcripts"
     transcript_edited_dir: str = "transcripts/edited"
     summary_dir: str = "summary"
+    translation_dir: str = "translations"
     export_dir: str = "exports"
     logs_dir: str = "logs"
 
@@ -191,6 +192,11 @@ class Settings(BaseSettings):
         return Path(self.summary_dir)
 
     @property
+    def translation_path(self) -> Path:
+        """Get translation cache directory as Path object."""
+        return Path(self.translation_dir)
+
+    @property
     def export_path(self) -> Path:
         """Get export directory as Path object."""
         return Path(self.export_dir)
@@ -211,6 +217,7 @@ class Settings(BaseSettings):
             self.transcript_path,
             self.transcript_edited_path,
             self.summary_path,
+            self.translation_path,
             self.export_path,
             self.logs_path,
         ]

@@ -1,6 +1,7 @@
 import { Card, Button, Badge } from '@govtechsg/sgds-react';
-import { Sparkles, Download, AlertCircle } from 'lucide-react';
+import { Sparkles, Download, AlertCircle, Languages } from 'lucide-react';
 import { getSpeakerColor } from '../../utils/speakerColors';
+import { getLanguageName } from '../../constants/languages';
 import * as api from '../../services/api';
 import type { SelectedFile, Transcript } from '../../types/api';
 
@@ -40,6 +41,23 @@ export default function MeetingInfoSidebar({
                 : 'N/A'}
             </div>
           </div>
+          {transcript?.language && (
+            <div className="info-item mb-3">
+              <small className="text-muted">Detected Language</small>
+              <div className="d-flex align-items-center gap-1">
+                <Languages size={14} className="text-muted" />
+                <span>{getLanguageName(transcript.language)}</span>
+                {typeof transcript.language_probability === 'number' && (
+                  <span
+                    className="text-muted"
+                    title="Confidence reported by the speech recognition model"
+                  >
+                    ({Math.round(transcript.language_probability * 100)}%)
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <div className="info-item mb-3">
             <small className="text-muted">Speakers</small>
             <div className="mb-2 d-flex flex-wrap gap-1">

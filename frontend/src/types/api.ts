@@ -18,6 +18,10 @@ export interface TranscriptSegment {
 export interface Transcript {
   segments?: TranscriptSegment[];
   full_transcript?: string;
+  /** ISO 639-1 code of the language detected by Whisper (e.g. `en`, `pt`), if known. */
+  language?: string;
+  /** Whisper's confidence in the detected language, from 0 to 1. */
+  language_probability?: number;
 }
 
 /** Mapping of speaker label (e.g. `SPEAKER_00`) to a display name. */
@@ -32,6 +36,13 @@ export interface Summary {
 
 /** Suggestions returned by the speaker identification endpoint. */
 export type SpeakerSuggestions = Record<string, string>;
+
+/** Response returned by the transcript translation endpoint. */
+export interface TranslateResponse {
+  status?: string;
+  target_language?: string;
+  segments?: TranscriptSegment[];
+}
 
 export interface IdentifySpeakersResponse {
   status?: string;

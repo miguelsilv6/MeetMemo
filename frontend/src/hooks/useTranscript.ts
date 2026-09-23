@@ -54,6 +54,29 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     }
   };
 
+  // Reassign a segment to a different speaker (e.g. dragged to another Kanban column).
+  // Applies the change optimistically and rolls back if the backend save fails.
+  const handleMoveSegmentSpeaker = async (index: number, newSpeaker: string) => {
+    if (!transcript || !jobId) return;
+
+    const segment = transcript.segments?.[index];
+    if (!segment || segment.speaker === newSpeaker) return;
+
+    const previousTranscript = transcript;
+    const updatedSegments = [...(transcript.segments ?? [])];
+    updatedSegments[index] = { ...updatedSegments[index], speaker: newSpeaker };
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, updatedSegments);
+    } catch (err) {
+      setTranscriptWithColors(previousTranscript);
+      setError((err as Error).message || 'Failed to move segment to speaker');
+    }
+  };
+
   return {
     transcript,
     setTranscriptWithColors,
@@ -63,5 +86,6 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     setShowEditTextModal,
     handleEditText,
     handleSaveSegmentText,
+    handleMoveSegmentSpeaker,
   };
 }

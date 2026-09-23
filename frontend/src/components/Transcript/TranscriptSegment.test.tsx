@@ -41,6 +41,37 @@ describe('TranscriptSegment', () => {
     expect(onSeekToSegment).toHaveBeenCalledWith(65);
   });
 
+  it('renders displayText instead of the original text when provided', () => {
+    render(
+      <TranscriptSegment
+        segment={segment}
+        displayText="Bem-vindos a todos"
+        index={0}
+        handleEditText={vi.fn()}
+        isActive={false}
+        onSeekToSegment={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Bem-vindos a todos')).toBeInTheDocument();
+    expect(screen.queryByText('Welcome everyone')).not.toBeInTheDocument();
+  });
+
+  it('hands the original segment to the edit modal even while displayText is shown', () => {
+    const handleEditText = vi.fn();
+    render(
+      <TranscriptSegment
+        segment={segment}
+        displayText="Bem-vindos a todos"
+        index={0}
+        handleEditText={handleEditText}
+        isActive={false}
+        onSeekToSegment={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByTitle('Edit this segment'));
+    expect(handleEditText).toHaveBeenCalledWith(segment, 0);
+  });
+
   it('opens the edit modal without also seeking', () => {
     const handleEditText = vi.fn();
     const onSeekToSegment = vi.fn();

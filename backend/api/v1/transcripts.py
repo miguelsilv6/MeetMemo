@@ -11,14 +11,25 @@ import aiofiles
 from config import Settings, get_settings
 from dependencies import get_job_repository, get_summary_service
 from fastapi import APIRouter, Depends, HTTPException
-from models import TranscriptResponse, TranscriptUpdateRequest
+from models import TranscriptResponse, TranscriptUpdateRequest, TranslateRequest, TranslateResponse
 from repositories.job_repository import JobRepository
 from security import sanitize_log_data
 from services.summary_service import SummaryService
+from utils.file_utils import get_transcript_path
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _invalidate_translation_cache(base_name: str, translation_dir: str) -> None:
+    """Remove any cached translations for a transcript after its text changes."""
+    if not os.path.isdir(translation_dir):
+        return
+    prefix = f"{base_name}."
+    for entry in os.listdir(translation_dir):
+        if entry.startswith(prefix) and entry.endswith(".json"):
+            os.remove(os.path.join(translation_dir, entry))
 
 
 @router.get("/jobs/{uuid}/transcripts", response_model=TranscriptResponse)
@@ -35,6 +46,14 @@ async def get_transcript(
 
         file_name = job['file_name']
         base_name = os.path.splitext(file_name)[0]
+
+        # Detected language + confidence, if transcription has run (unaffected
+        # by later manual edits to the transcript text/speakers).
+        transcription_data = await job_repo.get_transcription(uuid)
+        language = transcription_data.get('language') if transcription_data else None
+        language_probability = (
+            transcription_data.get('language_probability') if transcription_data else None
+        )
 
         # Check for edited transcript first
         edited_path = os.path.join(settings.transcript_edited_dir, f"{base_name}.json")
@@ -54,7 +73,9 @@ async def get_transcript(
                 full_transcript=full_transcript,
                 file_name=file_name,
                 status_code=200,
-                is_edited=True
+                is_edited=True,
+                language=language,
+                language_probability=language_probability
             )
 
         if await aiofiles.os.path.exists(original_path):
@@ -71,7 +92,9 @@ async def get_transcript(
                 full_transcript=full_transcript,
                 file_name=file_name,
                 status_code=200,
-                is_edited=False
+                is_edited=False,
+                language=language,
+                language_probability=language_probability
             )
 
         raise HTTPException(status_code=404, detail=f"Transcript not found for job {uuid}")
@@ -111,9 +134,10 @@ async def update_transcript(
         async with aiofiles.open(edited_path, "w", encoding="utf-8") as f:
             await f.write(transcript_json)
 
-        # Invalidate cached summary
+        # Invalidate cached summary and any cached translations (both are now stale)
         await summary_service.delete_summary(uuid)
-        logger.info("Transcript updated for job %s, summary cache invalidated", uuid)
+        _invalidate_translation_cache(base_name, settings.translation_dir)
+        logger.info("Transcript updated for job %s, summary/translation cache invalidated", uuid)
 
         return {
             "uuid": uuid,
@@ -128,4 +152,80 @@ async def update_transcript(
         raise HTTPException(
             status_code=500,
             detail="Internal server error while updating transcript"
+        ) from e
+
+
+@router.post("/jobs/{uuid}/transcripts/translate", response_model=TranslateResponse)
+async def translate_transcript(
+    uuid: str,
+    request: TranslateRequest = None,
+    job_repo: JobRepository = Depends(get_job_repository),
+    summary_service: SummaryService = Depends(get_summary_service),
+    settings: Settings = Depends(get_settings)
+) -> TranslateResponse:
+    """Translate transcript segments into another language (default Portuguese).
+
+    Results are cached on disk per transcript + target language, and invalidated
+    whenever the transcript text is edited (see `update_transcript`).
+    """
+    try:
+        job = await job_repo.get(uuid)
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+
+        target_language = request.target_language if request else "pt"
+
+        file_name = job['file_name']
+        base_name = os.path.splitext(file_name)[0]
+
+        try:
+            transcript_path = await get_transcript_path(
+                base_name,
+                settings.transcript_dir,
+                settings.transcript_edited_dir
+            )
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Transcript not found") from exc
+
+        cache_path = os.path.join(settings.translation_dir, f"{base_name}.{target_language}.json")
+
+        if await aiofiles.os.path.exists(cache_path):
+            async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
+                cached_json = await f.read()
+            logger.info("Returning cached translation (%s) for job %s", target_language, uuid)
+            return TranslateResponse(
+                uuid=uuid,
+                status="cached",
+                status_code=200,
+                target_language=target_language,
+                segments=json.loads(cached_json)
+            )
+
+        async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
+            transcript_json = await f.read()
+        segments = json.loads(transcript_json)
+
+        translated_segments = await summary_service.translate_segments(segments, target_language)
+
+        os.makedirs(settings.translation_dir, exist_ok=True)
+        async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(translated_segments, indent=4, ensure_ascii=False))
+
+        logger.info("Generated and cached translation (%s) for job %s", target_language, uuid)
+
+        return TranslateResponse(
+            uuid=uuid,
+            status="generated",
+            status_code=200,
+            target_language=target_language,
+            segments=translated_segments
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error translating transcript for job %s: %s", uuid, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error while translating transcript"
         ) from e
