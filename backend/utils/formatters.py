@@ -135,15 +135,15 @@ def generate_professional_filename(
 
     Args:
         meeting_title: The meeting title/filename
-        file_type: The file type (pdf, markdown, json)
+        file_type: The file type (markdown, docx, json)
         include_date: Whether to include date in filename
 
     Returns:
         A professional filename string
 
     Example:
-        >>> generate_professional_filename("Team Meeting.wav", "pdf", True)
-        'team-meeting_summary_2025-01-05.pdf'
+        >>> generate_professional_filename("Team Meeting.wav", "markdown", True)
+        'team-meeting_summary_2025-01-05.markdown'
     """
     # Clean the meeting title for filename use
     clean_title = (meeting_title or "meeting")
@@ -166,9 +166,7 @@ def generate_professional_filename(
     date_str = datetime.now().strftime('%Y-%m-%d') if include_date else ''
 
     # Generate filename based on type
-    if file_type == 'pdf':
-        base_name = f"{clean_title}_summary"
-    elif file_type == 'markdown':
+    if file_type == 'markdown':
         base_name = f"{clean_title}_summary"
     elif file_type == 'docx':
         base_name = f"{clean_title}_summary"

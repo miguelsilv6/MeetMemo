@@ -1,8 +1,8 @@
 """
-Export service for PDF and Markdown generation.
+Export service for Word and Markdown generation.
 
 This service handles export file generation and provides methods
-for generating summary and transcript exports in PDF and Markdown formats.
+for generating summary and transcript exports in Word and Markdown formats.
 """
 import json
 import logging
@@ -16,7 +16,6 @@ from utils.markdown_generator import (
     generate_summary_markdown,
     generate_transcript_markdown,
 )
-from utils.pdf_generator import generate_summary_pdf, generate_transcript_pdf
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class ExportService:
 
         Args:
             meeting_title: Meeting title/name
-            file_type: File type (pdf, markdown)
+            file_type: File type (markdown, docx)
             include_date: Include date in filename
             is_transcript_only: If True, use 'Transcript' suffix instead of default
 
@@ -61,65 +60,6 @@ class ExportService:
             filename = filename.replace('_summary', '_Transcript')
 
         return filename
-
-    def generate_summary_pdf_export(
-        self,
-        meeting_title: str,
-        summary_content: str,
-        transcript_json: str,
-        generated_on: str = None
-    ) -> BytesIO:
-        """
-        Generate PDF export with summary and transcript.
-
-        Args:
-            meeting_title: Meeting title/filename
-            summary_content: Summary text
-            transcript_json: JSON string of transcript data
-            generated_on: Optional formatted timestamp
-
-        Returns:
-            BytesIO buffer containing the PDF
-        """
-        summary_data = {
-            'meetingTitle': meeting_title,
-            'summary': summary_content
-        }
-
-        transcript_data = json.loads(transcript_json) if transcript_json else []
-
-        return generate_summary_pdf(
-            summary_data,
-            transcript_data,
-            generated_on,
-            self.settings
-        )
-
-    def generate_transcript_pdf_export(
-        self,
-        meeting_title: str,
-        transcript_json: str,
-        generated_on: str = None
-    ) -> BytesIO:
-        """
-        Generate PDF export with transcript only (no summary).
-
-        Args:
-            meeting_title: Meeting title/filename
-            transcript_json: JSON string of transcript data
-            generated_on: Optional formatted timestamp
-
-        Returns:
-            BytesIO buffer containing the PDF
-        """
-        transcript_data = json.loads(transcript_json) if transcript_json else []
-
-        return generate_transcript_pdf(
-            meeting_title,
-            transcript_data,
-            generated_on,
-            self.settings
-        )
 
     def generate_summary_markdown_export(
         self,
@@ -214,7 +154,7 @@ class ExportService:
         Args:
             export_uuid: Export job UUID
             job_uuid: Parent job UUID
-            export_type: Type of export (pdf, markdown, transcript_pdf, transcript_markdown)
+            export_type: Type of export (markdown, transcript_markdown)
 
         Note:
             This method is for async/background export jobs.

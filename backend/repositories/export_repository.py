@@ -32,7 +32,7 @@ class ExportRepository:
         Args:
             export_uuid: Export job UUID
             job_uuid: Parent job UUID
-            export_type: Export type ('pdf' or 'markdown')
+            export_type: Export type ('markdown' or 'transcript_markdown')
             status_code: Initial status code (default: 202 for processing)
         """
         await add_export_job(export_uuid, job_uuid, export_type, status_code)

@@ -10,7 +10,7 @@ beforeEach(() => {
 });
 
 describe('ExportSidebar', () => {
-  it('exports the summary PDF with the job id and filename', () => {
+  it('exports the summary + transcript Markdown with the job id and filename', () => {
     render(
       <ExportSidebar
         jobId="job1"
@@ -18,8 +18,8 @@ describe('ExportSidebar', () => {
         handleStartNewMeeting={vi.fn()}
       />
     );
-    fireEvent.click(screen.getAllByText('Export PDF')[0]);
-    expect(api.downloadPDF).toHaveBeenCalledWith('job1', 'meeting.mp3');
+    fireEvent.click(screen.getAllByText('Export Markdown')[0]);
+    expect(api.downloadMarkdown).toHaveBeenCalledWith('job1', 'meeting.mp3');
   });
 
   it('exports the transcript-only Word document with the job id and filename', () => {
@@ -49,7 +49,7 @@ describe('ExportSidebar', () => {
 
   it('does not attempt a download when there is no job id', () => {
     render(<ExportSidebar jobId={null} selectedFile={null} handleStartNewMeeting={vi.fn()} />);
-    fireEvent.click(screen.getAllByText('Export PDF')[0]);
-    expect(api.downloadPDF).not.toHaveBeenCalled();
+    fireEvent.click(screen.getAllByText('Export Markdown')[0]);
+    expect(api.downloadMarkdown).not.toHaveBeenCalled();
   });
 });

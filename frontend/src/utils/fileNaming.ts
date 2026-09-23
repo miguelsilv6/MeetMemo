@@ -38,17 +38,6 @@ export function getTimestamp(): string {
 }
 
 /**
- * Generate filename for PDF with summary + transcript
- * @param {string} originalFilename - Original audio filename
- * @returns {string} - e.g., "MeetMemo_Team_Meeting_2024-01-15_14-30.pdf"
- */
-export function generatePDFFilename(originalFilename: string | null | undefined): string {
-  const baseName = sanitizeFilename(originalFilename);
-  const timestamp = getTimestamp();
-  return `${baseName}_${timestamp}.pdf`;
-}
-
-/**
  * Generate filename for Markdown with summary + transcript
  * @param {string} originalFilename - Original audio filename
  * @returns {string} - e.g., "MeetMemo_Team_Meeting_2024-01-15_14-30.md"
@@ -57,17 +46,6 @@ export function generateMarkdownFilename(originalFilename: string | null | undef
   const baseName = sanitizeFilename(originalFilename);
   const timestamp = getTimestamp();
   return `${baseName}_${timestamp}.md`;
-}
-
-/**
- * Generate filename for transcript-only PDF
- * @param {string} originalFilename - Original audio filename
- * @returns {string} - e.g., "MeetMemo_Team_Meeting_Transcript_2024-01-15_14-30.pdf"
- */
-export function generateTranscriptPDFFilename(originalFilename: string | null | undefined): string {
-  const baseName = sanitizeFilename(originalFilename);
-  const timestamp = getTimestamp();
-  return `${baseName}_Transcript_${timestamp}.pdf`;
 }
 
 /**

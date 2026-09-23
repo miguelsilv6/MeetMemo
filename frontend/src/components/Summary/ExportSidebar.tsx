@@ -26,14 +26,6 @@ export default function ExportSidebar({
         <h6 className="mb-2 small text-muted">{t('summary.summaryPlusTranscript')}</h6>
         <Button
           variant="primary"
-          className="w-100 mb-2"
-          onClick={() => jobId && api.downloadPDF(jobId, selectedFile?.name)}
-        >
-          <Download size={18} className="me-2" />
-          {t('summary.exportPdf')}
-        </Button>
-        <Button
-          variant="outline-primary"
           className="w-100 mb-3"
           onClick={() => jobId && api.downloadMarkdown(jobId, selectedFile?.name)}
         >
@@ -42,14 +34,6 @@ export default function ExportSidebar({
         </Button>
 
         <h6 className="mb-2 small text-muted">{t('summary.transcriptOnly')}</h6>
-        <Button
-          variant="outline-secondary"
-          className="w-100 mb-2"
-          onClick={() => jobId && api.downloadTranscriptPDF(jobId, selectedFile?.name)}
-        >
-          <Download size={18} className="me-2" />
-          {t('summary.exportPdf')}
-        </Button>
         <Button
           variant="outline-secondary"
           className="w-100 mb-2"

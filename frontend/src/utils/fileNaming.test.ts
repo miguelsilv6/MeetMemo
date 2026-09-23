@@ -2,10 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   sanitizeFilename,
   getTimestamp,
-  generatePDFFilename,
   generateMarkdownFilename,
-  generateTranscriptPDFFilename,
   generateTranscriptMarkdownFilename,
+  generateTranscriptDocxFilename,
 } from './fileNaming';
 
 describe('sanitizeFilename', () => {
@@ -39,20 +38,19 @@ describe('export filename generators', () => {
   const stamp = '\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}';
 
   it('generates summary+transcript filenames', () => {
-    expect(generatePDFFilename('meeting.mp3')).toMatch(new RegExp(`^meeting_${stamp}\\.pdf$`));
     expect(generateMarkdownFilename('meeting.mp3')).toMatch(new RegExp(`^meeting_${stamp}\\.md$`));
   });
 
   it('generates transcript-only filenames with a Transcript marker', () => {
-    expect(generateTranscriptPDFFilename('meeting.mp3')).toMatch(
-      new RegExp(`^meeting_Transcript_${stamp}\\.pdf$`)
-    );
     expect(generateTranscriptMarkdownFilename('meeting.mp3')).toMatch(
       new RegExp(`^meeting_Transcript_${stamp}\\.md$`)
+    );
+    expect(generateTranscriptDocxFilename('meeting.mp3')).toMatch(
+      new RegExp(`^meeting_Transcript_${stamp}\\.docx$`)
     );
   });
 
   it('uses the MeetMemo fallback for placeholder names', () => {
-    expect(generatePDFFilename('Recording')).toMatch(new RegExp(`^MeetMemo_${stamp}\\.pdf$`));
+    expect(generateMarkdownFilename('Recording')).toMatch(new RegExp(`^MeetMemo_${stamp}\\.md$`));
   });
 });

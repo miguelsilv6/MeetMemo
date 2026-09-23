@@ -77,7 +77,7 @@ describe('uploadAudio', () => {
   });
 });
 
-describe('downloadPDF (blob export helper)', () => {
+describe('downloadMarkdown (blob export helper)', () => {
   it('fetches the export, triggers a download, and cleans up the object URL', async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, true, 200));
 
@@ -88,10 +88,12 @@ describe('downloadPDF (blob export helper)', () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     try {
-      await expect(api.downloadPDF('abc', 'meeting.mp3')).resolves.toEqual({ success: true });
+      await expect(api.downloadMarkdown('abc', 'meeting.mp3')).resolves.toEqual({
+        success: true,
+      });
 
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/v1/jobs/abc/exports/pdf',
+        '/api/v1/jobs/abc/exports/markdown',
         expect.objectContaining({ method: 'POST' })
       );
       expect(URL.createObjectURL).toHaveBeenCalledOnce();
@@ -105,6 +107,6 @@ describe('downloadPDF (blob export helper)', () => {
 
   it('throws when the export request fails', async () => {
     fetchMock.mockResolvedValue(jsonResponse({}, false, 500));
-    await expect(api.downloadPDF('abc', 'meeting.mp3')).rejects.toThrow(/Download failed/);
+    await expect(api.downloadMarkdown('abc', 'meeting.mp3')).rejects.toThrow(/Download failed/);
   });
 });

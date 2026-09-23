@@ -123,8 +123,8 @@
     "nextSteps": "Next Steps",
     "generatingSummary": "Generating...",
     "generateSummary": "Generate AI Summary",
+    "viewSummary": "View Summary",
     "exportMarkdown": "Export Markdown",
-    "exportPdf": "Export PDF",
     "exportWord": "Export Word"
   },
   "modals": {
@@ -187,6 +187,7 @@
   },
   "summary": {
     "title": "AI-Generated Summary",
+    "backToTranscript": "Back to Transcript",
     "placeholder": "AI summary will appear here",
     "summaryHeading": "Summary",
     "keyPoints": "Key Points",
@@ -195,7 +196,6 @@
     "noTranscript": "No transcript available",
     "exportOptions": "Export Options",
     "summaryPlusTranscript": "AI Summary + Transcript",
-    "exportPdf": "Export PDF",
     "exportMarkdown": "Export Markdown",
     "exportWord": "Export Word",
     "transcriptOnly": "Transcript Only",

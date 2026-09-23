@@ -123,8 +123,8 @@
     "nextSteps": "Próximos Passos",
     "generatingSummary": "A gerar...",
     "generateSummary": "Gerar Resumo com IA",
+    "viewSummary": "Ver Resumo",
     "exportMarkdown": "Exportar Markdown",
-    "exportPdf": "Exportar PDF",
     "exportWord": "Exportar Word"
   },
   "modals": {
@@ -187,6 +187,7 @@
   },
   "summary": {
     "title": "Resumo Gerado por IA",
+    "backToTranscript": "Voltar à Transcrição",
     "placeholder": "O resumo da IA vai aparecer aqui",
     "summaryHeading": "Resumo",
     "keyPoints": "Pontos Principais",
@@ -195,7 +196,6 @@
     "noTranscript": "Não há transcrição disponível",
     "exportOptions": "Opções de Exportação",
     "summaryPlusTranscript": "Resumo IA + Transcrição",
-    "exportPdf": "Exportar PDF",
     "exportMarkdown": "Exportar Markdown",
     "exportWord": "Exportar Word",
     "transcriptOnly": "Apenas Transcrição",

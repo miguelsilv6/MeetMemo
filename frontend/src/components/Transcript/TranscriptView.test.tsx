@@ -24,6 +24,7 @@ function renderView(overrides: Partial<ComponentProps<typeof TranscriptView>> = 
     handleRequestSplitSegment: vi.fn(),
     handleGenerateSummary: vi.fn(),
     generatingSummary: false,
+    summary: null,
     identifyingSpeakers: false,
     translatedSegments: null,
     translating: false,
@@ -37,6 +38,17 @@ function renderView(overrides: Partial<ComponentProps<typeof TranscriptView>> = 
 }
 
 describe('TranscriptView', () => {
+  it('shows "Generate AI Summary" before a summary has been generated', () => {
+    renderView({ summary: null });
+    expect(screen.getByText('Generate AI Summary')).toBeInTheDocument();
+  });
+
+  it('shows "View Summary" once a summary already exists', () => {
+    renderView({ summary: { summary: 'The team discussed the roadmap.' } });
+    expect(screen.getByText('View Summary')).toBeInTheDocument();
+    expect(screen.queryByText('Generate AI Summary')).not.toBeInTheDocument();
+  });
+
   it('disables the undo button when there is nothing to undo', () => {
     renderView({ canUndo: false });
     expect(screen.getByTitle('Undo last change')).toBeDisabled();
