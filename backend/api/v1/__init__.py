@@ -6,6 +6,7 @@ This module registers all v1 API routers with their respective prefixes and tags
 from fastapi import APIRouter
 
 from api.v1 import (
+    admin,
     audio,
     export_jobs,
     exports,
@@ -64,4 +65,9 @@ api_router.include_router(
 api_router.include_router(
     audio.router,
     tags=["audio"]
+)
+
+api_router.include_router(
+    admin.router,
+    tags=["admin"]
 )

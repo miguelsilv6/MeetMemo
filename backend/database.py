@@ -34,6 +34,20 @@ async def init_database():
         raise
 
 
+ADMIN_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations", "003_admin_panel.sql"
+)
+
+
+async def ensure_admin_schema():
+    """Create the admin-panel tables on databases initialized before they existed."""
+    with open(ADMIN_SCHEMA_PATH, encoding="utf-8") as f:
+        schema_sql = f.read()
+    async with get_db() as conn:
+        await conn.execute(schema_sql)
+    logger.info("Admin panel schema ensured")
+
+
 async def close_database():
     """Close database connection pool."""
     global _db_pool  # pylint: disable=global-statement,global-variable-not-assigned

@@ -41,9 +41,11 @@ from models import (
     WorkflowActionResponse,
 )
 from repositories.job_repository import JobRepository
+from runtime_settings import resolve_language
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
+from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
 from utils.asr_audio import asr_audio_path
 from utils.file_utils import get_unique_filename
@@ -290,14 +292,28 @@ async def start_transcription(  # pylint: disable=too-many-arguments,too-many-po
 
     file_path = os.path.join(settings.upload_dir, job['file_name'])
 
-    # Use stored model_name and language from job, with fallbacks to query params or defaults
-    effective_model = job.get('model_name') or model_name or settings.whisper_model_name
-    effective_language = job.get('language') or language
+    runtime_service = RuntimeSettingsService(settings)
+    runtime = await runtime_service.get()
+
+    # Per-job choices first, then the request, then the admin-panel settings.
+    effective_model = job.get('model_name') or model_name or runtime.whisper_model_name
+    # Anything outside the allowlist would be fetched from Hugging Face as a
+    # repo id by faster-whisper.
+    if effective_model not in runtime_service.allowed_models():
+        raise HTTPException(status_code=400, detail=f"Unsupported model: {effective_model}")
+    try:
+        effective_language = resolve_language(
+            job.get('language') or language, runtime.default_language
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     async def run() -> None:
-        audio_path = await audio_service.ensure_asr_audio(uuid, file_path)
+        audio_path = await audio_service.ensure_asr_audio(
+            uuid, file_path, runtime.audio_highpass, runtime.audio_loudnorm
+        )
         await transcription_service.transcribe(
-            uuid, audio_path, effective_model, effective_language
+            uuid, audio_path, effective_model, effective_language, runtime
         )
 
     background_tasks.add_task(run)
@@ -347,8 +363,12 @@ async def start_diarization(
 
     file_path = os.path.join(settings.upload_dir, job['file_name'])
 
+    runtime = await RuntimeSettingsService(settings).get()
+
     async def run() -> None:
-        audio_path = await audio_service.ensure_asr_audio(uuid, file_path)
+        audio_path = await audio_service.ensure_asr_audio(
+            uuid, file_path, runtime.audio_highpass, runtime.audio_loudnorm
+        )
         await diarization_service.diarize(uuid, audio_path)
 
     background_tasks.add_task(run)

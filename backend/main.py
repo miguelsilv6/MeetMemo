@@ -13,17 +13,20 @@ import time
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 
+from admin_auth import hash_password, password_problem
 from api.v1 import api_router
 from config import get_settings
-from database import close_database, init_database
+from database import close_database, ensure_admin_schema, init_database
 from dependencies import close_http_client, init_http_client
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
 from services.cleanup_service import CleanupService
 from services.diarization_service import DiarizationService
+from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
 
 # Load environment variables
@@ -116,6 +119,31 @@ if not os.getenv('LLM_API_KEY'):
     logger.warning("LLM_API_KEY is not set. LLM requests will be made without authentication.")
 
 
+async def bootstrap_admin_account(app_settings) -> None:
+    """Create the admin account from ADMIN_PASSWORD if none exists yet."""
+    repo = AdminRepository()
+    if await repo.get_credentials():
+        return
+    password = app_settings.admin_password
+    if not password:
+        logger.warning(
+            "Admin panel disabled: no admin account exists and ADMIN_PASSWORD is not set."
+        )
+        return
+    problem = password_problem(password)
+    if problem:
+        logger.error("ADMIN_PASSWORD rejected (%s) - admin panel stays disabled.", problem)
+        return
+    if await repo.create_credentials_if_missing(
+        app_settings.admin_username, hash_password(password)
+    ):
+        logger.info(
+            "Admin account '%s' created from ADMIN_PASSWORD. The password is now managed "
+            "from the admin panel; ADMIN_PASSWORD can be removed from the environment.",
+            app_settings.admin_username,
+        )
+
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
     """
@@ -159,6 +187,13 @@ async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
 
         # Initialize database
         await init_database()
+        # The admin panel is optional: if its schema can't be set up, log it
+        # and keep serving transcriptions with the default settings.
+        try:
+            await ensure_admin_schema()
+            await bootstrap_admin_account(app_settings)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Admin panel unavailable: %s", e, exc_info=True)
         logger.info("Database initialized")
 
         # Initialize HTTP client
@@ -176,8 +211,9 @@ async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
         )
 
         try:
-            transcription_service.get_model(app_settings.whisper_model_name)
-            logger.info("Whisper model preloaded successfully")
+            runtime = await RuntimeSettingsService(app_settings).get()
+            transcription_service.get_model(runtime.whisper_model_name)
+            logger.info("Whisper model %s preloaded successfully", runtime.whisper_model_name)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to preload Whisper model: %s", e)
 

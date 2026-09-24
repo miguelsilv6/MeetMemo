@@ -274,5 +274,155 @@
     "loadTranscript": "Failed to load transcript. Please refresh and try again.",
     "processingFailed": "Processing failed. Please try again.",
     "processingGeneric": "An error occurred while processing. Please try again."
+  },
+  "admin": {
+    "open": "Administration",
+    "title": "Administration",
+    "backToApp": "Back to the app",
+    "signedInAs": "Signed in as {{username}}",
+    "logout": "Sign out",
+    "notConfiguredTitle": "Admin panel not configured",
+    "notConfiguredBody": "Set ADMIN_PASSWORD (at least 12 characters) in the backend environment and restart the backend to create the admin account.",
+    "login": {
+      "title": "Administrator sign-in",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "invalid": "Invalid username or password.",
+      "tooMany": "Too many failed attempts. Try again in a few minutes."
+    },
+    "settings": {
+      "title": "Transcription settings",
+      "intro": "Changes apply to jobs started after saving; jobs already in progress keep the settings they started with. Every change is recorded in the change history.",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved_one": "{{count}} setting saved.",
+      "saved_other": "{{count}} settings saved.",
+      "noChanges": "No changes to save.",
+      "discard": "Discard changes",
+      "resetDefaults": "Restore defaults",
+      "resetHint": "The form now shows the default values. Save to apply them.",
+      "invalid": "Fix the highlighted fields before saving.",
+      "autoDetect": "Auto-detect",
+      "reviewThresholdsIntro": "Segments crossing any of these thresholds are kept but marked \"Review\" in the transcript, to be checked against the audio.",
+      "sections": {
+        "model": "Model and decoding",
+        "antiHallucination": "Anti-hallucination",
+        "audio": "Audio preprocessing",
+        "languageRetention": "Language and retention",
+        "restartOnly": "Restart-only configuration (read-only)"
+      },
+      "fields": {
+        "whisper_model_name": {
+          "label": "Whisper model",
+          "help": "large-v3 is the most accurate; turbo is several times faster. A model is downloaded the first time it is used."
+        },
+        "beam_size": {
+          "label": "Beam size",
+          "help": "1 = greedy decoding (fastest). Higher values explore more hypotheses: more accurate but slower. Recommended: 5."
+        },
+        "temperature_fallback": {
+          "label": "Temperature fallback",
+          "help": "Retries a segment with more randomness when the first decode looks degenerate (repetitions, very low confidence)."
+        },
+        "vad_filter": {
+          "label": "Voice activity detection (VAD)",
+          "help": "Skips silence and noise before transcribing — the main defence against hallucinated text."
+        },
+        "vad_onset": {
+          "label": "VAD speech threshold",
+          "help": "Probability above which audio counts as speech. Lower keeps quiet speech (e.g. phone calls) but lets in more noise."
+        },
+        "vad_offset": {
+          "label": "VAD silence threshold",
+          "help": "Probability below which speech is considered finished. Must be lower than the speech threshold."
+        },
+        "vad_min_silence_ms": {
+          "label": "Minimum silence (ms)",
+          "help": "How long a pause must last to split speech. Shorter pauses split turn-taking in calls."
+        },
+        "vad_speech_pad_ms": {
+          "label": "Speech padding (ms)",
+          "help": "Extra audio kept around each speech chunk so the edges of words aren't cut."
+        },
+        "hallucination_silence_enabled": {
+          "label": "Skip silences where the model starts hallucinating"
+        },
+        "hallucination_silence_threshold": {
+          "label": "Silence to skip (seconds)",
+          "help": "When the model shows signs of hallucinating, silent stretches longer than this are skipped. Requires word-level timestamps (slightly slower)."
+        },
+        "low_confidence_avg_logprob": {
+          "label": "Review below average log-probability",
+          "help": "How sure the model was about the words. Lower (more negative) = less sure."
+        },
+        "low_confidence_no_speech_prob": {
+          "label": "Review above no-speech probability",
+          "help": "How likely the model thought the segment was silence or noise."
+        },
+        "low_confidence_compression_ratio": {
+          "label": "Review above compression ratio",
+          "help": "High values mean repetitive text, a typical hallucination symptom."
+        },
+        "hallucination_phrases": {
+          "label": "Phrases removed as hallucinations",
+          "help": "One per line. Removed only when they make up an entire segment; case, accents and punctuation are ignored. Amara.org credits and subtitle credit lines are always removed."
+        },
+        "audio_highpass": {
+          "label": "High-pass filter (80 Hz)",
+          "help": "Removes mains hum and low rumble below the speech band."
+        },
+        "audio_loudnorm": {
+          "label": "Loudness normalization",
+          "help": "Brings quiet recordings up to a consistent speech level, so quiet calls aren't mistaken for silence."
+        },
+        "default_language": {
+          "label": "Default transcription language",
+          "help": "Preselected on the upload screen. \"Auto-detect\" lets the model identify the language."
+        },
+        "job_retention_hours": {
+          "label": "Retention (hours)",
+          "help": "Jobs and their files are deleted automatically after this many hours."
+        }
+      },
+      "restartOnly": {
+        "hardware_profile": "Hardware profile",
+        "device": "Device",
+        "compute_type": "Compute precision",
+        "diarization_model": "Diarization model",
+        "hint": "These change only in the backend environment (.env), followed by a restart."
+      },
+      "errors": {
+        "required": "Required.",
+        "integer": "Must be a whole number.",
+        "range": "Must be between {{min}} and {{max}}.",
+        "offsetBelowOnset": "Must be lower than the speech threshold.",
+        "tooManyPhrases": "At most {{max}} phrases.",
+        "phraseTooLong": "Each phrase can have at most {{max}} characters."
+      }
+    },
+    "password": {
+      "title": "Change password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "submit": "Change password",
+      "success": "Password changed. Any other signed-in sessions were signed out.",
+      "wrongCurrent": "The current password is incorrect.",
+      "tooShort": "At least {{min}} characters.",
+      "mismatch": "The passwords don't match."
+    },
+    "audit": {
+      "title": "Change history",
+      "refresh": "Refresh",
+      "empty": "No changes recorded yet.",
+      "when": "When",
+      "who": "Who",
+      "setting": "Setting",
+      "from": "Old value",
+      "to": "New value",
+      "passwordChanged": "Admin password changed"
+    }
   }
 }

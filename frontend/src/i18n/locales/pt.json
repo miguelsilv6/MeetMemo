@@ -274,5 +274,155 @@
     "loadTranscript": "Falha ao carregar a transcrição. Atualiza a página e tenta novamente.",
     "processingFailed": "O processamento falhou. Tenta novamente.",
     "processingGeneric": "Ocorreu um erro durante o processamento. Tenta novamente."
+  },
+  "admin": {
+    "open": "Administração",
+    "title": "Administração",
+    "backToApp": "Voltar à aplicação",
+    "signedInAs": "Sessão iniciada como {{username}}",
+    "logout": "Terminar sessão",
+    "notConfiguredTitle": "Painel de administração não configurado",
+    "notConfiguredBody": "Define ADMIN_PASSWORD (pelo menos 12 caracteres) no ambiente do backend e reinicia o backend para criar a conta de administrador.",
+    "login": {
+      "title": "Entrada de administrador",
+      "username": "Utilizador",
+      "password": "Palavra-passe",
+      "submit": "Entrar",
+      "submitting": "A entrar…",
+      "invalid": "Utilizador ou palavra-passe inválidos.",
+      "tooMany": "Demasiadas tentativas falhadas. Tenta novamente daqui a alguns minutos."
+    },
+    "settings": {
+      "title": "Definições de transcrição",
+      "intro": "As alterações aplicam-se aos trabalhos iniciados depois de guardar; os que já estão em curso mantêm as definições com que começaram. Cada alteração fica registada no histórico.",
+      "save": "Guardar alterações",
+      "saving": "A guardar…",
+      "saved_one": "{{count}} definição guardada.",
+      "saved_other": "{{count}} definições guardadas.",
+      "noChanges": "Não há alterações para guardar.",
+      "discard": "Descartar alterações",
+      "resetDefaults": "Repor predefinições",
+      "resetHint": "O formulário mostra agora os valores predefinidos. Guarda para os aplicar.",
+      "invalid": "Corrige os campos assinalados antes de guardar.",
+      "autoDetect": "Deteção automática",
+      "reviewThresholdsIntro": "Os segmentos que ultrapassem qualquer destes limites são mantidos, mas marcados como \"Rever\" na transcrição, para confirmares com o áudio.",
+      "sections": {
+        "model": "Modelo e descodificação",
+        "antiHallucination": "Anti-alucinação",
+        "audio": "Pré-processamento de áudio",
+        "languageRetention": "Idioma e retenção",
+        "restartOnly": "Configuração que exige reinício (só leitura)"
+      },
+      "fields": {
+        "whisper_model_name": {
+          "label": "Modelo Whisper",
+          "help": "O large-v3 é o mais preciso; o turbo é várias vezes mais rápido. Cada modelo é descarregado na primeira utilização."
+        },
+        "beam_size": {
+          "label": "Beam size",
+          "help": "1 = descodificação greedy (a mais rápida). Valores mais altos exploram mais hipóteses: mais preciso, mas mais lento. Recomendado: 5."
+        },
+        "temperature_fallback": {
+          "label": "Nova tentativa com temperatura",
+          "help": "Repete a descodificação de um segmento com mais aleatoriedade quando a primeira parece degenerada (repetições, confiança muito baixa)."
+        },
+        "vad_filter": {
+          "label": "Deteção de voz (VAD)",
+          "help": "Ignora silêncio e ruído antes de transcrever — a principal defesa contra texto alucinado."
+        },
+        "vad_onset": {
+          "label": "Limiar de voz do VAD",
+          "help": "Probabilidade a partir da qual o áudio conta como voz. Mais baixo mantém voz baixa (ex.: chamadas), mas deixa passar mais ruído."
+        },
+        "vad_offset": {
+          "label": "Limiar de silêncio do VAD",
+          "help": "Probabilidade abaixo da qual a voz é considerada terminada. Tem de ser inferior ao limiar de voz."
+        },
+        "vad_min_silence_ms": {
+          "label": "Silêncio mínimo (ms)",
+          "help": "Duração mínima de uma pausa para separar a fala. Pausas mais curtas separam melhor as trocas de vez numa chamada."
+        },
+        "vad_speech_pad_ms": {
+          "label": "Margem de voz (ms)",
+          "help": "Áudio extra mantido à volta de cada trecho de voz, para não cortar o início e o fim das palavras."
+        },
+        "hallucination_silence_enabled": {
+          "label": "Saltar silêncios onde o modelo começa a alucinar"
+        },
+        "hallucination_silence_threshold": {
+          "label": "Silêncio a saltar (segundos)",
+          "help": "Quando o modelo mostra sinais de alucinação, os silêncios mais longos do que isto são saltados. Requer timestamps por palavra (ligeiramente mais lento)."
+        },
+        "low_confidence_avg_logprob": {
+          "label": "Rever abaixo da log-probabilidade média",
+          "help": "Quão seguro o modelo estava das palavras. Mais baixo (mais negativo) = menos seguro."
+        },
+        "low_confidence_no_speech_prob": {
+          "label": "Rever acima da probabilidade de não-voz",
+          "help": "Probabilidade, segundo o modelo, de o segmento ser silêncio ou ruído."
+        },
+        "low_confidence_compression_ratio": {
+          "label": "Rever acima da taxa de compressão",
+          "help": "Valores altos indicam texto repetitivo, um sintoma típico de alucinação."
+        },
+        "hallucination_phrases": {
+          "label": "Frases removidas como alucinação",
+          "help": "Uma por linha. Só são removidas quando formam o segmento inteiro; maiúsculas, acentos e pontuação são ignorados. Créditos do Amara.org e de legendagem são sempre removidos."
+        },
+        "audio_highpass": {
+          "label": "Filtro passa-alto (80 Hz)",
+          "help": "Remove o zumbido da corrente elétrica e ruído grave abaixo da banda da voz."
+        },
+        "audio_loudnorm": {
+          "label": "Normalização de volume",
+          "help": "Eleva gravações baixas a um nível de voz consistente, para que chamadas baixas não sejam confundidas com silêncio."
+        },
+        "default_language": {
+          "label": "Idioma de transcrição predefinido",
+          "help": "Pré-selecionado no ecrã de carregamento. \"Deteção automática\" deixa o modelo identificar o idioma."
+        },
+        "job_retention_hours": {
+          "label": "Retenção (horas)",
+          "help": "Os trabalhos e os respetivos ficheiros são apagados automaticamente após este número de horas."
+        }
+      },
+      "restartOnly": {
+        "hardware_profile": "Perfil de hardware",
+        "device": "Dispositivo",
+        "compute_type": "Precisão de cálculo",
+        "diarization_model": "Modelo de diarização",
+        "hint": "Estas só se alteram no ambiente do backend (.env), seguido de um reinício."
+      },
+      "errors": {
+        "required": "Obrigatório.",
+        "integer": "Tem de ser um número inteiro.",
+        "range": "Tem de estar entre {{min}} e {{max}}.",
+        "offsetBelowOnset": "Tem de ser inferior ao limiar de voz.",
+        "tooManyPhrases": "No máximo {{max}} frases.",
+        "phraseTooLong": "Cada frase pode ter no máximo {{max}} caracteres."
+      }
+    },
+    "password": {
+      "title": "Alterar palavra-passe",
+      "current": "Palavra-passe atual",
+      "new": "Nova palavra-passe",
+      "confirm": "Confirmar nova palavra-passe",
+      "submit": "Alterar palavra-passe",
+      "success": "Palavra-passe alterada. As outras sessões iniciadas foram terminadas.",
+      "wrongCurrent": "A palavra-passe atual está incorreta.",
+      "tooShort": "Pelo menos {{min}} caracteres.",
+      "mismatch": "As palavras-passe não coincidem."
+    },
+    "audit": {
+      "title": "Histórico de alterações",
+      "refresh": "Atualizar",
+      "empty": "Ainda não há alterações registadas.",
+      "when": "Quando",
+      "who": "Quem",
+      "setting": "Definição",
+      "from": "Valor anterior",
+      "to": "Novo valor",
+      "passwordChanged": "Palavra-passe de administrador alterada"
+    }
   }
 }

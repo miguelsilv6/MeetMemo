@@ -12,6 +12,7 @@ import useTranscript from './hooks/useTranscript';
 import useSpeakerManagement from './hooks/useSpeakerManagement';
 import useSummary from './hooks/useSummary';
 import useTranslation from './hooks/useTranslation';
+import useHashRoute, { ADMIN_ROUTE } from './hooks/useHashRoute';
 
 // Layout Components
 import Header from './components/Layout/Header';
@@ -27,6 +28,7 @@ import UploadView from './components/Upload/UploadView';
 import ProcessingView from './components/Processing/ProcessingView';
 import TranscriptView from './components/Transcript/TranscriptView';
 import SummaryView from './components/Summary/SummaryView';
+import AdminView from './components/Admin/AdminView';
 
 // Modal Components
 import EditSpeakersModal from './components/Modals/EditSpeakersModal';
@@ -42,6 +44,7 @@ function App() {
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const route = useHashRoute();
 
   // Backend health check
   const { backendReady, backendError } = useBackendHealth();
@@ -110,6 +113,7 @@ function App() {
     setSelectedFile,
     selectedLanguage,
     setSelectedLanguage,
+    applyDefaultLanguage,
   } = useFileUpload(
     setError,
     setCurrentStep,
@@ -192,69 +196,82 @@ function App() {
   return (
     <div className="app">
       <Header onStartNewMeeting={handleStartNewMeeting} />
-      <WorkflowSteps currentStep={currentStep} />
+      {route !== ADMIN_ROUTE && <WorkflowSteps currentStep={currentStep} />}
 
       <Container className="py-5">
-        <ErrorAlert error={error} onClose={() => setError(null)} />
-
-        {/* Step 1: Upload */}
-        {currentStep === 'upload' && (
-          <UploadView
-            uploading={uploading}
-            fileInputRef={fileInputRef}
-            handleFileSelect={handleFileSelect}
-            handleDragOver={handleDragOver}
-            handleDrop={handleDrop}
-            recentJobs={recentJobs}
-            loadingJobs={loadingJobs}
-            handleLoadJob={handleLoadJob}
-            handleDeleteJob={handleDeleteJob}
-            handleViewSummary={handleViewRecentSummary}
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={setSelectedLanguage}
+        {route === ADMIN_ROUTE ? (
+          <AdminView
+            onExit={() => {
+              window.location.hash = '';
+            }}
           />
-        )}
+        ) : (
+          <>
+            <ErrorAlert error={error} onClose={() => setError(null)} />
 
-        {/* Step 2: Processing */}
-        {currentStep === 'processing' && <ProcessingView processingProgress={processingProgress} />}
+            {/* Step 1: Upload */}
+            {currentStep === 'upload' && (
+              <UploadView
+                uploading={uploading}
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                handleDragOver={handleDragOver}
+                handleDrop={handleDrop}
+                recentJobs={recentJobs}
+                loadingJobs={loadingJobs}
+                handleLoadJob={handleLoadJob}
+                handleDeleteJob={handleDeleteJob}
+                handleViewSummary={handleViewRecentSummary}
+                selectedLanguage={selectedLanguage}
+                onLanguageChange={setSelectedLanguage}
+                onDefaultLanguage={applyDefaultLanguage}
+              />
+            )}
 
-        {/* Step 3: Transcript */}
-        {currentStep === 'transcript' && (
-          <TranscriptView
-            transcript={transcript}
-            selectedFile={selectedFile}
-            jobId={jobId}
-            handleEditSpeakers={handleEditSpeakers}
-            handleEditText={handleEditText}
-            handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
-            handleBulkMoveSegments={handleBulkMoveSegments}
-            handleDeleteSegments={handleDeleteSegments}
-            handleInsertSegmentAfter={handleInsertSegmentAfter}
-            handleRequestSplitSegment={handleRequestSplitSegment}
-            handleGenerateSummary={handleGenerateSummary}
-            generatingSummary={generatingSummary}
-            summary={summary}
-            identifyingSpeakers={identifyingSpeakers}
-            translatedSegments={translatedSegments}
-            translating={translating}
-            showTranslation={showTranslation}
-            handleToggleTranslation={handleToggleTranslation}
-            canUndo={canUndo}
-            handleUndo={handleUndo}
-          />
-        )}
+            {/* Step 2: Processing */}
+            {currentStep === 'processing' && (
+              <ProcessingView processingProgress={processingProgress} />
+            )}
 
-        {/* Step 4: Summary */}
-        {currentStep === 'summary' && (
-          <SummaryView
-            summary={summary}
-            transcript={transcript}
-            selectedFile={selectedFile}
-            jobId={jobId}
-            handleEditSummary={handleEditSummary}
-            handleStartNewMeeting={handleStartNewMeeting}
-            setCurrentStep={setCurrentStep}
-          />
+            {/* Step 3: Transcript */}
+            {currentStep === 'transcript' && (
+              <TranscriptView
+                transcript={transcript}
+                selectedFile={selectedFile}
+                jobId={jobId}
+                handleEditSpeakers={handleEditSpeakers}
+                handleEditText={handleEditText}
+                handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                handleBulkMoveSegments={handleBulkMoveSegments}
+                handleDeleteSegments={handleDeleteSegments}
+                handleInsertSegmentAfter={handleInsertSegmentAfter}
+                handleRequestSplitSegment={handleRequestSplitSegment}
+                handleGenerateSummary={handleGenerateSummary}
+                generatingSummary={generatingSummary}
+                summary={summary}
+                identifyingSpeakers={identifyingSpeakers}
+                translatedSegments={translatedSegments}
+                translating={translating}
+                showTranslation={showTranslation}
+                handleToggleTranslation={handleToggleTranslation}
+                canUndo={canUndo}
+                handleUndo={handleUndo}
+              />
+            )}
+
+            {/* Step 4: Summary */}
+            {currentStep === 'summary' && (
+              <SummaryView
+                summary={summary}
+                transcript={transcript}
+                selectedFile={selectedFile}
+                jobId={jobId}
+                handleEditSummary={handleEditSummary}
+                handleStartNewMeeting={handleStartNewMeeting}
+                setCurrentStep={setCurrentStep}
+              />
+            )}
+          </>
         )}
       </Container>
 

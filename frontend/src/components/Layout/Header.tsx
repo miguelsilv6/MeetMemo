@@ -1,8 +1,9 @@
 import { Container } from '@govtechsg/sgds-react';
-import { FileText } from 'lucide-react';
+import { FileText, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ThemeSwitcher from '../ThemeSwitcher';
 import LanguageSwitcher from '../LanguageSwitcher';
+import { ADMIN_ROUTE } from '../../hooks/useHashRoute';
 
 interface HeaderProps {
   onStartNewMeeting: () => void;
@@ -29,6 +30,14 @@ export default function Header({ onStartNewMeeting }: HeaderProps) {
           <div className="d-flex align-items-center gap-2">
             <LanguageSwitcher />
             <ThemeSwitcher />
+            <a
+              href={ADMIN_ROUTE}
+              className="btn btn-link p-1 text-muted"
+              title={t('admin.open')}
+              aria-label={t('admin.open')}
+            >
+              <Shield size={20} />
+            </a>
           </div>
         </div>
       </Container>

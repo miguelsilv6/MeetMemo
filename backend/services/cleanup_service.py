@@ -9,9 +9,12 @@ import os
 
 import aiofiles.os
 from config import Settings
+from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
 from utils.asr_audio import asr_audio_path
+
+from services.runtime_settings_service import RuntimeSettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +51,18 @@ class CleanupService:
         try:
             logger.info("Starting scheduled cleanup")
 
-            # Cleanup old jobs
+            # Cleanup old jobs (retention is set in the admin panel)
             try:
-                old_jobs = await self.job_repo.cleanup_old(
-                    self.settings.job_retention_hours
-                )
+                runtime = await RuntimeSettingsService(self.settings).get()
+                old_jobs = await self.job_repo.cleanup_old(runtime.job_retention_hours)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("Failed to query old jobs: %s", e, exc_info=True)
                 old_jobs = []
+
+            try:
+                await AdminRepository().purge_expired_sessions()
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error("Failed to purge expired admin sessions: %s", e)
 
             for job in old_jobs:
                 job_uuid = job.get("uuid")

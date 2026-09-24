@@ -116,12 +116,20 @@ class AudioService:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, convert_to_wav, input_path, output_path, sample_rate)
 
-    async def ensure_asr_audio(self, job_uuid: str, source_path: str) -> str:
+    async def ensure_asr_audio(
+        self,
+        job_uuid: str,
+        source_path: str,
+        highpass: bool = True,
+        loudnorm: bool = True,
+    ) -> str:
         """
         Return the path of the job's ASR-optimized audio, creating it if needed.
 
-        Falls back to ``source_path`` if preprocessing fails, so a missing or
-        broken ffmpeg degrades accuracy instead of failing the whole job.
+        The derivative is created once per job, so diarization reuses the one
+        transcription made. Falls back to ``source_path`` if preprocessing
+        fails, so a missing or broken ffmpeg degrades accuracy instead of
+        failing the whole job.
         """
         asr_path = asr_audio_path(self.settings.upload_dir, job_uuid)
         if os.path.exists(asr_path):
@@ -129,7 +137,9 @@ class AudioService:
 
         loop = asyncio.get_running_loop()
         try:
-            await loop.run_in_executor(None, prepare_asr_audio, source_path, asr_path)
+            await loop.run_in_executor(
+                None, prepare_asr_audio, source_path, asr_path, highpass, loudnorm
+            )
             return asr_path
         except Exception as e:  # pylint: disable=broad-exception-caught
             stderr = getattr(e, "stderr", b"") or b""

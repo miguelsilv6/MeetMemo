@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     _gpu_name: str | None = PrivateAttr(default=None)
     _resolved_profile: str = PrivateAttr(default="cpu")
 
+    # Admin panel. ADMIN_PASSWORD is only a bootstrap value: on first start it
+    # is hashed into the database, and from then on the password is managed
+    # from the panel (changing the env var afterwards has no effect).
+    admin_username: str = "admin"
+    admin_password: str | None = None
+    admin_session_hours: int = 8
+
     # Cleanup & Maintenance
     cleanup_interval_hours: int = 1
     job_retention_hours: int = 12

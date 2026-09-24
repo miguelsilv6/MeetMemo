@@ -7,39 +7,30 @@ improvement over openai-whisper.
 """
 import asyncio
 import logging
+import threading
 
 from config import Settings
 from database import update_error
 from faster_whisper import WhisperModel
 from repositories.job_repository import JobRepository
+from runtime_settings import RuntimeSettings
 from utils.hallucination_filter import filter_segments
+from utils.whisper_options import transcribe_options
+
+from services.runtime_settings_service import RuntimeSettingsService
 
 logger = logging.getLogger(__name__)
-
-# Silero VAD tuned for phone calls: a lower speech onset than the default
-# (0.5) keeps quiet, narrowband speech that would otherwise be cut, and a
-# shorter minimum silence splits on turn-taking pauses. Keys must match
-# faster_whisper.vad.VadOptions (1.1.0 names them onset/offset); offset's
-# default does not follow a custom onset, so the usual 0.15 gap is set here.
-VAD_PARAMETERS = {
-    "onset": 0.35,
-    "offset": 0.20,
-    "min_silence_duration_ms": 1000,
-    "speech_pad_ms": 400,
-}
-
-# Skip silent stretches longer than this (seconds) when the decoder shows signs
-# of hallucinating over them. Requires word-level timestamps.
-HALLUCINATION_SILENCE_THRESHOLD_S = 2.0
-
-# faster-whisper only retries a segment at a higher temperature when a greedy
-# (0.0) decode fails the compression_ratio/log_prob gates, so a single 0.0
-# would leave those gates with nothing to fall back to.
-TEMPERATURE_FALLBACK = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 
 PROGRESS_START = 10
 PROGRESS_END = 90
 PROGRESS_REPORT_STEP = 5
+
+# One loaded model per process. A service instance is created per request, so
+# a per-instance cache would reload the model from disk for every job; keeping
+# a single slot also frees the old model when the admin panel switches models
+# (two large models side by side can exhaust RAM on a CPU host).
+_model_lock = threading.Lock()
+_loaded_model: tuple[str, WhisperModel] | None = None  # pylint: disable=invalid-name
 
 
 class TranscriptionService:
@@ -55,11 +46,10 @@ class TranscriptionService:
         """
         self.settings = settings
         self.job_repo = job_repo
-        self._model_cache = {}
 
-    def get_model(self, model_name: str = "turbo"):
+    def get_model(self, model_name: str) -> WhisperModel:
         """
-        Get cached faster-whisper model.
+        Get the process-wide faster-whisper model, loading it if needed.
 
         Args:
             model_name: Name of the Whisper model (turbo, large-v3, base, small, etc.)
@@ -67,29 +57,33 @@ class TranscriptionService:
         Returns:
             Loaded WhisperModel instance
         """
-        if model_name not in self._model_cache:
+        global _loaded_model  # pylint: disable=global-statement
+        with _model_lock:
+            if _loaded_model is not None and _loaded_model[0] == model_name:
+                return _loaded_model[1]
+
+            # Drop the previous model before loading the next one.
+            _loaded_model = None
             logger.info("Loading faster-whisper model: %s", model_name)
 
-            # Determine compute type based on device
             compute_type = self.settings.compute_type
             if "cpu" in self.settings.device and compute_type == "float16":
                 logger.warning("compute_type 'float16' not supported on CPU. Falling back to 'int8'.")
                 compute_type = "int8"
 
-            # Load model with faster-whisper
             model = WhisperModel(
                 model_name,
                 device=self.settings.device.split(':')[0],  # Extract 'cuda' or 'cpu'
                 compute_type=compute_type
             )
-            self._model_cache[model_name] = model
+            _loaded_model = (model_name, model)
             logger.info(
                 "faster-whisper model %s loaded successfully on %s with %s precision",
                 model_name,
                 self.settings.device,
                 compute_type
             )
-        return self._model_cache[model_name]
+            return model
 
     def _decode(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
@@ -97,6 +91,7 @@ class TranscriptionService:
         file_path: str,
         model_name: str,
         language: str | None,
+        options: dict,
         loop: asyncio.AbstractEventLoop,
     ):
         """
@@ -107,21 +102,7 @@ class TranscriptionService:
         loop would block every other request for the whole transcription.
         """
         model = self.get_model(model_name)
-        segments_gen, info = model.transcribe(
-            file_path,
-            language=language,
-            beam_size=5,
-            best_of=5,
-            temperature=TEMPERATURE_FALLBACK,
-            vad_filter=True,
-            vad_parameters=VAD_PARAMETERS,
-            word_timestamps=True,
-            hallucination_silence_threshold=HALLUCINATION_SILENCE_THRESHOLD_S,
-            condition_on_previous_text=False,
-            no_speech_threshold=0.6,
-            log_prob_threshold=-1.0,
-            compression_ratio_threshold=2.4,
-        )
+        segments_gen, info = model.transcribe(file_path, language=language, **options)
 
         segments = []
         duration = info.duration or 0
@@ -150,8 +131,9 @@ class TranscriptionService:
         self,
         job_uuid: str,
         file_path: str,
-        model_name: str = "turbo",
-        language: str = None
+        model_name: str,
+        language: str = None,
+        runtime: RuntimeSettings | None = None,
     ) -> dict:
         """
         Transcribe audio file with progress tracking using faster-whisper.
@@ -161,6 +143,7 @@ class TranscriptionService:
             file_path: Path to audio file
             model_name: Whisper model to use
             language: Language code (ISO 639-1) or None for auto-detection
+            runtime: Admin-panel settings to apply (loaded if not given)
 
         Returns:
             Transcription data dict with text, segments, and language
@@ -170,6 +153,8 @@ class TranscriptionService:
         """
         try:
             await self.job_repo.update_workflow_state(job_uuid, 'transcribing', 0)
+            if runtime is None:
+                runtime = await RuntimeSettingsService(self.settings).get()
             logger.info(
                 "Starting transcription for job %s with model %s, language: %s",
                 job_uuid,
@@ -180,10 +165,17 @@ class TranscriptionService:
             await self.job_repo.update_step_progress(job_uuid, PROGRESS_START)
             loop = asyncio.get_running_loop()
             raw_segments, info = await loop.run_in_executor(
-                None, self._decode, job_uuid, file_path, model_name, language, loop
+                None,
+                self._decode,
+                job_uuid,
+                file_path,
+                model_name,
+                language,
+                transcribe_options(runtime),
+                loop,
             )
 
-            segments, removed = filter_segments(raw_segments)
+            segments, removed = filter_segments(raw_segments, runtime.filter_rules())
             if removed:
                 logger.info(
                     "Removed %d hallucinated/empty segment(s) for job %s",
@@ -198,8 +190,11 @@ class TranscriptionService:
                 "language_probability": (
                     info.language_probability if info.language else None
                 ),
-                # Kept for auditability: what was dropped, and why.
+                # Kept for auditability: what was dropped and why, and exactly
+                # which model and settings produced this transcript.
                 "removed_segments": removed,
+                "model_name": model_name,
+                "settings": runtime.model_dump(),
             }
             await self.job_repo.save_transcription(job_uuid, transcription_data)
 

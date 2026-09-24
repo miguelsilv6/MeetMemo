@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import type { ChangeEvent, DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
@@ -12,6 +12,8 @@ import type {
   SetTranscriptWithColors,
   StartPolling,
 } from '../types/ui';
+
+export const AUTO_DETECT_LANGUAGE = 'auto';
 
 /**
  * Custom hook for file selection, drag-and-drop, and upload logic
@@ -29,6 +31,17 @@ export default function useFileUpload(
   const [selectedFile, setSelectedFile] = useState<SelectedFile>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null); // null = auto-detect
+  // Once the user picks a language, the admin-configured default no longer overrides it.
+  const languageChosenByUser = useRef(false);
+
+  const changeLanguage = useCallback((language: string | null) => {
+    languageChosenByUser.current = true;
+    setSelectedLanguage(language);
+  }, []);
+
+  const applyDefaultLanguage = useCallback((language: string | null) => {
+    if (!languageChosenByUser.current) setSelectedLanguage(language);
+  }, []);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Handle file selection
@@ -91,7 +104,9 @@ export default function useFileUpload(
       }
 
       // Upload new file
-      const response = await api.uploadAudio(file, null, selectedLanguage);
+      // Send 'auto' explicitly so the backend doesn't apply its default language
+      // over a deliberate "Auto-detect" choice.
+      const response = await api.uploadAudio(file, null, selectedLanguage ?? AUTO_DETECT_LANGUAGE);
       setJobId(response.uuid);
 
       // Backend returns 202 immediately and processes in background
@@ -136,6 +151,7 @@ export default function useFileUpload(
     handleUpload,
     setSelectedFile,
     selectedLanguage,
-    setSelectedLanguage,
+    setSelectedLanguage: changeLanguage,
+    applyDefaultLanguage,
   };
 }

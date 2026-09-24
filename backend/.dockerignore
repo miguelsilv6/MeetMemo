@@ -73,6 +73,8 @@ Thumbs.db
 # Logs and databases
 *.log
 *.sql
+# The app runs the admin-panel migration at startup, so it must ship in the image.
+!migrations/*.sql
 *.sqlite
 
 # Temporary files

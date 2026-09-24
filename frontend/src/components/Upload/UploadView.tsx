@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
 import { Row, Col } from '@govtechsg/sgds-react';
 import { useTranslation } from 'react-i18next';
 import FileUploadCard from './FileUploadCard';
 import RecentJobsList from './RecentJobsList';
+import * as api from '../../services/api';
 import type { RecentJob } from '../../types/api';
 
 interface UploadViewProps {
@@ -18,6 +20,8 @@ interface UploadViewProps {
   handleViewSummary: (job: RecentJob) => void;
   selectedLanguage: string | null;
   onLanguageChange: (language: string | null) => void;
+  /** Receives the admin-configured default language each time this view opens. */
+  onDefaultLanguage: (language: string | null) => void;
 }
 
 export default function UploadView({
@@ -33,8 +37,26 @@ export default function UploadView({
   handleViewSummary,
   selectedLanguage,
   onLanguageChange,
+  onDefaultLanguage,
 }: UploadViewProps) {
   const { t } = useTranslation();
+
+  // Refetched on every visit, so a default changed in the admin panel shows up
+  // as soon as the user comes back here.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getPublicConfig()
+      .then((config) => {
+        if (!cancelled) onDefaultLanguage(config.default_language);
+      })
+      .catch(() => {
+        // Keep auto-detect if the config can't be loaded.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [onDefaultLanguage]);
 
   return (
     <Row className="justify-content-center">

@@ -47,6 +47,11 @@ services:
       - COMPUTE_TYPE
       - PYANNOTE_MODEL_NAME
       - DEVICE
+      # Admin panel. ADMIN_PASSWORD only bootstraps the account on first
+      # start; afterwards the password is managed from the panel.
+      - ADMIN_USERNAME
+      - ADMIN_PASSWORD
+      - ADMIN_SESSION_HOURS
       - DATABASE_URL=postgresql://meetmemo:${POSTGRES_PASSWORD:-changeme}@postgres:5432/meetmemo
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
