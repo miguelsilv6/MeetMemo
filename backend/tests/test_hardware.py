@@ -47,6 +47,15 @@ def test_profile_contents():
     }
 
 
+def test_profiles_prioritize_accurate_whisper_models():
+    # base/small are too inaccurate on non-English phone audio; every profile
+    # that can hold large-v3 uses it, and the 4 GB profile gets turbo.
+    assert h.PROFILES["cpu"].whisper_model_name == "large-v3"
+    assert h.PROFILES["low"].whisper_model_name == "turbo"
+    assert h.PROFILES["balanced"].whisper_model_name == "large-v3"
+    assert h.PROFILES["high"].whisper_model_name == "large-v3"
+
+
 def test_detection_helpers_never_raise():
     # The helpers must never raise, regardless of environment. Their return
     # type must agree with CUDA availability: None when torch/CUDA is absent,

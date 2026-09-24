@@ -33,23 +33,27 @@ class ProfileDefaults:
 
 
 # Profile -> pipeline defaults, tuned to fit within the VRAM budget noted while
-# maximizing quality. "custom" is deliberately absent: it leaves every field to
-# explicit env vars / base defaults.
+# maximizing transcription accuracy over speed: the smaller Whisper models
+# (base/small, and turbo's 4-layer decoder) are markedly less accurate and more
+# hallucination-prone on non-English, narrowband phone audio. On CPU this makes
+# large-v3 slow (roughly real time or slower); set WHISPER_MODEL_NAME=turbo to
+# trade accuracy back for speed. "custom" is deliberately absent: it leaves
+# every field to explicit env vars / base defaults.
 PROFILES: dict[str, ProfileDefaults] = {
     "cpu": ProfileDefaults(
-        whisper_model_name="base",
+        whisper_model_name="large-v3",
         compute_type="int8",
         pyannote_model_name=PYANNOTE_3_1,
         device="cpu",
     ),
     "low": ProfileDefaults(  # ~4 GB VRAM
-        whisper_model_name="small",
+        whisper_model_name="turbo",
         compute_type="int8_float16",
         pyannote_model_name=PYANNOTE_3_1,
         device="cuda:0",
     ),
     "balanced": ProfileDefaults(  # ~8 GB VRAM
-        whisper_model_name="turbo",
+        whisper_model_name="large-v3",
         compute_type="float16",
         pyannote_model_name=PYANNOTE_3_1,
         device="cuda:0",

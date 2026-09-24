@@ -411,17 +411,22 @@ export async function getSystemInfo(): Promise<SystemInfo> {
 // New Workflow Step APIs
 // ============================================================================
 
-// Start transcription step
+// Start transcription step. With no model, the backend uses the model of its
+// configured hardware profile (or WHISPER_MODEL_NAME).
 export async function startTranscription(
   uuid: string,
-  model: string = 'turbo',
+  model: string | null = null,
   language: string | null = null
 ): Promise<unknown> {
-  const params = new URLSearchParams({ model_name: model });
+  const params = new URLSearchParams();
+  if (model) {
+    params.append('model_name', model);
+  }
   if (language) {
     params.append('language', language);
   }
-  return await apiCall(`/jobs/${uuid}/transcriptions?${params.toString()}`, {
+  const query = params.toString();
+  return await apiCall(`/jobs/${uuid}/transcriptions${query ? `?${query}` : ''}`, {
     method: 'POST',
   });
 }

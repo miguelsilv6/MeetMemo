@@ -72,7 +72,7 @@
     "stepTranscribing": "Transcribing with Whisper AI...",
     "stepDiarizing": "Identifying speakers with PyAnnote (slowest step)",
     "stepAligning": "Aligning speakers with text",
-    "etaNotice": "This usually takes 2-3 minutes for a 10-minute recording"
+    "etaNotice": "Processing time depends on your hardware: on a GPU it usually takes a few minutes per 10 minutes of audio; on a CPU it can take as long as the recording itself, or longer."
   },
   "transcript": {
     "title": "Communication Transcript",
@@ -91,7 +91,9 @@
     "splitSegment": "Split into two speakers",
     "undo": "Undo last change",
     "selectSegments": "Select multiple segments",
-    "selectSegment": "Select this segment"
+    "selectSegment": "Select this segment",
+    "lowConfidence": "Review",
+    "lowConfidenceHint": "Low confidence: check this line against the audio"
   },
   "kanban": {
     "moveToSpeaker": "Move to speaker",

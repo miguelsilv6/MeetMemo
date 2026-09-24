@@ -212,6 +212,17 @@ describe('TranscriptKanbanView', () => {
     expect(onSeekToSegment).not.toHaveBeenCalled();
   });
 
+  it('marks only low-confidence bubbles for review', () => {
+    renderKanban({
+      segments: [{ ...segments[0], low_confidence: true }, segments[1], segments[2]],
+    });
+
+    const flags = screen.getAllByLabelText('Low confidence: check this line against the audio');
+    expect(flags).toHaveLength(1);
+    const flaggedBubble = flags[0].closest('.kanban-bubble') as HTMLElement;
+    expect(within(flaggedBubble).getByText('Hello everyone')).toBeInTheDocument();
+  });
+
   it('reflects selectedIndices on the matching bubble checkbox', () => {
     renderKanban({ selectMode: true, selectedIndices: new Set([1]) });
 
@@ -236,14 +247,35 @@ describe('TranscriptKanbanView', () => {
       expect(screen.getByText('1:00 of silence')).toBeInTheDocument();
     });
 
-    it('shows a silence label before a column whose first bubble starts long after the conversation begins', () => {
+    it('shows a silence label sized from the last real speech, not from the conversation start', () => {
+      // SPEAKER_00 talks 0-2s, SPEAKER_01 doesn't start until 45s: the real
+      // silence is 43s (measured from when speech actually stopped), shared
+      // by both columns since it's on the timeline both are drawn from.
       const lateStartSegments: TranscriptSegmentType[] = [
         { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Hello' },
         { speaker: 'SPEAKER_01', start: 45, end: 47, text: 'Sorry, joining now' },
       ];
       renderKanban({ segments: lateStartSegments });
 
-      expect(screen.getByText('0:45 of silence')).toBeInTheDocument();
+      expect(screen.getAllByText('0:43 of silence').length).toBeGreaterThan(0);
+    });
+
+    it('positions bubbles for the same timestamp at the same offset in every column', () => {
+      // Both speakers' first (and only) bubble starts at t=10: they must
+      // land at the same absolute pixel offset within their own column's
+      // body, regardless of which column/speaker they belong to.
+      const simultaneousSegments: TranscriptSegmentType[] = [
+        { speaker: 'SPEAKER_00', start: 10, end: 12, text: 'Same time A' },
+        { speaker: 'SPEAKER_01', start: 10, end: 11, text: 'Same time B' },
+      ];
+      renderKanban({ segments: simultaneousSegments });
+
+      const wrapperA = screen.getByText('Same time A').closest('.kanban-bubble')
+        ?.parentElement as HTMLElement;
+      const wrapperB = screen.getByText('Same time B').closest('.kanban-bubble')
+        ?.parentElement as HTMLElement;
+      expect(wrapperA.style.top).not.toBe('');
+      expect(wrapperA.style.top).toBe(wrapperB.style.top);
     });
   });
 });

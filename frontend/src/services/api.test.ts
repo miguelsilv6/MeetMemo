@@ -110,3 +110,23 @@ describe('downloadMarkdown (blob export helper)', () => {
     await expect(api.downloadMarkdown('abc', 'meeting.mp3')).rejects.toThrow(/Download failed/);
   });
 });
+
+describe('startTranscription', () => {
+  it('does not force a model, so the backend applies its configured profile', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+    await api.startTranscription('job1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/jobs/job1/transcriptions',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+
+  it('passes an explicit model and language when given', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({}));
+    await api.startTranscription('job1', 'large-v3', 'pt');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/jobs/job1/transcriptions?model_name=large-v3&language=pt',
+      expect.objectContaining({ method: 'POST' })
+    );
+  });
+});

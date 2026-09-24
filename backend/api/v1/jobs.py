@@ -45,6 +45,7 @@ from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
 from services.transcription_service import TranscriptionService
+from utils.asr_audio import asr_audio_path
 from utils.file_utils import get_unique_filename
 
 logger = logging.getLogger(__name__)
@@ -236,10 +237,13 @@ async def delete_job(
     # Delete associated files
     base_name = os.path.splitext(file_name)[0]
 
-    # Audio file
-    audio_path = os.path.join(settings.upload_dir, file_name)
-    if await aioos.path.exists(audio_path):
-        await aioos.remove(audio_path)
+    # Audio file and its ASR derivative
+    for path in (
+        os.path.join(settings.upload_dir, file_name),
+        asr_audio_path(settings.upload_dir, uuid),
+    ):
+        if await aioos.path.exists(path):
+            await aioos.remove(path)
 
     # Transcript files
     transcript_path = os.path.join(settings.transcript_dir, f"{base_name}.json")
@@ -275,6 +279,7 @@ async def start_transcription(  # pylint: disable=too-many-arguments,too-many-po
     model_name: str = Query(default=None),
     language: str = Query(default=None),
     transcription_service: TranscriptionService = Depends(get_transcription_service),
+    audio_service: AudioService = Depends(get_audio_service),
     job_repo: JobRepository = Depends(get_job_repository),
     settings: Settings = Depends(get_settings)
 ) -> WorkflowActionResponse:
@@ -289,14 +294,13 @@ async def start_transcription(  # pylint: disable=too-many-arguments,too-many-po
     effective_model = job.get('model_name') or model_name or settings.whisper_model_name
     effective_language = job.get('language') or language
 
-    # Run transcription in background
-    background_tasks.add_task(
-        transcription_service.transcribe,
-        uuid,
-        file_path,
-        effective_model,
-        effective_language
-    )
+    async def run() -> None:
+        audio_path = await audio_service.ensure_asr_audio(uuid, file_path)
+        await transcription_service.transcribe(
+            uuid, audio_path, effective_model, effective_language
+        )
+
+    background_tasks.add_task(run)
 
     return WorkflowActionResponse(
         uuid=uuid,
@@ -332,6 +336,7 @@ async def start_diarization(
     uuid: str,
     background_tasks: BackgroundTasks,
     diarization_service: DiarizationService = Depends(get_diarization_service),
+    audio_service: AudioService = Depends(get_audio_service),
     job_repo: JobRepository = Depends(get_job_repository),
     settings: Settings = Depends(get_settings)
 ) -> WorkflowActionResponse:
@@ -342,12 +347,11 @@ async def start_diarization(
 
     file_path = os.path.join(settings.upload_dir, job['file_name'])
 
-    # Run diarization in background
-    background_tasks.add_task(
-        diarization_service.diarize,
-        uuid,
-        file_path
-    )
+    async def run() -> None:
+        audio_path = await audio_service.ensure_asr_audio(uuid, file_path)
+        await diarization_service.diarize(uuid, audio_path)
+
+    background_tasks.add_task(run)
 
     return WorkflowActionResponse(
         uuid=uuid,

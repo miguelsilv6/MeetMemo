@@ -6,6 +6,8 @@ export interface TranscriptSegment {
   start: number;
   end: number;
   text: string;
+  /** Set by the backend when the speech model's own quality signals mark this line as doubtful. */
+  low_confidence?: boolean;
 }
 
 /**

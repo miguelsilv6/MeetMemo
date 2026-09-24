@@ -73,6 +73,7 @@ class TranscriptSegment(BaseModel):
     text: str
     start: str
     end: str
+    low_confidence: bool = False
 
 
 class JobResponse(BaseModel):

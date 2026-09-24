@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import type { SyntheticEvent } from 'react';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
-import { Pencil, Play, Plus, Scissors } from 'lucide-react';
+import { AlertTriangle, Pencil, Play, Plus, Scissors } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
@@ -103,6 +103,12 @@ export default function TranscriptSegment({
           >
             {segment.speaker}
           </Badge>
+          {segment.low_confidence && (
+            <Badge bg="warning" title={t('transcript.lowConfidenceHint')}>
+              <AlertTriangle size={12} className="me-1" />
+              {t('transcript.lowConfidence')}
+            </Badge>
+          )}
           {isActive && (
             <span className="audio-playing-indicator" title={t('transcript.currentlyPlaying')}>
               <span className="audio-playing-dot"></span>
