@@ -15,27 +15,18 @@ import { Pencil, Play, Plus, Scissors, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
+import {
+  buildKanbanTimeline,
+  resolveColumnOverlap,
+  KANBAN_MIN_BUBBLE_HEIGHT_PX,
+} from '../../utils/kanbanTimeline';
+import type { SilenceGap } from '../../utils/kanbanTimeline';
 import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 
 interface IndexedSegment {
   segment: TranscriptSegmentType;
   index: number;
-}
-
-// Vertical spacing between consecutive bubbles in a column reflects the real
-// elapsed time between them (capped, so a long silence doesn't force a huge
-// scroll), instead of a fixed gap — so bubbles land roughly on a shared
-// timeline across columns rather than lining up "side by side" purely by
-// coincidence of unrelated timestamps.
-const MIN_GAP_PX = 8;
-const MAX_GAP_PX = 160;
-const PX_PER_SECOND = 1.5;
-const GAP_LABEL_THRESHOLD_SECONDS = 20;
-
-function computeGapSpacing(gapSeconds: number): { heightPx: number; showLabel: boolean } {
-  const heightPx = Math.min(MAX_GAP_PX, Math.max(MIN_GAP_PX, gapSeconds * PX_PER_SECOND));
-  return { heightPx, showLabel: gapSeconds >= GAP_LABEL_THRESHOLD_SECONDS };
 }
 
 interface TranscriptKanbanViewProps {
@@ -224,7 +215,9 @@ function KanbanBubble({
 function KanbanColumn({
   speaker,
   bubbles,
-  conversationStart,
+  tops,
+  columnHeight,
+  silences,
   displayTextByIndex,
   activeSegmentIndex,
   speakers,
@@ -240,8 +233,12 @@ function KanbanColumn({
 }: {
   speaker: string;
   bubbles: IndexedSegment[];
-  /** Earliest segment start across the whole transcript, so every column's first bubble is spaced from the same reference point. */
-  conversationStart: number;
+  /** Resolved top offset (px) for each bubble, aligned by index with `bubbles`, on the timeline shared by every column. */
+  tops: number[];
+  /** Shared height (px) applied to every column, so they all span the same timeline extent. */
+  columnHeight: number;
+  /** Real conversation-wide silences (nobody speaking), positioned on the same shared timeline. */
+  silences: SilenceGap[];
   displayTextByIndex?: string[];
   activeSegmentIndex: number;
   speakers: string[];
@@ -289,27 +286,34 @@ function KanbanColumn({
           )}
         </div>
       </div>
-      <div className="kanban-column-body">
+      <div
+        className="kanban-column-body"
+        style={bubbles.length > 0 ? { position: 'relative', height: columnHeight } : undefined}
+      >
         {bubbles.length === 0 ? (
           <p className="text-muted small text-center py-4 mb-0">{t('kanban.dropHere')}</p>
         ) : (
-          bubbles.map((indexed, i) => {
-            const prevEnd = i === 0 ? conversationStart : Number(bubbles[i - 1].segment.end);
-            const gapSeconds = Math.max(0, Number(indexed.segment.start) - prevEnd);
-            const { heightPx, showLabel } = computeGapSpacing(gapSeconds);
-
-            return (
-              <div key={indexed.index}>
-                {showLabel ? (
-                  <div
-                    className="kanban-gap-label text-muted small text-center d-flex align-items-center justify-content-center"
-                    style={{ height: heightPx }}
-                  >
-                    {t('kanban.silenceGap', { duration: formatTime(gapSeconds) })}
-                  </div>
-                ) : (
-                  <div style={{ height: heightPx }} />
-                )}
+          <>
+            {silences.map((silence, i) => (
+              <div
+                key={i}
+                className="kanban-gap-label text-muted small text-center d-flex align-items-center justify-content-center"
+                style={{
+                  position: 'absolute',
+                  top: silence.topPx,
+                  left: 0,
+                  right: 0,
+                  height: silence.heightPx,
+                }}
+              >
+                {t('kanban.silenceGap', { duration: formatTime(silence.durationSeconds) })}
+              </div>
+            ))}
+            {bubbles.map((indexed, i) => (
+              <div
+                key={indexed.index}
+                style={{ position: 'absolute', top: tops[i], left: 0, right: 0 }}
+              >
                 <KanbanBubble
                   indexed={indexed}
                   displayText={displayTextByIndex?.[indexed.index]}
@@ -325,8 +329,8 @@ function KanbanColumn({
                   onToggleSelect={onToggleSelect}
                 />
               </div>
-            );
-          })
+            ))}
+          </>
         )}
       </div>
     </div>
@@ -413,11 +417,6 @@ export default function TranscriptKanbanView({
     })
   );
 
-  const conversationStart = useMemo(
-    () => (segments.length > 0 ? Math.min(...segments.map((s) => Number(s.start))) : 0),
-    [segments]
-  );
-
   const dataSpeakers = useMemo(() => [...new Set(segments.map((s) => s.speaker))], [segments]);
   const speakers = useMemo(
     () => [...dataSpeakers, ...extraSpeakers.filter((s) => !dataSpeakers.includes(s))],
@@ -432,6 +431,31 @@ export default function TranscriptKanbanView({
     });
     return bySpeaker;
   }, [segments, speakers]);
+
+  // One time-to-pixel mapping shared by every column, so a bubble's vertical
+  // position reflects its real audio timestamp regardless of speaker.
+  const timeline = useMemo(() => buildKanbanTimeline(segments), [segments]);
+
+  const columnTops = useMemo(() => {
+    const layouts = new Map<string, number[]>();
+    columns.forEach((bubbles, speaker) => {
+      const naturalTops = bubbles.map((b) => timeline.toY(Number(b.segment.start)));
+      layouts.set(speaker, resolveColumnOverlap(naturalTops));
+    });
+    return layouts;
+  }, [columns, timeline]);
+
+  // Every column shares the same height, so a column with fewer/shorter
+  // bubbles doesn't just end early — the shared timeline stays consistent.
+  const boardHeight = useMemo(() => {
+    let max = timeline.totalHeight;
+    columnTops.forEach((tops) => {
+      if (tops.length > 0) {
+        max = Math.max(max, tops[tops.length - 1] + KANBAN_MIN_BUBBLE_HEIGHT_PX);
+      }
+    });
+    return max;
+  }, [columnTops, timeline]);
 
   const draggingSegment = draggingIndex !== null ? segments[draggingIndex] : null;
 
@@ -493,7 +517,9 @@ export default function TranscriptKanbanView({
               key={speaker}
               speaker={speaker}
               bubbles={columns.get(speaker) ?? []}
-              conversationStart={conversationStart}
+              tops={columnTops.get(speaker) ?? []}
+              columnHeight={boardHeight}
+              silences={timeline.silences}
               displayTextByIndex={displayTextByIndex}
               activeSegmentIndex={activeSegmentIndex}
               speakers={speakers}
