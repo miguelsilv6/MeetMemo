@@ -98,7 +98,8 @@
     "dropHere": "Larga aqui",
     "removeSpeaker": "Remover {{speaker}}",
     "addSpeaker": "Adicionar interlocutor",
-    "speakerNamePlaceholder": "Nome do interlocutor"
+    "speakerNamePlaceholder": "Nome do interlocutor",
+    "silenceGap": "{{duration}} de silêncio"
   },
   "bulkActions": {
     "selectedCount_one": "{{count}} segmento selecionado",

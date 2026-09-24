@@ -652,6 +652,11 @@
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
+.kanban-gap-label {
+  font-size: 0.7rem;
+  opacity: 0.75;
+}
+
 .kanban-bubble-overlay {
   cursor: grabbing;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);

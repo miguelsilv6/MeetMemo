@@ -98,7 +98,8 @@
     "dropHere": "Drop here",
     "removeSpeaker": "Remove {{speaker}}",
     "addSpeaker": "Add speaker",
-    "speakerNamePlaceholder": "Speaker name"
+    "speakerNamePlaceholder": "Speaker name",
+    "silenceGap": "{{duration}} of silence"
   },
   "bulkActions": {
     "selectedCount_one": "{{count}} segment selected",
