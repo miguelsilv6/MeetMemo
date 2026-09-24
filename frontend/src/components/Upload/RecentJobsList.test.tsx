@@ -19,7 +19,7 @@ describe('RecentJobsList', () => {
         handleViewSummary={vi.fn()}
       />
     );
-    expect(screen.getByText(/loading recent meetings/i)).toBeInTheDocument();
+    expect(screen.getByText(/loading recent communications/i)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no jobs', () => {
@@ -32,7 +32,7 @@ describe('RecentJobsList', () => {
         handleViewSummary={vi.fn()}
       />
     );
-    expect(screen.getByText(/no recent meetings/i)).toBeInTheDocument();
+    expect(screen.getByText(/no recent communications/i)).toBeInTheDocument();
   });
 
   it('renders each job and loads one when its row is clicked', () => {
@@ -67,8 +67,8 @@ describe('RecentJobsList', () => {
     );
 
     // Deleting requires confirming in the modal first.
-    fireEvent.click(screen.getAllByTitle('Delete this meeting')[0]);
-    expect(screen.getByText('Delete Meeting')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByTitle('Delete this communication')[0]);
+    expect(screen.getByText('Delete Communication')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(handleDeleteJob).toHaveBeenCalledWith('u1');

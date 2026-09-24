@@ -123,7 +123,6 @@ function App() {
   const {
     isRecording,
     recordingTime,
-    startRecording,
     stopRecording,
     cleanup: cleanupRecording,
   } = useAudioRecording(
@@ -211,8 +210,6 @@ function App() {
             handleLoadJob={handleLoadJob}
             handleDeleteJob={handleDeleteJob}
             handleViewSummary={handleViewRecentSummary}
-            onStartRecording={startRecording}
-            isRecording={isRecording}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
           />

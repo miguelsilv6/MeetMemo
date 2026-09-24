@@ -12,8 +12,8 @@
   },
   "app": {
     "name": "MeetMemo",
-    "tagline": "Resumo de Reuniões com IA",
-    "footer": "MeetMemo © 2025 - Transcrição de Reuniões com IA e Identificação de Interlocutores"
+    "tagline": "Resumo de Comunicações com IA",
+    "footer": "MeetMemo © 2025 - Transcrição de Comunicações com IA e Identificação de Interlocutores"
   },
   "workflowSteps": {
     "upload": "Carregar Áudio",
@@ -29,8 +29,8 @@
     "diarization": "diarização"
   },
   "upload": {
-    "title": "Iniciar a Transcrição da Tua Reunião",
-    "subtitle": "Carrega uma gravação ou grava ao vivo para obteres uma transcrição com IA e identificação de interlocutores"
+    "title": "Iniciar a Transcrição da Tua Comunicação",
+    "subtitle": "Carrega uma gravação para obteres uma transcrição com IA e identificação de interlocutores"
   },
   "fileUpload": {
     "title": "Carregar Ficheiro Áudio",
@@ -41,7 +41,7 @@
     "uploading": "A carregar..."
   },
   "recording": {
-    "title": "Gravar Reunião ao Vivo",
+    "title": "Gravar Comunicação ao Vivo",
     "subtitle": "Grava áudio diretamente do teu microfone",
     "tipLabel": "Dica:",
     "tipText": "Para melhores resultados, usa um microfone de qualidade e minimiza o ruído de fundo",
@@ -51,22 +51,22 @@
     "requiresHttps": "A gravação requer HTTPS. Acede a esta página via HTTPS para ativar o acesso ao microfone"
   },
   "recentJobs": {
-    "title": "Reuniões Recentes",
-    "loading": "A carregar reuniões recentes...",
+    "title": "Comunicações Recentes",
+    "loading": "A carregar comunicações recentes...",
     "untitled": "Gravação Sem Título",
     "dateUnknown": "Data desconhecida",
     "statusComplete": "Concluída",
     "statusProcessing": "A processar",
     "statusFailed": "Falhou",
-    "deleteThis": "Eliminar esta reunião",
+    "deleteThis": "Eliminar esta comunicação",
     "viewSummary": "Ver resumo com IA",
-    "empty": "Ainda não há reuniões recentes. Carrega ou grava a tua primeira reunião para começar!",
-    "retentionNotice": "As reuniões são eliminadas automaticamente após 12 horas",
-    "deleteModalTitle": "Eliminar Reunião",
-    "deleteModalBody": "Tens a certeza de que queres eliminar esta reunião? Esta ação não pode ser desfeita."
+    "empty": "Ainda não há comunicações recentes. Carrega a tua primeira comunicação para começar!",
+    "retentionNotice": "As comunicações são eliminadas automaticamente após 12 horas",
+    "deleteModalTitle": "Eliminar Comunicação",
+    "deleteModalBody": "Tens a certeza de que queres eliminar esta comunicação? Esta ação não pode ser desfeita."
   },
   "processing": {
-    "title": "A Processar a Tua Reunião",
+    "title": "A Processar a Tua Comunicação",
     "subtitle": "A nossa IA está a transcrever o áudio e a identificar os interlocutores",
     "stepUploaded": "Áudio carregado com sucesso",
     "stepTranscribing": "A transcrever com Whisper AI...",
@@ -75,7 +75,7 @@
     "etaNotice": "Isto demora normalmente 2-3 minutos por cada 10 minutos de gravação"
   },
   "transcript": {
-    "title": "Transcrição da Reunião",
+    "title": "Transcrição da Comunicação",
     "listViewTitle": "Vista de lista",
     "kanbanViewTitle": "Vista Kanban (arrasta entre interlocutores)",
     "translateToPortuguese": "Traduzir para Português",
@@ -114,7 +114,7 @@
     "deleteConfirmBody_other": "Eliminar estes {{count}} segmentos? Podes desfazer esta ação a seguir com o botão Desfazer."
   },
   "meetingInfo": {
-    "title": "Informação da Reunião",
+    "title": "Informação da Comunicação",
     "fileName": "Nome do Ficheiro",
     "duration": "Duração",
     "detectedLanguage": "Idioma Detetado",
@@ -201,7 +201,7 @@
     "exportMarkdown": "Exportar Markdown",
     "exportWord": "Exportar Word",
     "transcriptOnly": "Apenas Transcrição",
-    "startNewMeeting": "Iniciar Nova Reunião"
+    "startNewMeeting": "Iniciar Nova Comunicação"
   },
   "audioPlayer": {
     "loadFailed": "Falha ao carregar o ficheiro de áudio",
@@ -220,7 +220,7 @@
     "connectionError": "Erro de Ligação",
     "connectionHint": "Confirma que o serviço backend está a correr e tenta atualizar a página.",
     "retry": "Tentar Ligar Novamente",
-    "tagline": "Transcrição de Reuniões com IA",
+    "tagline": "Transcrição de Comunicações com IA",
     "connecting": "A ligar aos serviços backend...",
     "backendNotResponding": "O backend não está a responder. Verifica se o serviço está a correr."
   },
@@ -263,9 +263,9 @@
     "micDenied": "Acesso ao microfone negado. Permite o acesso ao microfone para gravar.",
     "micNotFound": "Nenhum microfone encontrado. Liga um microfone e tenta novamente.",
     "startRecordingFailed": "Falha ao iniciar a gravação: {{message}}",
-    "loadJob": "Falha ao carregar a reunião",
-    "deleteMeeting": "Falha ao eliminar a reunião",
-    "transcriptNotFound": "Transcrição não encontrada para esta reunião. Pode ter sido eliminada ou o processamento falhou.",
+    "loadJob": "Falha ao carregar a comunicação",
+    "deleteMeeting": "Falha ao eliminar a comunicação",
+    "transcriptNotFound": "Transcrição não encontrada para esta comunicação. Pode ter sido eliminada ou o processamento falhou.",
     "startTranscription": "Falha ao iniciar a transcrição. Tenta novamente.",
     "startDiarization": "Falha ao iniciar a identificação de interlocutores. Tenta novamente.",
     "startAlignment": "Falha ao iniciar o alinhamento. Tenta novamente.",

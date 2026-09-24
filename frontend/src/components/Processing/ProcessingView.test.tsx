@@ -5,7 +5,7 @@ import ProcessingView from './ProcessingView';
 describe('ProcessingView', () => {
   it('renders the processing heading and step labels', () => {
     render(<ProcessingView processingProgress={0} />);
-    expect(screen.getByText('Processing Your Meeting')).toBeInTheDocument();
+    expect(screen.getByText('Processing Your Communication')).toBeInTheDocument();
     expect(screen.getByText(/Transcribing with Whisper AI/)).toBeInTheDocument();
   });
 
