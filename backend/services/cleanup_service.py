@@ -11,6 +11,7 @@ import aiofiles.os
 from config import Settings
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
+from utils.asr_audio import asr_audio_path
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,15 @@ class CleanupService:
                 old_jobs = []
 
             for job in old_jobs:
+                job_uuid = job.get("uuid")
+                if job_uuid:
+                    asr_path = asr_audio_path(self.settings.upload_dir, str(job_uuid))
+                    if await aiofiles.os.path.exists(asr_path):
+                        try:
+                            await aiofiles.os.remove(asr_path)
+                        except Exception as e:  # pylint: disable=broad-exception-caught
+                            logger.error("Failed to delete ASR audio %s: %s", asr_path, e)
+
                 file_name = job.get("file_name", "")
                 if file_name:
                     # Remove audio file

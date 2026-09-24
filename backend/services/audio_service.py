@@ -5,6 +5,7 @@ This service handles audio file uploads, format conversion, duplicate detection,
 and file management operations.
 """
 import asyncio
+import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -14,7 +15,10 @@ from config import Settings
 from fastapi import HTTPException, UploadFile
 from repositories.job_repository import JobRepository
 from security import sanitize_filename
+from utils.asr_audio import asr_audio_path, prepare_asr_audio
 from utils.file_utils import calculate_file_hash, convert_to_wav, get_unique_filename
+
+logger = logging.getLogger(__name__)
 
 
 class AudioService:
@@ -111,6 +115,31 @@ class AudioService:
         # Run conversion in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, convert_to_wav, input_path, output_path, sample_rate)
+
+    async def ensure_asr_audio(self, job_uuid: str, source_path: str) -> str:
+        """
+        Return the path of the job's ASR-optimized audio, creating it if needed.
+
+        Falls back to ``source_path`` if preprocessing fails, so a missing or
+        broken ffmpeg degrades accuracy instead of failing the whole job.
+        """
+        asr_path = asr_audio_path(self.settings.upload_dir, job_uuid)
+        if os.path.exists(asr_path):
+            return asr_path
+
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(None, prepare_asr_audio, source_path, asr_path)
+            return asr_path
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            stderr = getattr(e, "stderr", b"") or b""
+            logger.warning(
+                "ASR audio preprocessing failed for job %s, using the original file: %s %s",
+                job_uuid,
+                e,
+                stderr.decode(errors="replace").strip(),
+            )
+            return source_path
 
     async def check_duplicate(self, file_hash: str) -> Optional[dict]:
         """

@@ -72,7 +72,7 @@
     "stepTranscribing": "A transcrever com Whisper AI...",
     "stepDiarizing": "A identificar interlocutores com PyAnnote (passo mais demorado)",
     "stepAligning": "A alinhar interlocutores com o texto",
-    "etaNotice": "Isto demora normalmente 2-3 minutos por cada 10 minutos de gravação"
+    "etaNotice": "O tempo de processamento depende do hardware: numa GPU demora normalmente alguns minutos por cada 10 minutos de áudio; num CPU pode demorar tanto como a própria gravação, ou mais."
   },
   "transcript": {
     "title": "Transcrição da Comunicação",
@@ -91,7 +91,9 @@
     "splitSegment": "Dividir em dois interlocutores",
     "undo": "Desfazer última alteração",
     "selectSegments": "Selecionar vários segmentos",
-    "selectSegment": "Selecionar este segmento"
+    "selectSegment": "Selecionar este segmento",
+    "lowConfidence": "Rever",
+    "lowConfidenceHint": "Baixa confiança: confirma esta frase com o áudio"
   },
   "kanban": {
     "moveToSpeaker": "Mover para interlocutor",

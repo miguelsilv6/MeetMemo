@@ -212,6 +212,17 @@ describe('TranscriptKanbanView', () => {
     expect(onSeekToSegment).not.toHaveBeenCalled();
   });
 
+  it('marks only low-confidence bubbles for review', () => {
+    renderKanban({
+      segments: [{ ...segments[0], low_confidence: true }, segments[1], segments[2]],
+    });
+
+    const flags = screen.getAllByLabelText('Low confidence: check this line against the audio');
+    expect(flags).toHaveLength(1);
+    const flaggedBubble = flags[0].closest('.kanban-bubble') as HTMLElement;
+    expect(within(flaggedBubble).getByText('Hello everyone')).toBeInTheDocument();
+  });
+
   it('reflects selectedIndices on the matching bubble checkbox', () => {
     renderKanban({ selectMode: true, selectedIndices: new Set([1]) });
 

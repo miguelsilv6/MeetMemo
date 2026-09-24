@@ -92,12 +92,15 @@ class AlignmentService:
                         max_overlap = overlap
                         assigned_speaker = spk_seg["speaker"]
 
-                aligned_transcript.append({
+                aligned_segment = {
                     "speaker": assigned_speaker,
                     "text": seg_text,
                     "start": f"{seg_start:.2f}",
                     "end": f"{seg_end:.2f}"
-                })
+                }
+                if text_seg.get("low_confidence"):
+                    aligned_segment["low_confidence"] = True
+                aligned_transcript.append(aligned_segment)
 
             await self.job_repo.update_step_progress(job_uuid, 80)
 

@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
-import { Pencil, Play, Plus, Scissors, X } from 'lucide-react';
+import { AlertTriangle, Pencil, Play, Plus, Scissors, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
@@ -129,6 +129,16 @@ function KanbanBubble({
           <small className="text-muted kanban-bubble-timestamp">
             {formatTime(segment.start)} - {formatTime(segment.end)}
           </small>
+          {segment.low_confidence && (
+            <span
+              className="d-inline-flex text-warning"
+              role="img"
+              title={t('transcript.lowConfidenceHint')}
+              aria-label={t('transcript.lowConfidenceHint')}
+            >
+              <AlertTriangle size={12} />
+            </span>
+          )}
         </div>
         {!selectMode && (
           <div className="d-flex gap-1">

@@ -122,4 +122,17 @@ describe('TranscriptSegment', () => {
     fireEvent.doubleClick(screen.getByText('Welcome everyone'));
     expect(handleEditText).not.toHaveBeenCalled();
   });
+
+  it('flags a low-confidence segment for review', () => {
+    renderSegment({ segment: { ...segment, low_confidence: true } });
+    expect(screen.getByText('Review')).toHaveAttribute(
+      'title',
+      'Low confidence: check this line against the audio'
+    );
+  });
+
+  it('shows no review flag for a normal segment', () => {
+    renderSegment();
+    expect(screen.queryByText('Review')).not.toBeInTheDocument();
+  });
 });
