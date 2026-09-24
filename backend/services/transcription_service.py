@@ -104,10 +104,18 @@ class TranscriptionService:
                 lambda: model.transcribe(
                     file_path,
                     language=language,
-                    beam_size=1,
-                    best_of=1,
-                    temperature=0.0,
-                    vad_filter=False,  # Disable VAD to match openai-whisper behavior
+                    beam_size=5,
+                    best_of=5,
+                    # A temperature *list* (not a single 0.0) is what makes the
+                    # thresholds below actually do anything: faster-whisper only
+                    # retries a segment at a higher temperature when the greedy
+                    # (temperature=0.0) decode fails compression_ratio/log_prob,
+                    # which is the standard Whisper anti-hallucination fallback.
+                    temperature=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+                    # VAD trims non-speech/silence before decoding, which is the
+                    # single biggest lever against hallucinated text over silent
+                    # or noisy stretches (e.g. phone-call audio).
+                    vad_filter=True,
                     condition_on_previous_text=False,
                     no_speech_threshold=0.6,
                     log_prob_threshold=-1.0,
