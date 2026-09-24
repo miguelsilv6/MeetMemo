@@ -5,6 +5,11 @@ import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward } from 'lucide-rea
 import { useTranslation } from 'react-i18next';
 import * as api from '../../services/api';
 import { formatTime } from '../../utils/timeFormat';
+import useWaveformPeaks from '../../hooks/useWaveformPeaks';
+import AudioWaveform from './AudioWaveform';
+
+// Resolution of the player's waveform, independent of audio length.
+const WAVEFORM_BUCKETS = 300;
 
 export interface AudioPlayerHandle {
   seekTo: (time: number) => void;
@@ -35,6 +40,11 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
 
   // Get audio URL
   const audioUrl = jobId ? api.getAudioUrl(jobId) : null;
+
+  // Waveform peaks for the whole track (fetched once metadata gives us the
+  // duration); falls back to the plain progress bar below while loading, on
+  // error, or if there's nothing to show yet.
+  const { peaks: waveformPeaks } = useWaveformPeaks(jobId, 0, duration, WAVEFORM_BUCKETS);
 
   // Handle audio metadata loaded
   const handleLoadedMetadata = useCallback(() => {
@@ -181,23 +191,34 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
             <div className="audio-loading text-muted small mb-2">{t('audioPlayer.loading')}</div>
           )}
 
-          {/* Progress bar */}
-          <div
-            ref={progressRef}
-            className="audio-progress-container"
-            onClick={handleProgressClick}
-            role="slider"
-            aria-label={t('audioPlayer.progress')}
-            aria-valuenow={currentTime}
-            aria-valuemin={0}
-            aria-valuemax={duration}
-            tabIndex={0}
-          >
-            <div className="audio-progress-bar">
-              <div className="audio-progress-fill" style={{ width: `${progressPercentage}%` }} />
-              <div className="audio-progress-handle" style={{ left: `${progressPercentage}%` }} />
+          {/* Progress: waveform when available, falling back to a plain bar */}
+          {waveformPeaks && waveformPeaks.length > 0 ? (
+            <div className="mb-2">
+              <AudioWaveform
+                peaks={waveformPeaks}
+                duration={duration}
+                currentTime={currentTime}
+                onSeek={seekTo}
+              />
             </div>
-          </div>
+          ) : (
+            <div
+              ref={progressRef}
+              className="audio-progress-container"
+              onClick={handleProgressClick}
+              role="slider"
+              aria-label={t('audioPlayer.progress')}
+              aria-valuenow={currentTime}
+              aria-valuemin={0}
+              aria-valuemax={duration}
+              tabIndex={0}
+            >
+              <div className="audio-progress-bar">
+                <div className="audio-progress-fill" style={{ width: `${progressPercentage}%` }} />
+                <div className="audio-progress-handle" style={{ left: `${progressPercentage}%` }} />
+              </div>
+            </div>
+          )}
 
           {/* Time display */}
           <div className="audio-time-display d-flex justify-content-between mb-2">
