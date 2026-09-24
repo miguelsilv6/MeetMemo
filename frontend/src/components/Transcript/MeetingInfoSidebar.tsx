@@ -3,6 +3,7 @@ import { Sparkles, Download, AlertCircle, Languages, FileText } from 'lucide-rea
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { getLanguageName } from '../../constants/languages';
+import { getConfidenceVariant } from '../../utils/confidence';
 import * as api from '../../services/api';
 import type { SelectedFile, Summary, Transcript } from '../../types/api';
 
@@ -49,13 +50,16 @@ export default function MeetingInfoSidebar({
           {transcript?.language && (
             <div className="info-item mb-3">
               <small className="text-muted">{t('meetingInfo.detectedLanguage')}</small>
-              <div className="d-flex align-items-center gap-1">
+              <div className="d-flex align-items-center gap-1 flex-wrap">
                 <Languages size={14} className="text-muted" />
                 <span>{getLanguageName(transcript.language)}</span>
                 {typeof transcript.language_probability === 'number' && (
-                  <span className="text-muted" title={t('meetingInfo.confidenceTitle')}>
-                    ({Math.round(transcript.language_probability * 100)}%)
-                  </span>
+                  <Badge
+                    bg={getConfidenceVariant(transcript.language_probability)}
+                    title={t('meetingInfo.confidenceTitle')}
+                  >
+                    {Math.round(transcript.language_probability * 100)}%
+                  </Badge>
                 )}
               </div>
             </div>

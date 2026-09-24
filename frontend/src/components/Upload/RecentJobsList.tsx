@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { MouseEvent } from 'react';
 import { Card, Badge, Button, Modal } from '@govtechsg/sgds-react';
-import { Clock, AlertCircle, Trash2 } from 'lucide-react';
+import { Clock, AlertCircle, Trash2, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { RecentJob } from '../../types/api';
 
@@ -18,6 +18,7 @@ interface RecentJobsListProps {
   loadingJobs: boolean;
   handleLoadJob: (job: RecentJob) => void;
   handleDeleteJob: (uuid: string) => Promise<void> | void;
+  handleViewSummary: (job: RecentJob) => void;
 }
 
 export default function RecentJobsList({
@@ -25,6 +26,7 @@ export default function RecentJobsList({
   loadingJobs,
   handleLoadJob,
   handleDeleteJob,
+  handleViewSummary,
 }: RecentJobsListProps) {
   const { t } = useTranslation();
   const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(null);
@@ -32,6 +34,11 @@ export default function RecentJobsList({
   const onDeleteClick = (uuid: string, e: MouseEvent) => {
     e.stopPropagation();
     setPendingDeleteUuid(uuid);
+  };
+
+  const onViewSummaryClick = (job: RecentJob, e: MouseEvent) => {
+    e.stopPropagation();
+    handleViewSummary(job);
   };
 
   const onConfirmDelete = async () => {
@@ -91,6 +98,18 @@ export default function RecentJobsList({
                           ? t('recentJobs.statusProcessing')
                           : t('recentJobs.statusFailed')}
                     </Badge>
+                    {job.has_summary && (
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="p-0 d-flex align-items-center"
+                        onClick={(e) => onViewSummaryClick(job, e)}
+                        title={t('recentJobs.viewSummary')}
+                        style={{ color: 'var(--primary)' }}
+                      >
+                        <Sparkles size={16} />
+                      </Button>
+                    )}
                     <Button
                       variant="link"
                       size="sm"

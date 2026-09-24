@@ -59,6 +59,7 @@
     "statusProcessing": "A processar",
     "statusFailed": "Falhou",
     "deleteThis": "Eliminar esta reunião",
+    "viewSummary": "Ver resumo com IA",
     "empty": "Ainda não há reuniões recentes. Carrega ou grava a tua primeira reunião para começar!",
     "retentionNotice": "As reuniões são eliminadas automaticamente após 12 horas",
     "deleteModalTitle": "Eliminar Reunião",

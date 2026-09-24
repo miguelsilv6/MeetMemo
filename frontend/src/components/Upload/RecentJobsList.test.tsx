@@ -16,6 +16,7 @@ describe('RecentJobsList', () => {
         loadingJobs
         handleLoadJob={vi.fn()}
         handleDeleteJob={vi.fn()}
+        handleViewSummary={vi.fn()}
       />
     );
     expect(screen.getByText(/loading recent meetings/i)).toBeInTheDocument();
@@ -28,6 +29,7 @@ describe('RecentJobsList', () => {
         loadingJobs={false}
         handleLoadJob={vi.fn()}
         handleDeleteJob={vi.fn()}
+        handleViewSummary={vi.fn()}
       />
     );
     expect(screen.getByText(/no recent meetings/i)).toBeInTheDocument();
@@ -41,6 +43,7 @@ describe('RecentJobsList', () => {
         loadingJobs={false}
         handleLoadJob={handleLoadJob}
         handleDeleteJob={vi.fn()}
+        handleViewSummary={vi.fn()}
       />
     );
 
@@ -59,6 +62,7 @@ describe('RecentJobsList', () => {
         loadingJobs={false}
         handleLoadJob={vi.fn()}
         handleDeleteJob={handleDeleteJob}
+        handleViewSummary={vi.fn()}
       />
     );
 
@@ -68,5 +72,39 @@ describe('RecentJobsList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(handleDeleteJob).toHaveBeenCalledWith('u1');
+  });
+
+  it('does not show a "view summary" button for a job without a summary', () => {
+    render(
+      <RecentJobsList
+        recentJobs={jobs}
+        loadingJobs={false}
+        handleLoadJob={vi.fn()}
+        handleDeleteJob={vi.fn()}
+        handleViewSummary={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTitle('View AI summary')).not.toBeInTheDocument();
+  });
+
+  it('shows a "view summary" button for a job that has one, and it does not also load the job', () => {
+    const handleLoadJob = vi.fn();
+    const handleViewSummary = vi.fn();
+    const jobsWithSummary: RecentJob[] = [{ ...jobs[0], has_summary: true }];
+    render(
+      <RecentJobsList
+        recentJobs={jobsWithSummary}
+        loadingJobs={false}
+        handleLoadJob={handleLoadJob}
+        handleDeleteJob={vi.fn()}
+        handleViewSummary={handleViewSummary}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('View AI summary'));
+
+    expect(handleViewSummary).toHaveBeenCalledWith(jobsWithSummary[0]);
+    expect(handleLoadJob).not.toHaveBeenCalled();
   });
 });

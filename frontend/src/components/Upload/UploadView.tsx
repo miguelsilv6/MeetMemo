@@ -16,6 +16,7 @@ interface UploadViewProps {
   loadingJobs: boolean;
   handleLoadJob: (job: RecentJob) => void;
   handleDeleteJob: (uuid: string) => Promise<void> | void;
+  handleViewSummary: (job: RecentJob) => void;
   onStartRecording: () => void;
   isRecording: boolean;
   selectedLanguage: string | null;
@@ -32,6 +33,7 @@ export default function UploadView({
   loadingJobs,
   handleLoadJob,
   handleDeleteJob,
+  handleViewSummary,
   onStartRecording,
   isRecording,
   selectedLanguage,
@@ -70,6 +72,7 @@ export default function UploadView({
           loadingJobs={loadingJobs}
           handleLoadJob={handleLoadJob}
           handleDeleteJob={handleDeleteJob}
+          handleViewSummary={handleViewSummary}
         />
       </Col>
     </Row>

@@ -59,6 +59,7 @@
     "statusProcessing": "Processing",
     "statusFailed": "Failed",
     "deleteThis": "Delete this meeting",
+    "viewSummary": "View AI summary",
     "empty": "No recent meetings. Upload or record your first meeting to get started!",
     "retentionNotice": "Meetings are automatically deleted after 12 hours",
     "deleteModalTitle": "Delete Meeting",

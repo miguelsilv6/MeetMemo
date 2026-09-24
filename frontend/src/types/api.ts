@@ -72,6 +72,7 @@ export interface RecentJob {
   filename?: string;
   status_code?: number | string;
   created_at?: string;
+  has_summary?: boolean;
 }
 
 /** A job entry as returned by the backend `/jobs` listing. */
@@ -79,6 +80,7 @@ export interface JobsResponseEntry {
   file_name?: string;
   status_code?: number | string;
   created_at?: string;
+  has_summary?: boolean;
 }
 
 export interface JobsResponse {

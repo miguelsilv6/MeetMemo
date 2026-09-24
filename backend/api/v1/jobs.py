@@ -132,12 +132,19 @@ async def create_job(
 async def list_jobs(
     limit: int = Query(default=100, le=1000),
     offset: int = Query(default=0, ge=0),
-    job_repo: JobRepository = Depends(get_job_repository)
+    job_repo: JobRepository = Depends(get_job_repository),
+    settings: Settings = Depends(get_settings)
 ) -> JobListResponse:
     """List all jobs with pagination."""
     try:
         jobs, total = await job_repo.get_all(limit, offset)
-        jobs_dict = {str(job['uuid']): job for job in jobs}
+
+        jobs_dict = {}
+        for job in jobs:
+            job_uuid = str(job['uuid'])
+            summary_path = settings.summary_path / f"{job_uuid}.txt"
+            job['has_summary'] = await aioos.path.exists(str(summary_path))
+            jobs_dict[job_uuid] = job
 
         return JobListResponse(
             jobs=jobs_dict,

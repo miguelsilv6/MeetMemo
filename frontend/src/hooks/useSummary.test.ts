@@ -24,6 +24,20 @@ describe('useSummary', () => {
     expect(setCurrentStep).toHaveBeenCalledWith('summary');
   });
 
+  it('uses an explicit uuid override instead of the hook-bound jobId', async () => {
+    vi.mocked(api.generateSummary).mockResolvedValue({ summary: 'Other job summary' });
+    const setCurrentStep = vi.fn();
+    const { result } = renderHook(() => useSummary('job1', setCurrentStep, vi.fn()));
+
+    await act(async () => {
+      await result.current.handleGenerateSummary('job2');
+    });
+
+    expect(api.generateSummary).toHaveBeenCalledWith('job2');
+    expect(result.current.summary).toEqual({ summary: 'Other job summary' });
+    expect(setCurrentStep).toHaveBeenCalledWith('summary');
+  });
+
   it('does nothing without a jobId', async () => {
     const { result } = renderHook(() => useSummary(null, vi.fn(), vi.fn()));
     await act(async () => {
