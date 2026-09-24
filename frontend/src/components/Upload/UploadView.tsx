@@ -2,7 +2,6 @@ import type { ChangeEvent, DragEvent, RefObject } from 'react';
 import { Row, Col } from '@govtechsg/sgds-react';
 import { useTranslation } from 'react-i18next';
 import FileUploadCard from './FileUploadCard';
-import RecordingCard from './RecordingCard';
 import RecentJobsList from './RecentJobsList';
 import type { RecentJob } from '../../types/api';
 
@@ -16,8 +15,7 @@ interface UploadViewProps {
   loadingJobs: boolean;
   handleLoadJob: (job: RecentJob) => void;
   handleDeleteJob: (uuid: string) => Promise<void> | void;
-  onStartRecording: () => void;
-  isRecording: boolean;
+  handleViewSummary: (job: RecentJob) => void;
   selectedLanguage: string | null;
   onLanguageChange: (language: string | null) => void;
 }
@@ -32,8 +30,7 @@ export default function UploadView({
   loadingJobs,
   handleLoadJob,
   handleDeleteJob,
-  onStartRecording,
-  isRecording,
+  handleViewSummary,
   selectedLanguage,
   onLanguageChange,
 }: UploadViewProps) {
@@ -47,8 +44,8 @@ export default function UploadView({
           <p className="text-muted">{t('upload.subtitle')}</p>
         </div>
 
-        <Row className="g-4">
-          <Col md={6}>
+        <Row className="g-4 justify-content-center">
+          <Col md={8} lg={6}>
             <FileUploadCard
               uploading={uploading}
               fileInputRef={fileInputRef}
@@ -59,10 +56,6 @@ export default function UploadView({
               onLanguageChange={onLanguageChange}
             />
           </Col>
-
-          <Col md={6}>
-            <RecordingCard onStartRecording={onStartRecording} isRecording={isRecording} />
-          </Col>
         </Row>
 
         <RecentJobsList
@@ -70,6 +63,7 @@ export default function UploadView({
           loadingJobs={loadingJobs}
           handleLoadJob={handleLoadJob}
           handleDeleteJob={handleDeleteJob}
+          handleViewSummary={handleViewSummary}
         />
       </Col>
     </Row>

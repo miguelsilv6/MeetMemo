@@ -49,7 +49,26 @@ describe('useJobHistory', () => {
       filename: 'a.mp3',
       status_code: 200,
       created_at: '2024-01-01',
+      has_summary: false,
     });
+  });
+
+  it('carries has_summary through from the backend', async () => {
+    vi.mocked(api.getJobs).mockResolvedValue({
+      jobs: {
+        u1: {
+          file_name: 'a.mp3',
+          status_code: 200,
+          created_at: '2024-01-01',
+          has_summary: true,
+        },
+      },
+    });
+
+    const { hook } = setup();
+
+    await waitFor(() => expect(hook.result.current.recentJobs).toHaveLength(1));
+    expect(hook.result.current.recentJobs[0].has_summary).toBe(true);
   });
 
   it('sorts recent jobs by created_at, newest first', async () => {

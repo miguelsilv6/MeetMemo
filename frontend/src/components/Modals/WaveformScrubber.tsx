@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { drawPeakBars } from '../../utils/waveformCanvas';
 import type { WaveformPeak } from '../../types/api';
 
 interface WaveformScrubberProps {
@@ -46,16 +47,8 @@ export default function WaveformScrubber({
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    const barWidth = CANVAS_WIDTH / peaks.length;
-    const midY = CANVAS_HEIGHT / 2;
-
     ctx.fillStyle = '#2563eb';
-    peaks.forEach((peak, i) => {
-      const x = i * barWidth;
-      const topY = midY - peak.max * midY;
-      const barHeight = Math.max(1, (peak.max - peak.min) * midY);
-      ctx.fillRect(x, topY, Math.max(1, barWidth - 1), barHeight);
-    });
+    drawPeakBars(ctx, peaks, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     const markerX = splitRatio * CANVAS_WIDTH;
     ctx.strokeStyle = '#dc3545';

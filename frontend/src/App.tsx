@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Container } from '@govtechsg/sgds-react';
-import type { WorkflowStep } from './types/api';
+import type { RecentJob, WorkflowStep } from './types/api';
 
 // Custom Hooks
 import useBackendHealth from './hooks/useBackendHealth';
@@ -123,7 +123,6 @@ function App() {
   const {
     isRecording,
     recordingTime,
-    startRecording,
     stopRecording,
     cleanup: cleanupRecording,
   } = useAudioRecording(
@@ -159,6 +158,14 @@ function App() {
     handleEditSummary,
     handleSaveSummary,
   } = useSummary(jobId, setCurrentStep, setError);
+
+  // View a past job's summary directly from Recent Meetings, without making
+  // the user regenerate it — the backend serves the cached copy for a job
+  // that already has one.
+  const handleViewRecentSummary = async (job: RecentJob) => {
+    await handleLoadJob(job);
+    await handleGenerateSummary(job.uuid);
+  };
 
   // Start new meeting handler
   const handleStartNewMeeting = () => {
@@ -202,8 +209,7 @@ function App() {
             loadingJobs={loadingJobs}
             handleLoadJob={handleLoadJob}
             handleDeleteJob={handleDeleteJob}
-            onStartRecording={startRecording}
-            isRecording={isRecording}
+            handleViewSummary={handleViewRecentSummary}
             selectedLanguage={selectedLanguage}
             onLanguageChange={setSelectedLanguage}
           />

@@ -41,6 +41,7 @@ export default function useJobHistory(
         filename: job.file_name,
         status_code: job.status_code,
         created_at: job.created_at,
+        has_summary: job.has_summary ?? false,
       }));
 
       // Sort by most recent (newest created_at first) and limit to 5

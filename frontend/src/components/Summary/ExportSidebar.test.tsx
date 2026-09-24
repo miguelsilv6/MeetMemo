@@ -43,7 +43,7 @@ describe('ExportSidebar', () => {
         handleStartNewMeeting={handleStartNewMeeting}
       />
     );
-    fireEvent.click(screen.getByText('Start New Meeting'));
+    fireEvent.click(screen.getByText('Start New Communication'));
     expect(handleStartNewMeeting).toHaveBeenCalled();
   });
 

@@ -12,8 +12,8 @@
   },
   "app": {
     "name": "MeetMemo",
-    "tagline": "AI Meeting Summary",
-    "footer": "MeetMemo © 2025 - AI-Powered Meeting Transcription with Speaker Diarization"
+    "tagline": "AI Communication Summary",
+    "footer": "MeetMemo © 2025 - AI-Powered Communication Transcription with Speaker Diarization"
   },
   "workflowSteps": {
     "upload": "Upload Audio",
@@ -29,8 +29,8 @@
     "diarization": "diarization"
   },
   "upload": {
-    "title": "Start Your Meeting Transcription",
-    "subtitle": "Upload a recording or record live to get AI-powered transcription with speaker identification"
+    "title": "Start Your Communication Transcription",
+    "subtitle": "Upload a recording to get AI-powered transcription with speaker identification"
   },
   "fileUpload": {
     "title": "Upload Audio File",
@@ -41,7 +41,7 @@
     "uploading": "Uploading..."
   },
   "recording": {
-    "title": "Record Live Meeting",
+    "title": "Record Live Communication",
     "subtitle": "Record audio directly from your microphone",
     "tipLabel": "Tip:",
     "tipText": "For best results, use a quality microphone and minimize background noise",
@@ -51,21 +51,22 @@
     "requiresHttps": "Recording requires HTTPS. Please access this page via HTTPS to enable microphone access"
   },
   "recentJobs": {
-    "title": "Recent Meetings",
-    "loading": "Loading recent meetings...",
+    "title": "Recent Communications",
+    "loading": "Loading recent communications...",
     "untitled": "Untitled Recording",
     "dateUnknown": "Date unknown",
     "statusComplete": "Complete",
     "statusProcessing": "Processing",
     "statusFailed": "Failed",
-    "deleteThis": "Delete this meeting",
-    "empty": "No recent meetings. Upload or record your first meeting to get started!",
-    "retentionNotice": "Meetings are automatically deleted after 12 hours",
-    "deleteModalTitle": "Delete Meeting",
-    "deleteModalBody": "Are you sure you want to delete this meeting? This action cannot be undone."
+    "deleteThis": "Delete this communication",
+    "viewSummary": "View AI summary",
+    "empty": "No recent communications. Upload your first communication to get started!",
+    "retentionNotice": "Communications are automatically deleted after 12 hours",
+    "deleteModalTitle": "Delete Communication",
+    "deleteModalBody": "Are you sure you want to delete this communication? This action cannot be undone."
   },
   "processing": {
-    "title": "Processing Your Meeting",
+    "title": "Processing Your Communication",
     "subtitle": "Our AI is transcribing audio and identifying speakers",
     "stepUploaded": "Audio uploaded successfully",
     "stepTranscribing": "Transcribing with Whisper AI...",
@@ -74,7 +75,7 @@
     "etaNotice": "This usually takes 2-3 minutes for a 10-minute recording"
   },
   "transcript": {
-    "title": "Meeting Transcript",
+    "title": "Communication Transcript",
     "listViewTitle": "List view",
     "kanbanViewTitle": "Kanban view (drag between speakers)",
     "translateToPortuguese": "Translate to Portuguese",
@@ -98,7 +99,8 @@
     "dropHere": "Drop here",
     "removeSpeaker": "Remove {{speaker}}",
     "addSpeaker": "Add speaker",
-    "speakerNamePlaceholder": "Speaker name"
+    "speakerNamePlaceholder": "Speaker name",
+    "silenceGap": "{{duration}} of silence"
   },
   "bulkActions": {
     "selectedCount_one": "{{count}} segment selected",
@@ -112,7 +114,7 @@
     "deleteConfirmBody_other": "Delete these {{count}} segments? You can undo this afterwards with the Undo button."
   },
   "meetingInfo": {
-    "title": "Meeting Info",
+    "title": "Communication Info",
     "fileName": "File Name",
     "duration": "Duration",
     "detectedLanguage": "Detected Language",
@@ -199,7 +201,7 @@
     "exportMarkdown": "Export Markdown",
     "exportWord": "Export Word",
     "transcriptOnly": "Transcript Only",
-    "startNewMeeting": "Start New Meeting"
+    "startNewMeeting": "Start New Communication"
   },
   "audioPlayer": {
     "loadFailed": "Failed to load audio file",
@@ -218,7 +220,7 @@
     "connectionError": "Connection Error",
     "connectionHint": "Please ensure the backend service is running and try refreshing the page.",
     "retry": "Retry Connection",
-    "tagline": "AI-Powered Meeting Transcription",
+    "tagline": "AI-Powered Communication Transcription",
     "connecting": "Connecting to backend services...",
     "backendNotResponding": "Backend is not responding. Please check if the service is running."
   },
@@ -262,8 +264,8 @@
     "micNotFound": "No microphone found. Please connect a microphone and try again.",
     "startRecordingFailed": "Failed to start recording: {{message}}",
     "loadJob": "Failed to load job",
-    "deleteMeeting": "Failed to delete meeting",
-    "transcriptNotFound": "Transcript not found for this meeting. It may have been deleted or failed to process.",
+    "deleteMeeting": "Failed to delete communication",
+    "transcriptNotFound": "Transcript not found for this communication. It may have been deleted or failed to process.",
     "startTranscription": "Failed to start transcription. Please try again.",
     "startDiarization": "Failed to start speaker identification. Please try again.",
     "startAlignment": "Failed to start alignment. Please try again.",

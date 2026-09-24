@@ -218,4 +218,32 @@ describe('TranscriptKanbanView', () => {
     const bubble = screen.getByText('Hi there').closest('.kanban-bubble') as HTMLElement;
     expect(within(bubble).getByRole('checkbox')).toBeChecked();
   });
+
+  describe('timeline spacing', () => {
+    it('does not show a silence label for a short gap between bubbles', () => {
+      renderKanban();
+      expect(screen.queryByText(/of silence/)).not.toBeInTheDocument();
+    });
+
+    it('shows a silence label for a long gap between two bubbles in the same column', () => {
+      const gappySegments: TranscriptSegmentType[] = [
+        { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Hello' },
+        { speaker: 'SPEAKER_00', start: 62, end: 64, text: 'You still there?' },
+      ];
+      renderKanban({ segments: gappySegments });
+
+      // 62 - 2 = 60s gap.
+      expect(screen.getByText('1:00 of silence')).toBeInTheDocument();
+    });
+
+    it('shows a silence label before a column whose first bubble starts long after the conversation begins', () => {
+      const lateStartSegments: TranscriptSegmentType[] = [
+        { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Hello' },
+        { speaker: 'SPEAKER_01', start: 45, end: 47, text: 'Sorry, joining now' },
+      ];
+      renderKanban({ segments: lateStartSegments });
+
+      expect(screen.getByText('0:45 of silence')).toBeInTheDocument();
+    });
+  });
 });

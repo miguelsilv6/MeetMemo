@@ -23,6 +23,21 @@ interface IndexedSegment {
   index: number;
 }
 
+// Vertical spacing between consecutive bubbles in a column reflects the real
+// elapsed time between them (capped, so a long silence doesn't force a huge
+// scroll), instead of a fixed gap — so bubbles land roughly on a shared
+// timeline across columns rather than lining up "side by side" purely by
+// coincidence of unrelated timestamps.
+const MIN_GAP_PX = 8;
+const MAX_GAP_PX = 160;
+const PX_PER_SECOND = 1.5;
+const GAP_LABEL_THRESHOLD_SECONDS = 20;
+
+function computeGapSpacing(gapSeconds: number): { heightPx: number; showLabel: boolean } {
+  const heightPx = Math.min(MAX_GAP_PX, Math.max(MIN_GAP_PX, gapSeconds * PX_PER_SECOND));
+  return { heightPx, showLabel: gapSeconds >= GAP_LABEL_THRESHOLD_SECONDS };
+}
+
 interface TranscriptKanbanViewProps {
   segments: TranscriptSegmentType[];
   /** Translated text to render instead of each segment's original text, by index. */
@@ -89,7 +104,7 @@ function KanbanBubble({
       ref={setNodeRef}
       {...(selectMode ? {} : listeners)}
       {...(selectMode ? {} : attributes)}
-      className={`kanban-bubble mb-2 p-2 ${isActive ? 'kanban-bubble-active' : ''} ${
+      className={`kanban-bubble p-2 ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
       } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''}`}
       style={{ borderColor: getSpeakerBorderColor(segment.speaker) }}
@@ -209,6 +224,7 @@ function KanbanBubble({
 function KanbanColumn({
   speaker,
   bubbles,
+  conversationStart,
   displayTextByIndex,
   activeSegmentIndex,
   speakers,
@@ -224,6 +240,8 @@ function KanbanColumn({
 }: {
   speaker: string;
   bubbles: IndexedSegment[];
+  /** Earliest segment start across the whole transcript, so every column's first bubble is spaced from the same reference point. */
+  conversationStart: number;
   displayTextByIndex?: string[];
   activeSegmentIndex: number;
   speakers: string[];
@@ -275,23 +293,40 @@ function KanbanColumn({
         {bubbles.length === 0 ? (
           <p className="text-muted small text-center py-4 mb-0">{t('kanban.dropHere')}</p>
         ) : (
-          bubbles.map((indexed) => (
-            <KanbanBubble
-              key={indexed.index}
-              indexed={indexed}
-              displayText={displayTextByIndex?.[indexed.index]}
-              isActive={indexed.index === activeSegmentIndex}
-              speakers={speakers}
-              handleEditText={handleEditText}
-              onSeekToSegment={onSeekToSegment}
-              onMoveSegmentSpeaker={onMoveSegmentSpeaker}
-              onInsertSegmentAfter={onInsertSegmentAfter}
-              onSplitSegment={onSplitSegment}
-              selectMode={selectMode}
-              isSelected={selectedIndices.has(indexed.index)}
-              onToggleSelect={onToggleSelect}
-            />
-          ))
+          bubbles.map((indexed, i) => {
+            const prevEnd = i === 0 ? conversationStart : Number(bubbles[i - 1].segment.end);
+            const gapSeconds = Math.max(0, Number(indexed.segment.start) - prevEnd);
+            const { heightPx, showLabel } = computeGapSpacing(gapSeconds);
+
+            return (
+              <div key={indexed.index}>
+                {showLabel ? (
+                  <div
+                    className="kanban-gap-label text-muted small text-center d-flex align-items-center justify-content-center"
+                    style={{ height: heightPx }}
+                  >
+                    {t('kanban.silenceGap', { duration: formatTime(gapSeconds) })}
+                  </div>
+                ) : (
+                  <div style={{ height: heightPx }} />
+                )}
+                <KanbanBubble
+                  indexed={indexed}
+                  displayText={displayTextByIndex?.[indexed.index]}
+                  isActive={indexed.index === activeSegmentIndex}
+                  speakers={speakers}
+                  handleEditText={handleEditText}
+                  onSeekToSegment={onSeekToSegment}
+                  onMoveSegmentSpeaker={onMoveSegmentSpeaker}
+                  onInsertSegmentAfter={onInsertSegmentAfter}
+                  onSplitSegment={onSplitSegment}
+                  selectMode={selectMode}
+                  isSelected={selectedIndices.has(indexed.index)}
+                  onToggleSelect={onToggleSelect}
+                />
+              </div>
+            );
+          })
         )}
       </div>
     </div>
@@ -378,6 +413,11 @@ export default function TranscriptKanbanView({
     })
   );
 
+  const conversationStart = useMemo(
+    () => (segments.length > 0 ? Math.min(...segments.map((s) => Number(s.start))) : 0),
+    [segments]
+  );
+
   const dataSpeakers = useMemo(() => [...new Set(segments.map((s) => s.speaker))], [segments]);
   const speakers = useMemo(
     () => [...dataSpeakers, ...extraSpeakers.filter((s) => !dataSpeakers.includes(s))],
@@ -453,6 +493,7 @@ export default function TranscriptKanbanView({
               key={speaker}
               speaker={speaker}
               bubbles={columns.get(speaker) ?? []}
+              conversationStart={conversationStart}
               displayTextByIndex={displayTextByIndex}
               activeSegmentIndex={activeSegmentIndex}
               speakers={speakers}
