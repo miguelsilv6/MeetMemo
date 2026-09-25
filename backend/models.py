@@ -34,8 +34,12 @@ class SpeakerIdentificationRequest(BaseModel):
 
 
 class TranslateRequest(BaseModel):
-    """Model for transcript translation requests."""
-    target_language: str = Field("pt", pattern="^[a-z]{2}$")
+    """Model for transcript translation requests.
+
+    Translation always targets European Portuguese; the field is kept so
+    existing clients that send it keep working.
+    """
+    target_language: str = Field("pt", pattern="^pt$")
 
 
 class RenameJobRequest(BaseModel):

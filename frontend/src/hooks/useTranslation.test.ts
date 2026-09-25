@@ -33,7 +33,7 @@ describe('useTranslation', () => {
       await result.current.handleToggleTranslation(segments);
     });
 
-    expect(api.translateTranscript).toHaveBeenCalledWith('job1', 'pt');
+    expect(api.translateTranscript).toHaveBeenCalledWith('job1');
     expect(result.current.showTranslation).toBe(true);
     expect(result.current.translatedSegments).toEqual(translated);
   });

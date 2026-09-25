@@ -15,14 +15,25 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-# Language name mapping for common languages
-LANGUAGE_NAMES = {
-    'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
-    'zh': 'Chinese', 'ja': 'Japanese', 'ko': 'Korean', 'pt': 'Portuguese',
-    'ru': 'Russian', 'ar': 'Arabic', 'hi': 'Hindi', 'it': 'Italian',
-    'nl': 'Dutch', 'pl': 'Polish', 'tr': 'Turkish', 'vi': 'Vietnamese',
-    'sv': 'Swedish', 'id': 'Indonesian', 'th': 'Thai', 'uk': 'Ukrainian'
-}
+# Summaries and translations are always written in European Portuguese. Small
+# models drift into Brazilian Portuguese unless told otherwise explicitly, so
+# the rule names the variant and gives concrete contrasting examples. It is
+# appended to every summary/translation system prompt (custom ones included).
+EUROPEAN_PORTUGUESE_RULE = (
+    "IDIOMA OBRIGATÓRIO: escreve sempre em português europeu (português de Portugal), "
+    "seja qual for o idioma da transcrição. Nunca uses português do Brasil. "
+    "Usa o vocabulário, a gramática e a ortografia de Portugal, por exemplo: "
+    "equipa (e não time), ficheiro (e não arquivo), utilizador (e não usuário), "
+    "telemóvel (e não celular), ecrã (e não tela), contacto (e não contato), "
+    "facto (e não fato), receção (e não recepção), "
+    "\"estou a fazer\" (e não \"estou fazendo\"), \"tu fazes\" ou \"o senhor faz\" "
+    "(e não \"você faz\" como tratamento genérico)."
+)
+
+# Final reminder placed after the transcript: small models weigh the end of
+# the prompt heavily, and a long transcript can push the system prompt out of
+# their attention.
+EUROPEAN_PORTUGUESE_REMINDER = "Responde apenas em português de Portugal."
 
 
 def _extract_speaker_mapping(content: str) -> Optional[dict]:
@@ -196,16 +207,15 @@ class SummaryService:
         transcript: str,
         custom_prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
-        language: Optional[str] = None
     ) -> str:
         """
-        Summarize transcript using LLM.
+        Summarize transcript using LLM, always in European Portuguese.
 
         Args:
             transcript: The transcript text to summarize
             custom_prompt: Optional custom user prompt
-            system_prompt: Optional custom system prompt
-            language: ISO 639-1 language code or 'auto' for auto-detection
+            system_prompt: Optional custom system prompt (the European
+                Portuguese rule is always appended to it)
 
         Returns:
             Summary text in markdown format
@@ -217,8 +227,8 @@ class SummaryService:
         transcript_text = transcript.strip()
         if not transcript_text:
             return (
-                "# No Content Available\n\n"
-                "The recording appears to be empty or could not be transcribed."
+                "# Sem conteúdo disponível\n\n"
+                "A gravação parece estar vazia ou não foi possível transcrevê-la."
             )
 
         # Check for meaningful content
@@ -227,55 +237,46 @@ class SummaryService:
 
         if len(words) < 10 or len(unique_words) < 5:
             spoken_content = ' '.join(words)
-            return f"""# Brief Recording Summary
+            return f"""# Resumo de gravação breve
 
-## Content
-This appears to be a very short recording with limited content.
+## Conteúdo
+Esta gravação parece ser muito curta e ter pouco conteúdo.
 
-**Transcribed content:** "{spoken_content}"
+**Conteúdo transcrito:** "{spoken_content}"
 
-## Note
-The recording was too brief to generate a detailed meeting summary."""
+## Nota
+A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
 
         base_url = self.settings.llm_api_url
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         model_name = self.settings.llm_model_name
 
-        # Determine language instruction
-        language_instruction = ""
-        if language and language != 'auto':
-            lang_name = LANGUAGE_NAMES.get(language, language)
-            language_instruction = (
-                f"Generate the summary in {lang_name}, matching the language of the transcript. "
-            )
-        else:
-            language_instruction = "Generate the summary in the same language as the transcript. "
-
-        # Default prompts
         default_system_prompt = (
-            "You are a helpful assistant that summarizes meeting transcripts. "
-            "You will give a concise summary of the key points, decisions made, "
-            "and any action items, outputting it in markdown format. "
-            f"{language_instruction}"
-            "IMPORTANT: Always use the exact speaker names provided in the transcript. "
-            "Never change, substitute, or invent different names for speakers. "
-            "CRITICAL: Only summarize what is actually present in the transcript. "
-            "Do not invent or hallucinate content, participants, decisions, or action items."
+            "És um assistente que resume transcrições de reuniões e chamadas. "
+            "Faz um resumo conciso dos pontos principais, das decisões tomadas "
+            "e das ações a realizar, em formato Markdown. "
+            "IMPORTANTE: usa sempre os nomes exatos dos interlocutores tal como "
+            "aparecem na transcrição; nunca os alteres, substituas ou inventes. "
+            "CRÍTICO: resume apenas o que está efetivamente na transcrição. "
+            "Não inventes conteúdo, participantes, decisões nem ações."
         )
 
         default_user_prompt = (
-            "Analyze the following transcript and provide an appropriate summary. "
-            "Use exact speaker names as they appear. "
-            "Only include sections that have actual content from the transcript. "
-            "Use markdown format without code blocks.\n\n"
+            "Analisa a transcrição seguinte e faz um resumo adequado. "
+            "Usa os nomes dos interlocutores exatamente como aparecem. "
+            "Inclui apenas as secções que tenham conteúdo real da transcrição. "
+            "Usa formato Markdown, sem blocos de código.\n\n"
         )
 
-        final_system_prompt = system_prompt if system_prompt else default_system_prompt
+        final_system_prompt = (
+            f"{system_prompt or default_system_prompt}\n\n{EUROPEAN_PORTUGUESE_RULE}"
+        )
 
         if custom_prompt:
             final_user_prompt = custom_prompt + "\n\n" + transcript
         else:
             final_user_prompt = default_user_prompt + transcript
+        final_user_prompt += f"\n\n{EUROPEAN_PORTUGUESE_REMINDER}"
 
         payload = {
             "model": model_name,
@@ -397,13 +398,9 @@ The recording was too brief to generate a detailed meeting summary."""
                 "message": f"Speaker identification failed: {reason}"
             }
 
-    async def translate_segments(
-        self,
-        segments: list[dict],
-        target_language: str = "pt"
-    ) -> list[dict]:
+    async def translate_segments(self, segments: list[dict]) -> list[dict]:
         """
-        Translate transcript segment text into another language using the LLM.
+        Translate transcript segment text into European Portuguese using the LLM.
 
         Only the `text` field of each segment is translated; `speaker`, `start`, and
         `end` are preserved as-is so the translated transcript stays aligned with the
@@ -411,7 +408,6 @@ The recording was too brief to generate a detailed meeting summary."""
 
         Args:
             segments: List of transcript segment dicts (speaker, text, start, end).
-            target_language: ISO 639-1 code of the language to translate into.
 
         Returns:
             A new list of segment dicts with `text` replaced by its translation.
@@ -428,16 +424,17 @@ The recording was too brief to generate a detailed meeting summary."""
         base_url = self.settings.llm_api_url
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         model_name = self.settings.llm_model_name
-        lang_name = LANGUAGE_NAMES.get(target_language, target_language)
 
         system_prompt = (
-            f"You are a professional meeting transcript translator. Translate the "
-            f"\"text\" field of every object in the given JSON array into {lang_name}. "
+            "You are a professional meeting transcript translator. Translate the "
+            "\"text\" field of every object in the given JSON array into European "
+            "Portuguese (Portugal). "
             "Preserve meaning, tone, and register; do not summarize or omit content. "
             "Keep the same number of objects, in the same order, with the same \"i\" "
             "values. Never merge, split, add, or remove entries. "
             "Return ONLY a JSON array of objects shaped like "
-            '{"i": <index>, "text": "<translation>"}, nothing else.'
+            '{"i": <index>, "text": "<translation>"}, nothing else.\n\n'
+            f"{EUROPEAN_PORTUGUESE_RULE}"
         )
         numbered_segments = [{"i": i, "text": text} for i, text in enumerate(texts)]
         user_prompt = json.dumps(numbered_segments, ensure_ascii=False)

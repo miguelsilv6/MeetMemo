@@ -19,6 +19,9 @@ from utils.file_utils import get_transcript_path
 
 logger = logging.getLogger(__name__)
 
+# Translations always target European Portuguese.
+TRANSLATION_TARGET = "pt-PT"
+
 router = APIRouter()
 
 
@@ -158,22 +161,21 @@ async def update_transcript(
 @router.post("/jobs/{uuid}/transcripts/translate", response_model=TranslateResponse)
 async def translate_transcript(
     uuid: str,
-    request: TranslateRequest = None,
+    _request: TranslateRequest = None,  # validated only: the target is fixed
     job_repo: JobRepository = Depends(get_job_repository),
     summary_service: SummaryService = Depends(get_summary_service),
     settings: Settings = Depends(get_settings)
 ) -> TranslateResponse:
-    """Translate transcript segments into another language (default Portuguese).
+    """Translate transcript segments into European Portuguese.
 
-    Results are cached on disk per transcript + target language, and invalidated
+    A transcript that is already in Portuguese is returned unchanged, without
+    calling the LLM. Results are cached on disk per transcript, and invalidated
     whenever the transcript text is edited (see `update_transcript`).
     """
     try:
         job = await job_repo.get(uuid)
         if not job:
             raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-
-        target_language = request.target_language if request else "pt"
 
         file_name = job['file_name']
         base_name = os.path.splitext(file_name)[0]
@@ -187,17 +189,34 @@ async def translate_transcript(
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Transcript not found") from exc
 
-        cache_path = os.path.join(settings.translation_dir, f"{base_name}.{target_language}.json")
+        transcription = await job_repo.get_transcription(uuid)
+        if transcription and transcription.get("language") == "pt":
+            async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
+                transcript_json = await f.read()
+            logger.info("Transcript for job %s is already Portuguese; not translating", uuid)
+            return TranslateResponse(
+                uuid=uuid,
+                status="original",
+                status_code=200,
+                target_language=TRANSLATION_TARGET,
+                segments=json.loads(transcript_json)
+            )
+
+        # Keyed by the variant, so translations cached before European
+        # Portuguese was enforced (`<name>.pt.json`) are not reused.
+        cache_path = os.path.join(
+            settings.translation_dir, f"{base_name}.{TRANSLATION_TARGET}.json"
+        )
 
         if await aiofiles.os.path.exists(cache_path):
             async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
                 cached_json = await f.read()
-            logger.info("Returning cached translation (%s) for job %s", target_language, uuid)
+            logger.info("Returning cached translation for job %s", uuid)
             return TranslateResponse(
                 uuid=uuid,
                 status="cached",
                 status_code=200,
-                target_language=target_language,
+                target_language=TRANSLATION_TARGET,
                 segments=json.loads(cached_json)
             )
 
@@ -205,19 +224,19 @@ async def translate_transcript(
             transcript_json = await f.read()
         segments = json.loads(transcript_json)
 
-        translated_segments = await summary_service.translate_segments(segments, target_language)
+        translated_segments = await summary_service.translate_segments(segments)
 
         os.makedirs(settings.translation_dir, exist_ok=True)
         async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
             await f.write(json.dumps(translated_segments, indent=4, ensure_ascii=False))
 
-        logger.info("Generated and cached translation (%s) for job %s", target_language, uuid)
+        logger.info("Generated and cached translation for job %s", uuid)
 
         return TranslateResponse(
             uuid=uuid,
             status="generated",
             status_code=200,
-            target_language=target_language,
+            target_language=TRANSLATION_TARGET,
             segments=translated_segments
         )
 

@@ -120,4 +120,26 @@ describe('TranscriptView', () => {
     expect(handleDeleteSegments).not.toHaveBeenCalled();
     expect(handleBulkMoveSegments).not.toHaveBeenCalled();
   });
+
+  describe('translation button', () => {
+    it('offers a translation for a transcript in another language', () => {
+      const handleToggleTranslation = vi.fn();
+      renderView({ transcript: { segments, language: 'en' }, handleToggleTranslation });
+
+      fireEvent.click(screen.getByRole('button', { name: /translate to portuguese/i }));
+      expect(handleToggleTranslation).toHaveBeenCalledWith(segments);
+    });
+
+    it('offers a translation when the language is unknown', () => {
+      renderView({ transcript: { segments } });
+      expect(screen.getByRole('button', { name: /translate to portuguese/i })).toBeInTheDocument();
+    });
+
+    it('hides the translation for a transcript that is already in Portuguese', () => {
+      renderView({ transcript: { segments, language: 'pt' } });
+      expect(
+        screen.queryByRole('button', { name: /translate to portuguese/i })
+      ).not.toBeInTheDocument();
+    });
+  });
 });
