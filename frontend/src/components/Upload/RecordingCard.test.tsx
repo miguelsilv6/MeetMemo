@@ -30,6 +30,7 @@ describe('RecordingCard', () => {
 
     const button = screen.getByRole('button', { name: /start recording/i });
     expect(button).not.toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/use a quality microphone/i);
     fireEvent.click(button);
     expect(onStartRecording).toHaveBeenCalled();
   });
@@ -47,6 +48,7 @@ describe('RecordingCard', () => {
     // The unavailable reason is surfaced as the button wrapper's title, and the
     // button is disabled so recording can't be started.
     expect(screen.getByTitle(/does not support audio recording/i)).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(/does not support audio recording/i);
     expect(screen.getByRole('button', { name: /start recording/i })).toBeDisabled();
   });
 

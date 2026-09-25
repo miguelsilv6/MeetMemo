@@ -23,14 +23,14 @@ export default function RecordingCard({ onStartRecording, isRecording }: Recordi
         <p className="text-muted mb-4">{t('recording.subtitle')}</p>
         <div className="record-info mb-4">
           {unavailableReason ? (
-            <Alert variant="warning" className="mb-0">
+            <Alert show variant="warning" className="mb-0">
               <div className="d-flex align-items-start gap-2">
                 <AlertCircle size={20} className="flex-shrink-0 mt-1" />
                 <small>{unavailableReason}</small>
               </div>
             </Alert>
           ) : (
-            <Alert variant="info" className="mb-0">
+            <Alert show variant="info" className="mb-0">
               <small>
                 <strong>{t('recording.tipLabel')}</strong> {t('recording.tipText')}
               </small>
