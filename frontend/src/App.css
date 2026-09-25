@@ -238,6 +238,42 @@
   overflow-y: auto;
 }
 
+/* Side by side (lg+), the transcript card takes exactly the height of the
+   sidebar next to it (player + meeting info) and scrolls inside, so both
+   columns end at the same line. Stacked on smaller screens, it keeps the
+   600px scroll area above. */
+@media (min-width: 992px) {
+  .transcript-main-col {
+    position: relative;
+    min-height: 32rem;
+  }
+
+  .transcript-main-col > .transcript-card {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--sgds-gutter-x) * 0.5);
+    right: calc(var(--sgds-gutter-x) * 0.5);
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0 !important;
+  }
+
+  .transcript-card > .card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .transcript-card .transcript-content,
+  .transcript-card .kanban-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
 .transcript-segment {
   background-color: var(--mm-bg-subtle, var(--background));
   border-radius: 0.5rem;

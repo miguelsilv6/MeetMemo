@@ -278,7 +278,6 @@
     "processingGeneric": "An error occurred while processing. Please try again."
   },
   "admin": {
-    "open": "Administration",
     "title": "Administration",
     "backToApp": "Back to the app",
     "signedInAs": "Signed in as {{username}}",

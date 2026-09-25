@@ -192,8 +192,8 @@ export default function TranscriptView({
 
   return (
     <Row>
-      <Col lg={8}>
-        <Card className="mb-4">
+      <Col lg={8} className="transcript-main-col">
+        <Card className="mb-4 transcript-card">
           <Card.Header className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0">
               <FileText size={20} className="me-2" />
