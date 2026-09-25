@@ -24,18 +24,31 @@ describe('useSummary', () => {
     expect(setCurrentStep).toHaveBeenCalledWith('summary');
   });
 
-  it('uses an explicit uuid override instead of the hook-bound jobId', async () => {
+  it('generates the summary for an explicit job instead of the hook-bound jobId', async () => {
     vi.mocked(api.generateSummary).mockResolvedValue({ summary: 'Other job summary' });
     const setCurrentStep = vi.fn();
     const { result } = renderHook(() => useSummary('job1', setCurrentStep, vi.fn()));
 
     await act(async () => {
-      await result.current.handleGenerateSummary('job2');
+      await result.current.generateSummaryFor('job2');
     });
 
     expect(api.generateSummary).toHaveBeenCalledWith('job2');
     expect(result.current.summary).toEqual({ summary: 'Other job summary' });
     expect(setCurrentStep).toHaveBeenCalledWith('summary');
+  });
+
+  it('ignores anything passed to handleGenerateSummary, such as a click event', async () => {
+    vi.mocked(api.generateSummary).mockResolvedValue({ summary: 'All done' });
+    const { result } = renderHook(() => useSummary('job1', vi.fn(), vi.fn()));
+
+    await act(async () => {
+      // Simulates onClick={handleGenerateSummary}: React passes the event.
+      const handler = result.current.handleGenerateSummary as (...args: unknown[]) => Promise<void>;
+      await handler({ type: 'click', target: {} });
+    });
+
+    expect(api.generateSummary).toHaveBeenCalledWith('job1');
   });
 
   it('does nothing without a jobId', async () => {

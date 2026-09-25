@@ -162,6 +162,21 @@ def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     return None
 
 
+def _describe_llm_error(error: Exception, timeout: float) -> str:
+    """
+    Turn an LLM request failure into a message a user can act on.
+
+    httpx timeouts usually carry no message at all, which used to surface as a
+    bare "Speaker identification failed: " with nothing after the colon.
+    """
+    if isinstance(error, httpx.TimeoutException):
+        return (
+            f"The language model did not respond within {timeout:g} seconds. "
+            "Increase LLM_TIMEOUT if it needs more time."
+        )
+    return str(error) or type(error).__name__
+
+
 class SummaryService:
     """Service for LLM-based summarization and speaker identification."""
 
@@ -356,7 +371,7 @@ The recording was too brief to generate a detailed meeting summary."""
                 url,
                 headers=headers,
                 json=payload,
-                timeout=30.0
+                timeout=self.settings.llm_timeout
             )
             response.raise_for_status()
             data = response.json()
@@ -375,10 +390,11 @@ The recording was too brief to generate a detailed meeting summary."""
             return {"status": "success", "suggestions": suggestions}
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Speaker identification failed: %s", e, exc_info=True)
+            reason = _describe_llm_error(e, self.settings.llm_timeout)
+            logger.error("Speaker identification failed: %s", reason, exc_info=True)
             return {
                 "status": "error",
-                "message": f"Speaker identification failed: {str(e)}"
+                "message": f"Speaker identification failed: {reason}"
             }
 
     async def translate_segments(

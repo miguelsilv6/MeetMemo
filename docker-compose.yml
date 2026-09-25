@@ -38,6 +38,11 @@ services:
       - HF_TOKEN=${HF_TOKEN:-CHANGEME}
       - LLM_API_URL=${LLM_API_URL:-CHANGEME}
       - LLM_MODEL_NAME=${LLM_MODEL_NAME:-CHANGEME}
+      # Optional LLM settings, passed through only when set (bare form) so the
+      # application defaults apply otherwise.
+      - LLM_API_KEY
+      - LLM_TIMEOUT
+      - LLM_JSON_MODE
       - TIMEZONE_OFFSET=${TIMEZONE_OFFSET:-+8}
       # Hardware profile + ML overrides. Passed through only when set in the
       # environment (bare form), so an unset value lets HARDWARE_PROFILE's

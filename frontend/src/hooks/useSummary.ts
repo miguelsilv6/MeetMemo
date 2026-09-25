@@ -19,17 +19,14 @@ export default function useSummary(
   const [editingSummary, setEditingSummary] = useState('');
   const [showEditSummaryModal, setShowEditSummaryModal] = useState(false);
 
-  // Generate (or fetch the cached) summary. Accepts an optional explicit
-  // job UUID for cases like jumping straight to a past job's summary from
-  // Recent Meetings, where this hook's own `jobId` hasn't updated yet.
-  const handleGenerateSummary = async (uuidOverride?: string) => {
-    const targetUuid = uuidOverride ?? jobId;
-    if (!targetUuid) return;
-
+  // Generate (or fetch the cached) summary for a specific job. Used directly
+  // for cases like jumping straight to a past job's summary from Recent
+  // Meetings, where this hook's own `jobId` hasn't updated yet.
+  const generateSummaryFor = async (uuid: string) => {
     try {
       setError(null);
       setGeneratingSummary(true);
-      const summaryData = await api.generateSummary(targetUuid);
+      const summaryData = await api.generateSummary(uuid);
       setSummary(summaryData);
       setCurrentStep('summary');
     } catch (err) {
@@ -37,6 +34,14 @@ export default function useSummary(
     } finally {
       setGeneratingSummary(false);
     }
+  };
+
+  // Generate the summary for the current job. Takes no arguments on purpose:
+  // it is wired straight to onClick, and React would otherwise pass the click
+  // event in as the job id (requesting /jobs/[object Object]/summaries).
+  const handleGenerateSummary = async () => {
+    if (!jobId) return;
+    await generateSummaryFor(jobId);
   };
 
   // Open edit summary modal
@@ -75,6 +80,7 @@ export default function useSummary(
     showEditSummaryModal,
     setShowEditSummaryModal,
     handleGenerateSummary,
+    generateSummaryFor,
     handleEditSummary,
     handleSaveSummary,
   };
