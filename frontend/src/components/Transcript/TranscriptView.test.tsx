@@ -135,6 +135,15 @@ describe('TranscriptView', () => {
       expect(screen.getByRole('button', { name: /translate to portuguese/i })).toBeInTheDocument();
     });
 
+    it('shows block progress while translating', () => {
+      renderView({
+        transcript: { segments, language: 'en' },
+        translating: true,
+        translationProgress: { done: 15, total: 40 },
+      });
+      expect(screen.getByRole('button', { name: /translating… 15\/40/i })).toBeDisabled();
+    });
+
     it('hides the translation for a transcript that is already in Portuguese', () => {
       renderView({ transcript: { segments, language: 'pt' } });
       expect(

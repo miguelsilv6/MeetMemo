@@ -73,8 +73,13 @@ function App() {
   } = useTranscript(jobId, setError);
 
   // Transcript translation (Portuguese)
-  const { translatedSegments, translating, showTranslation, handleToggleTranslation } =
-    useTranslation(jobId, setError);
+  const {
+    translatedSegments,
+    translating,
+    translationProgress,
+    showTranslation,
+    handleToggleTranslation,
+  } = useTranslation(jobId, setError);
 
   // Speaker management
   const {
@@ -253,6 +258,7 @@ function App() {
                 identifyingSpeakers={identifyingSpeakers}
                 translatedSegments={translatedSegments}
                 translating={translating}
+                translationProgress={translationProgress}
                 showTranslation={showTranslation}
                 handleToggleTranslation={handleToggleTranslation}
                 canUndo={canUndo}

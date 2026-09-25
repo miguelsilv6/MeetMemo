@@ -80,6 +80,7 @@
     "kanbanViewTitle": "Kanban view (drag between speakers)",
     "translateToPortuguese": "Translate to Portuguese (PT)",
     "showOriginal": "Show Original",
+    "translatingProgress": "Translating… {{done}}/{{total}}",
     "editSpeakers": "Edit Speakers",
     "placeholder": "Transcript will appear here after processing",
     "loadingKanban": "Loading Kanban view…",

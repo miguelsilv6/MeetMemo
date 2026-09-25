@@ -15,6 +15,7 @@ import TranscriptSegment from './TranscriptSegment';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
+import type { TranslationProgress } from '../../hooks/useTranslation';
 import type {
   SelectedFile,
   Summary,
@@ -45,6 +46,8 @@ interface TranscriptViewProps {
   identifyingSpeakers: boolean;
   translatedSegments: TranscriptSegmentType[] | null;
   translating: boolean;
+  /** Blocks translated so far, while a translation is running. */
+  translationProgress?: TranslationProgress | null;
   showTranslation: boolean;
   handleToggleTranslation: (segments: TranscriptSegmentType[] | undefined) => void;
   canUndo: boolean;
@@ -94,6 +97,7 @@ export default function TranscriptView({
   identifyingSpeakers,
   translatedSegments,
   translating,
+  translationProgress = null,
   showTranslation,
   handleToggleTranslation,
   canUndo,
@@ -222,9 +226,11 @@ export default function TranscriptView({
                   ) : (
                     <Languages size={16} className="me-1" />
                   )}
-                  {showTranslation
-                    ? t('transcript.showOriginal')
-                    : t('transcript.translateToPortuguese')}
+                  {translating && translationProgress
+                    ? t('transcript.translatingProgress', { ...translationProgress })
+                    : showTranslation
+                      ? t('transcript.showOriginal')
+                      : t('transcript.translateToPortuguese')}
                 </Button>
               )}
               <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>

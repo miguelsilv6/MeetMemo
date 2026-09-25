@@ -80,6 +80,7 @@
     "kanbanViewTitle": "Vista Kanban (arrasta entre interlocutores)",
     "translateToPortuguese": "Traduzir para português (PT)",
     "showOriginal": "Mostrar Original",
+    "translatingProgress": "A traduzir… {{done}}/{{total}}",
     "editSpeakers": "Editar Interlocutores",
     "placeholder": "A transcrição vai aparecer aqui depois do processamento",
     "loadingKanban": "A carregar vista Kanban…",

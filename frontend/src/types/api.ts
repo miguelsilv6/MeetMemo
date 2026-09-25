@@ -43,7 +43,11 @@ export type SpeakerSuggestions = Record<string, string>;
 export interface TranslateResponse {
   status?: string;
   target_language?: string;
+  /** Translated segments for the requested range, starting at `start`. */
   segments?: TranscriptSegment[];
+  start?: number;
+  /** Number of segments in the whole transcript. */
+  total?: number;
 }
 
 export interface IdentifySpeakersResponse {
