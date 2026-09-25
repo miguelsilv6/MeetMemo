@@ -100,8 +100,6 @@
     "lowConfidenceHint": "Baixa confiança: confirma esta frase com o áudio"
   },
   "kanban": {
-    "moveToSpeaker": "Mover para interlocutor",
-    "moveToSpeakerHint": "Mover para interlocutor (alternativa acessível por teclado ao arrastar)",
     "dropHere": "Larga aqui",
     "removeSpeaker": "Remover {{speaker}}",
     "addSpeaker": "Adicionar interlocutor",

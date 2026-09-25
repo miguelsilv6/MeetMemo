@@ -54,10 +54,8 @@ function KanbanBubble({
   indexed,
   displayText,
   isActive,
-  speakers,
   handleEditText,
   onSeekToSegment,
-  onMoveSegmentSpeaker,
   onInsertSegmentAfter,
   onSplitSegment,
   onRequestDeleteSegment,
@@ -68,10 +66,8 @@ function KanbanBubble({
   indexed: IndexedSegment;
   displayText?: string;
   isActive: boolean;
-  speakers: string[];
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
-  onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
   onRequestDeleteSegment?: (index: number) => void;
@@ -211,28 +207,6 @@ function KanbanBubble({
               </Button>
             )}
           </>
-        )}
-        {!selectMode && speakers.length > 1 && (
-          <select
-            className="form-select form-select-sm kanban-bubble-speaker-select kanban-bubble-action"
-            aria-label={t('kanban.moveToSpeaker')}
-            title={t('kanban.moveToSpeakerHint')}
-            value={segment.speaker}
-            onClick={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            onChange={(e) => {
-              const newSpeaker = e.target.value;
-              if (newSpeaker !== segment.speaker) {
-                onMoveSegmentSpeaker(index, newSpeaker);
-              }
-            }}
-          >
-            {speakers.map((speaker) => (
-              <option key={speaker} value={speaker}>
-                {speaker}
-              </option>
-            ))}
-          </select>
         )}
       </div>
     </div>
@@ -538,10 +512,8 @@ export default function TranscriptKanbanView({
                   indexed={{ segment, index: row.index }}
                   displayText={displayTextByIndex?.[row.index]}
                   isActive={row.index === activeSegmentIndex}
-                  speakers={speakers}
                   handleEditText={handleEditText}
                   onSeekToSegment={onSeekToSegment}
-                  onMoveSegmentSpeaker={onMoveSegmentSpeaker}
                   onInsertSegmentAfter={onInsertSegmentAfter}
                   onSplitSegment={onSplitSegment}
                   onRequestDeleteSegment={onRequestDeleteSegment}

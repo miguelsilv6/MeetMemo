@@ -100,8 +100,6 @@
     "lowConfidenceHint": "Low confidence: check this line against the audio"
   },
   "kanban": {
-    "moveToSpeaker": "Move to speaker",
-    "moveToSpeakerHint": "Move to speaker (keyboard-accessible alternative to dragging)",
     "dropHere": "Drop here",
     "removeSpeaker": "Remove {{speaker}}",
     "addSpeaker": "Add speaker",
