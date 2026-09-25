@@ -5,7 +5,9 @@ from unittest import mock
 
 import pytest
 from utils.asr_audio import (
-    ASR_AUDIO_FILTER,
+    HIGHPASS_FILTER,
+    LOUDNORM_FILTER,
+    asr_audio_filter,
     asr_audio_path,
     build_asr_ffmpeg_command,
     prepare_asr_audio,
@@ -22,10 +24,22 @@ def test_ffmpeg_command_resamples_to_16k_mono_pcm_with_filters():
     assert cmd[cmd.index("-ac") + 1] == "1"
     assert cmd[cmd.index("-ar") + 1] == "16000"
     assert cmd[cmd.index("-c:a") + 1] == "pcm_s16le"
-    assert cmd[cmd.index("-af") + 1] == ASR_AUDIO_FILTER
-    assert "loudnorm" in ASR_AUDIO_FILTER and "highpass" in ASR_AUDIO_FILTER
+    assert cmd[cmd.index("-af") + 1] == f"{HIGHPASS_FILTER},{LOUDNORM_FILTER}"
     assert cmd[cmd.index("-i") + 1] == "in.mp3"
     assert cmd[-1] == "out.wav"
+
+
+def test_filter_chain_follows_the_enabled_steps():
+    assert asr_audio_filter(True, True) == f"{HIGHPASS_FILTER},{LOUDNORM_FILTER}"
+    assert asr_audio_filter(False, True) == LOUDNORM_FILTER
+    assert asr_audio_filter(True, False) == HIGHPASS_FILTER
+    assert asr_audio_filter(False, False) is None
+
+
+def test_ffmpeg_command_omits_af_when_all_filters_are_disabled():
+    cmd = build_asr_ffmpeg_command("in.mp3", "out.wav", highpass=False, loudnorm=False)
+    assert "-af" not in cmd
+    assert cmd[cmd.index("-ar") + 1] == "16000"
 
 
 def test_prepare_writes_via_temp_file_then_renames_into_place(tmp_path):

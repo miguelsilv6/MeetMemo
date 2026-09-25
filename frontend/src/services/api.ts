@@ -407,6 +407,11 @@ export async function getSystemInfo(): Promise<SystemInfo> {
   return await apiCall<SystemInfo>('/system');
 }
 
+// Non-sensitive runtime settings the upload screen needs (set in the admin panel).
+export async function getPublicConfig(): Promise<{ default_language: string | null }> {
+  return await apiCall<{ default_language: string | null }>('/config');
+}
+
 // ============================================================================
 // New Workflow Step APIs
 // ============================================================================

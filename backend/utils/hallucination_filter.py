@@ -11,36 +11,48 @@ doubtful line than to silently drop what may be real speech.
 """
 import re
 import unicodedata
+from dataclasses import dataclass
 
-# Thresholds mirror the decoder's own quality gates (log_prob_threshold,
-# no_speech_threshold, compression_ratio_threshold): a segment that still
-# crosses one after temperature fallback is worth a second look.
-LOW_AVG_LOGPROB = -1.0
-HIGH_NO_SPEECH_PROB = 0.6
-HIGH_COMPRESSION_RATIO = 2.4
+# Whole-segment phrases removed as hallucinations. Editable from the admin
+# panel; matching ignores case, accents and punctuation.
+DEFAULT_HALLUCINATION_PHRASES = (
+    "Obrigado por assistir",
+    "Obrigada por assistir",
+    "Obrigado por assistirem",
+    "Obrigada por assistirem",
+    "Obrigado por terem assistido",
+    "Inscreva-se no canal",
+    "Inscrevam-se no canal",
+    "Não se esqueça de se inscrever no canal",
+    "Thanks for watching",
+    "Thank you for watching",
+    "Thank you so much for watching",
+    "Please subscribe",
+    "Like and subscribe",
+)
 
-_KNOWN_HALLUCINATIONS = {
-    "obrigado por assistir",
-    "obrigada por assistir",
-    "obrigado por assistirem",
-    "obrigada por assistirem",
-    "obrigado por terem assistido",
-    "inscrevase no canal",
-    "inscrevamse no canal",
-    "nao se esqueca de se inscrever no canal",
-    "thanks for watching",
-    "thank you for watching",
-    "thank you so much for watching",
-    "please subscribe",
-    "like and subscribe",
-}
-
-# Subtitle/translation credit lines, e.g. "Legendas por ...", "Legendado por
-# ...", "Tradução e legendas: ...", "Subtitles by ...".
+# Built-in rules that always apply on top of the phrase list: any Amara.org
+# credit, and subtitle/translation credit lines ("Legendas por ...",
+# "Legendado por ...", "Tradução e legendas: ...", "Subtitles by ...").
 _CREDIT_PATTERN = re.compile(
     r"^(legendas?|legendado|legendagem|traducao e legendas|transcricao e legendas|"
     r"subtitles|subtitled|captions|captioned)\s+(pela|pelo|por|by)\b(?!\s+favor)"
 )
+
+
+@dataclass(frozen=True)
+class FilterRules:
+    """Thresholds and phrases that drive the filter.
+
+    The thresholds mirror the decoder's own quality gates (log_prob_threshold,
+    no_speech_threshold, compression_ratio_threshold): a segment that still
+    crosses one after temperature fallback is worth a second look.
+    """
+
+    avg_logprob: float = -1.0
+    no_speech_prob: float = 0.6
+    compression_ratio: float = 2.4
+    phrases: tuple[str, ...] = DEFAULT_HALLUCINATION_PHRASES
 
 
 def normalize_text(text: str) -> str:
@@ -51,45 +63,57 @@ def normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", letters_only).strip()
 
 
-def is_known_hallucination(text: str) -> bool:
+def _normalized_phrases(phrases: tuple[str, ...]) -> frozenset[str]:
+    return frozenset(p for p in (normalize_text(phrase) for phrase in phrases) if p)
+
+
+def is_known_hallucination(
+    text: str, phrases: tuple[str, ...] = DEFAULT_HALLUCINATION_PHRASES
+) -> bool:
     """True if the whole segment is a known Whisper subtitle/sign-off artifact."""
-    normalized = normalize_text(text)
+    return _matches_hallucination(normalize_text(text), _normalized_phrases(phrases))
+
+
+def _matches_hallucination(normalized: str, normalized_phrases: frozenset[str]) -> bool:
     if not normalized:
         return False
     if "amaraorg" in normalized.replace(" ", ""):
         return True
-    if normalized in _KNOWN_HALLUCINATIONS:
+    if normalized in normalized_phrases:
         return True
     return bool(_CREDIT_PATTERN.match(normalized))
 
 
-def is_low_confidence(segment: dict) -> bool:
+def is_low_confidence(segment: dict, rules: FilterRules = FilterRules()) -> bool:
     """True if the decoder's own quality signals mark the segment as doubtful."""
     avg_logprob = segment.get("avg_logprob")
     no_speech_prob = segment.get("no_speech_prob")
     compression_ratio = segment.get("compression_ratio")
     return (
-        (avg_logprob is not None and avg_logprob < LOW_AVG_LOGPROB)
-        or (no_speech_prob is not None and no_speech_prob > HIGH_NO_SPEECH_PROB)
-        or (compression_ratio is not None and compression_ratio > HIGH_COMPRESSION_RATIO)
+        (avg_logprob is not None and avg_logprob < rules.avg_logprob)
+        or (no_speech_prob is not None and no_speech_prob > rules.no_speech_prob)
+        or (compression_ratio is not None and compression_ratio > rules.compression_ratio)
     )
 
 
-def filter_segments(segments: list[dict]) -> tuple[list[dict], list[dict]]:
+def filter_segments(
+    segments: list[dict], rules: FilterRules = FilterRules()
+) -> tuple[list[dict], list[dict]]:
     """
     Split segments into those to keep and those removed as hallucinations.
 
     Kept segments get a boolean ``low_confidence`` flag. Removed segments carry
     a ``removed_reason`` so the removal stays auditable.
     """
+    normalized_phrases = _normalized_phrases(rules.phrases)
     kept: list[dict] = []
     removed: list[dict] = []
     for segment in segments:
-        text = (segment.get("text") or "").strip()
-        if not normalize_text(text):
+        normalized = normalize_text(segment.get("text") or "")
+        if not normalized:
             removed.append({**segment, "removed_reason": "empty"})
-        elif is_known_hallucination(text):
+        elif _matches_hallucination(normalized, normalized_phrases):
             removed.append({**segment, "removed_reason": "known_hallucination"})
         else:
-            kept.append({**segment, "low_confidence": is_low_confidence(segment)})
+            kept.append({**segment, "low_confidence": is_low_confidence(segment, rules)})
     return kept, removed

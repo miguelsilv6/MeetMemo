@@ -756,3 +756,26 @@ button.kanban-add-column:hover {
   outline: 2px solid var(--mm-primary, var(--primary));
   outline-offset: 2px;
 }
+
+/* ============================================================================
+   Admin panel
+   ============================================================================ */
+
+.admin-login {
+  max-width: 420px;
+}
+
+.admin-section {
+  border-top: 1px solid var(--mm-border, var(--border));
+  padding-top: 1rem;
+}
+
+.admin-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.admin-audit-value {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+}
