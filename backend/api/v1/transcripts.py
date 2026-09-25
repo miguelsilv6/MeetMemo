@@ -21,6 +21,19 @@ logger = logging.getLogger(__name__)
 
 # Translations always target European Portuguese.
 TRANSLATION_TARGET = "pt-PT"
+# Segments sent to the LLM per request: small enough for a small model on CPU
+# to answer completely and within LLM_TIMEOUT.
+TRANSLATION_BLOCK_SIZE = 15
+
+
+async def _read_json(path: str):
+    async with aiofiles.open(path, "r", encoding="utf-8") as f:
+        return json.loads(await f.read())
+
+
+async def _write_json(path: str, data) -> None:
+    async with aiofiles.open(path, "w", encoding="utf-8") as f:
+        await f.write(json.dumps(data, indent=4, ensure_ascii=False))
 
 router = APIRouter()
 
@@ -159,19 +172,24 @@ async def update_transcript(
 
 
 @router.post("/jobs/{uuid}/transcripts/translate", response_model=TranslateResponse)
-async def translate_transcript(
+async def translate_transcript(  # pylint: disable=too-many-locals
     uuid: str,
-    _request: TranslateRequest = None,  # validated only: the target is fixed
+    request: TranslateRequest = None,
     job_repo: JobRepository = Depends(get_job_repository),
     summary_service: SummaryService = Depends(get_summary_service),
     settings: Settings = Depends(get_settings)
 ) -> TranslateResponse:
-    """Translate transcript segments into European Portuguese.
+    """Translate a range of transcript segments into European Portuguese.
 
-    A transcript that is already in Portuguese is returned unchanged, without
-    calling the LLM. Results are cached on disk per transcript, and invalidated
-    whenever the transcript text is edited (see `update_transcript`).
+    Clients translate a long transcript in blocks (`start`/`limit`) so each
+    request stays well inside the LLM and proxy timeouts and progress can be
+    shown. Translated blocks are saved as they complete, so a retry resumes
+    where a failed run stopped; once every segment is translated, the full
+    translation is cached. A transcript that is already in Portuguese is
+    returned unchanged, without calling the LLM. All translation caches are
+    invalidated whenever the transcript text is edited (see `update_transcript`).
     """
+    request = request or TranslateRequest()
     try:
         job = await job_repo.get(uuid)
         if not job:
@@ -189,55 +207,66 @@ async def translate_transcript(
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Transcript not found") from exc
 
-        transcription = await job_repo.get_transcription(uuid)
-        if transcription and transcription.get("language") == "pt":
-            async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
-                transcript_json = await f.read()
-            logger.info("Transcript for job %s is already Portuguese; not translating", uuid)
+        segments = await _read_json(transcript_path)
+        total = len(segments)
+        start = min(request.start, total)
+        end = total if request.limit is None else min(total, start + request.limit)
+
+        def respond(status: str, translated: list[dict]) -> TranslateResponse:
             return TranslateResponse(
                 uuid=uuid,
-                status="original",
+                status=status,
                 status_code=200,
                 target_language=TRANSLATION_TARGET,
-                segments=json.loads(transcript_json)
+                segments=translated,
+                start=start,
+                total=total,
             )
+
+        transcription = await job_repo.get_transcription(uuid)
+        if transcription and transcription.get("language") == "pt":
+            logger.info("Transcript for job %s is already Portuguese; not translating", uuid)
+            return respond("original", segments[start:end])
 
         # Keyed by the variant, so translations cached before European
         # Portuguese was enforced (`<name>.pt.json`) are not reused.
         cache_path = os.path.join(
             settings.translation_dir, f"{base_name}.{TRANSLATION_TARGET}.json"
         )
-
         if await aiofiles.os.path.exists(cache_path):
-            async with aiofiles.open(cache_path, "r", encoding="utf-8") as f:
-                cached_json = await f.read()
-            logger.info("Returning cached translation for job %s", uuid)
-            return TranslateResponse(
-                uuid=uuid,
-                status="cached",
-                status_code=200,
-                target_language=TRANSLATION_TARGET,
-                segments=json.loads(cached_json)
-            )
+            cached = await _read_json(cache_path)
+            if len(cached) == total:
+                return respond("cached", cached[start:end])
 
-        async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
-            transcript_json = await f.read()
-        segments = json.loads(transcript_json)
+        # Translated text by segment index, saved after every block.
+        partial_path = os.path.join(
+            settings.translation_dir, f"{base_name}.{TRANSLATION_TARGET}.partial.json"
+        )
+        partial: dict[str, str] = (
+            await _read_json(partial_path)
+            if await aiofiles.os.path.exists(partial_path)
+            else {}
+        )
 
-        translated_segments = await summary_service.translate_segments(segments)
-
+        missing = [i for i in range(start, end) if str(i) not in partial]
         os.makedirs(settings.translation_dir, exist_ok=True)
-        async with aiofiles.open(cache_path, "w", encoding="utf-8") as f:
-            await f.write(json.dumps(translated_segments, indent=4, ensure_ascii=False))
+        for offset in range(0, len(missing), TRANSLATION_BLOCK_SIZE):
+            block = missing[offset:offset + TRANSLATION_BLOCK_SIZE]
+            translated = await summary_service.translate_segments([segments[i] for i in block])
+            for index, segment in zip(block, translated):
+                partial[str(index)] = segment.get("text", "")
+            await _write_json(partial_path, partial)
 
-        logger.info("Generated and cached translation for job %s", uuid)
+        if all(str(i) in partial for i in range(total)):
+            full = [{**segment, "text": partial[str(i)]} for i, segment in enumerate(segments)]
+            await _write_json(cache_path, full)
+            if os.path.exists(partial_path):
+                os.remove(partial_path)
+            logger.info("Generated and cached translation for job %s", uuid)
 
-        return TranslateResponse(
-            uuid=uuid,
-            status="generated",
-            status_code=200,
-            target_language=TRANSLATION_TARGET,
-            segments=translated_segments
+        return respond(
+            "generated" if missing else "cached",
+            [{**segments[i], "text": partial[str(i)]} for i in range(start, end)],
         )
 
     except HTTPException:

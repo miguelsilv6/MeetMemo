@@ -80,6 +80,7 @@
     "kanbanViewTitle": "Kanban view (drag between speakers)",
     "translateToPortuguese": "Translate to Portuguese (PT)",
     "showOriginal": "Show Original",
+    "translatingProgress": "Translating… {{done}}/{{total}}",
     "editSpeakers": "Edit Speakers",
     "placeholder": "Transcript will appear here after processing",
     "loadingKanban": "Loading Kanban view…",
@@ -89,6 +90,9 @@
     "editHint": "Double-click to edit",
     "insertSegmentAfter": "Insert segment after this one",
     "splitSegment": "Split into two speakers",
+    "deleteSegment": "Delete this segment",
+    "deleteSegmentConfirmTitle": "Delete segment?",
+    "deleteSegmentConfirmBody": "This segment will be removed from the transcript. You can restore it with “Undo last change”.",
     "undo": "Undo last change",
     "selectSegments": "Select multiple segments",
     "selectSegment": "Select this segment",
@@ -96,8 +100,6 @@
     "lowConfidenceHint": "Low confidence: check this line against the audio"
   },
   "kanban": {
-    "moveToSpeaker": "Move to speaker",
-    "moveToSpeakerHint": "Move to speaker (keyboard-accessible alternative to dragging)",
     "dropHere": "Drop here",
     "removeSpeaker": "Remove {{speaker}}",
     "addSpeaker": "Add speaker",
@@ -276,7 +278,6 @@
     "processingGeneric": "An error occurred while processing. Please try again."
   },
   "admin": {
-    "open": "Administration",
     "title": "Administration",
     "backToApp": "Back to the app",
     "signedInAs": "Signed in as {{username}}",

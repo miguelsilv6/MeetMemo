@@ -80,6 +80,7 @@
     "kanbanViewTitle": "Vista Kanban (arrasta entre interlocutores)",
     "translateToPortuguese": "Traduzir para português (PT)",
     "showOriginal": "Mostrar Original",
+    "translatingProgress": "A traduzir… {{done}}/{{total}}",
     "editSpeakers": "Editar Interlocutores",
     "placeholder": "A transcrição vai aparecer aqui depois do processamento",
     "loadingKanban": "A carregar vista Kanban…",
@@ -89,6 +90,9 @@
     "editHint": "Duplo clique para editar",
     "insertSegmentAfter": "Inserir segmento a seguir a este",
     "splitSegment": "Dividir em dois interlocutores",
+    "deleteSegment": "Eliminar este segmento",
+    "deleteSegmentConfirmTitle": "Eliminar segmento?",
+    "deleteSegmentConfirmBody": "Este segmento vai ser removido da transcrição. Podes repô-lo com “Desfazer última alteração”.",
     "undo": "Desfazer última alteração",
     "selectSegments": "Selecionar vários segmentos",
     "selectSegment": "Selecionar este segmento",
@@ -96,8 +100,6 @@
     "lowConfidenceHint": "Baixa confiança: confirma esta frase com o áudio"
   },
   "kanban": {
-    "moveToSpeaker": "Mover para interlocutor",
-    "moveToSpeakerHint": "Mover para interlocutor (alternativa acessível por teclado ao arrastar)",
     "dropHere": "Larga aqui",
     "removeSpeaker": "Remover {{speaker}}",
     "addSpeaker": "Adicionar interlocutor",
@@ -276,7 +278,6 @@
     "processingGeneric": "Ocorreu um erro durante o processamento. Tenta novamente."
   },
   "admin": {
-    "open": "Administração",
     "title": "Administração",
     "backToApp": "Voltar à aplicação",
     "signedInAs": "Sessão iniciada como {{username}}",

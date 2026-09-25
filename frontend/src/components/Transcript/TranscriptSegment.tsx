@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import type { SyntheticEvent } from 'react';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
-import { AlertTriangle, Pencil, Play, Plus, Scissors } from 'lucide-react';
+import { AlertTriangle, Pencil, Play, Plus, Scissors, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
@@ -17,6 +17,8 @@ interface TranscriptSegmentProps {
   onSeekToSegment: (time: number) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
+  /** Asks to delete this segment; the caller confirms before deleting. */
+  onDeleteSegment?: (index: number) => void;
   /** When true, the segment renders as a checkbox row for bulk actions instead of its normal controls. */
   selectMode?: boolean;
   isSelected?: boolean;
@@ -32,6 +34,7 @@ export default function TranscriptSegment({
   onSeekToSegment,
   onInsertSegmentAfter,
   onSplitSegment,
+  onDeleteSegment,
   selectMode = false,
   isSelected = false,
   onToggleSelect,
@@ -169,6 +172,21 @@ export default function TranscriptSegment({
             >
               <Scissors size={14} />
             </Button>
+            {onDeleteSegment && (
+              <Button
+                variant="link"
+                size="sm"
+                className="p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteSegment(index);
+                }}
+                title={t('transcript.deleteSegment')}
+                style={{ color: 'var(--mm-danger, #dc3545)' }}
+              >
+                <Trash2 size={14} />
+              </Button>
+            )}
           </div>
         )}
       </div>
