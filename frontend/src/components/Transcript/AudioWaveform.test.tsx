@@ -72,4 +72,54 @@ describe('AudioWaveform', () => {
 
     expect(onSeek).not.toHaveBeenCalled();
   });
+
+  describe('zoomed view', () => {
+    it('seeks within the visible range', () => {
+      const { props } = renderWaveform({ viewStart: 30, viewEnd: 60 });
+      fireEvent.pointerDown(screen.getByRole('slider'), { clientX: 400, pointerId: 1 });
+      expect(props.onSeek).toHaveBeenCalledWith(45);
+    });
+
+    it('zooms around the pointer with Ctrl + wheel, without scrolling the page', () => {
+      const onZoom = vi.fn();
+      renderWaveform({ onZoom, onPan: vi.fn() });
+      const canvas = screen.getByRole('slider');
+
+      const zoomIn = new WheelEvent('wheel', {
+        deltaY: -100,
+        ctrlKey: true,
+        clientX: 200,
+        cancelable: true,
+      });
+      canvas.dispatchEvent(zoomIn);
+      canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, ctrlKey: true, clientX: 200 }));
+
+      expect(onZoom).toHaveBeenNthCalledWith(1, 1, 25);
+      expect(onZoom).toHaveBeenNthCalledWith(2, -1, 25);
+      expect(zoomIn.defaultPrevented).toBe(true);
+    });
+
+    it('pans a zoomed view with Shift + wheel, by a tenth of the view', () => {
+      const onPan = vi.fn();
+      renderWaveform({ viewStart: 30, viewEnd: 60, onPan, onZoom: vi.fn() });
+      const canvas = screen.getByRole('slider');
+
+      canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, shiftKey: true }));
+      canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, shiftKey: true }));
+
+      expect(onPan).toHaveBeenNthCalledWith(1, 3);
+      expect(onPan).toHaveBeenNthCalledWith(2, -3);
+    });
+
+    it('does not pan or block page scrolling when the whole track is shown', () => {
+      const onPan = vi.fn();
+      renderWaveform({ onPan, onZoom: vi.fn() });
+
+      const scroll = new WheelEvent('wheel', { deltaY: 100, cancelable: true });
+      screen.getByRole('slider').dispatchEvent(scroll);
+
+      expect(onPan).not.toHaveBeenCalled();
+      expect(scroll.defaultPrevented).toBe(false);
+    });
+  });
 });

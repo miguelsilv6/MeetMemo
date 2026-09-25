@@ -4,6 +4,8 @@ import type { WaveformPeak } from '../types/api';
 
 interface UseWaveformPeaksResult {
   peaks: WaveformPeak[] | null;
+  /** The range `peaks` were computed for, which lags behind a changed range until it loads. */
+  range: { start: number; end: number } | null;
   loading: boolean;
   error: string | null;
 }
@@ -20,6 +22,7 @@ export default function useWaveformPeaks(
   buckets = 100
 ): UseWaveformPeaksResult {
   const [peaks, setPeaks] = useState<WaveformPeak[] | null>(null);
+  const [range, setRange] = useState<{ start: number; end: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +30,7 @@ export default function useWaveformPeaks(
     if (!jobId || end <= start) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- resets state for an invalid/absent range; nothing to fetch
       setPeaks(null);
+      setRange(null);
       setError(null);
       setLoading(false);
       return;
@@ -41,11 +45,13 @@ export default function useWaveformPeaks(
       .then((response) => {
         if (cancelled) return;
         setPeaks(response.peaks);
+        setRange({ start, end });
         setLoading(false);
       })
       .catch((err) => {
         if (cancelled) return;
         setPeaks(null);
+        setRange(null);
         setError((err as Error).message || 'Failed to load waveform');
         setLoading(false);
       });
@@ -55,5 +61,5 @@ export default function useWaveformPeaks(
     };
   }, [jobId, start, end, buckets]);
 
-  return { peaks, loading, error };
+  return { peaks, range, loading, error };
 }

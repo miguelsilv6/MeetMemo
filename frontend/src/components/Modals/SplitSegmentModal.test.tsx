@@ -20,7 +20,12 @@ const segment: EditingSegment = {
 const DEFAULT_RATIO = 11 / 18;
 
 beforeEach(() => {
-  vi.mocked(useWaveformPeaks).mockReturnValue({ peaks: null, loading: false, error: null });
+  vi.mocked(useWaveformPeaks).mockReturnValue({
+    peaks: null,
+    range: null,
+    loading: false,
+    error: null,
+  });
 });
 
 describe('SplitSegmentModal', () => {
@@ -145,6 +150,7 @@ describe('SplitSegmentModal', () => {
         { min: -0.2, max: 0.2 },
         { min: -0.4, max: 0.4 },
       ],
+      range: { start: 0, end: 1 },
       loading: false,
       error: null,
     });
