@@ -64,6 +64,7 @@ export default function EditSpeakersModal({
               const isUndetermined = suggestedName === 'Cannot be determined';
               return (
                 <Alert
+                  show
                   key={speakerLabel}
                   variant={isUndetermined ? 'secondary' : 'success'}
                   className="d-flex justify-content-between align-items-center mb-2"

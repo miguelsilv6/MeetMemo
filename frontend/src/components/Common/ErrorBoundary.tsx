@@ -59,7 +59,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       // Custom fallback UI
       return (
         <Container className="py-5">
-          <Alert variant="danger" className="mb-4">
+          <Alert show variant="danger" className="mb-4">
             <div className="d-flex align-items-start">
               <AlertTriangle className="me-3 flex-shrink-0" size={24} />
               <div className="flex-grow-1">

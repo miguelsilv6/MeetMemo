@@ -23,7 +23,7 @@ export default function LoadingScreen({ backendError }: LoadingScreenProps) {
                 <Card.Body className="p-5">
                   <AlertCircle size={64} className="text-secondary mb-4" />
                   <h2 className="mb-3">{t('loadingScreen.connectionError')}</h2>
-                  <Alert variant="danger" className="mb-4">
+                  <Alert show variant="danger" className="mb-4">
                     {backendError}
                   </Alert>
                   <p className="text-muted mb-4">{t('loadingScreen.connectionHint')}</p>
