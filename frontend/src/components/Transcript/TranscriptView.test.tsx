@@ -135,11 +135,53 @@ describe('TranscriptView', () => {
       expect(screen.getByRole('button', { name: /translate to portuguese/i })).toBeInTheDocument();
     });
 
+    it('shows block progress while translating', () => {
+      renderView({
+        transcript: { segments, language: 'en' },
+        translating: true,
+        translationProgress: { done: 15, total: 40 },
+      });
+      expect(screen.getByRole('button', { name: /translating… 15\/40/i })).toBeDisabled();
+    });
+
     it('hides the translation for a transcript that is already in Portuguese', () => {
       renderView({ transcript: { segments, language: 'pt' } });
       expect(
         screen.queryByRole('button', { name: /translate to portuguese/i })
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('deleting a single segment', () => {
+    const deleteButtonFor = (text: string) => {
+      const row = screen.getByText(text).closest('.transcript-segment') as HTMLElement;
+      return within(row).getByTitle('Delete this segment');
+    };
+
+    it('asks for confirmation, showing the segment, before deleting it', () => {
+      const handleDeleteSegments = vi.fn();
+      renderView({ handleDeleteSegments });
+
+      fireEvent.click(deleteButtonFor('Hi there'));
+
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByText('Delete segment?')).toBeInTheDocument();
+      expect(within(dialog).getByText(/SPEAKER_01 · 0:02 - 0:04/)).toBeInTheDocument();
+      expect(within(dialog).getByText('Hi there')).toBeInTheDocument();
+      expect(handleDeleteSegments).not.toHaveBeenCalled();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+      expect(handleDeleteSegments).toHaveBeenCalledWith([1]);
+    });
+
+    it('keeps the segment when the confirmation is cancelled', () => {
+      const handleDeleteSegments = vi.fn();
+      renderView({ handleDeleteSegments });
+
+      fireEvent.click(deleteButtonFor('How are you'));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+
+      expect(handleDeleteSegments).not.toHaveBeenCalled();
     });
   });
 });

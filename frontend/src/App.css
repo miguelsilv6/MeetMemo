@@ -238,6 +238,42 @@
   overflow-y: auto;
 }
 
+/* Side by side (lg+), the transcript card takes exactly the height of the
+   sidebar next to it (player + meeting info) and scrolls inside, so both
+   columns end at the same line. Stacked on smaller screens, it keeps the
+   600px scroll area above. */
+@media (min-width: 992px) {
+  .transcript-main-col {
+    position: relative;
+    min-height: 32rem;
+  }
+
+  .transcript-main-col > .transcript-card {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--sgds-gutter-x) * 0.5);
+    right: calc(var(--sgds-gutter-x) * 0.5);
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0 !important;
+  }
+
+  .transcript-card > .card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .transcript-card .transcript-content,
+  .transcript-card .kanban-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
 .transcript-segment {
   background-color: var(--mm-bg-subtle, var(--background));
   border-radius: 0.5rem;
@@ -878,19 +914,6 @@
   opacity: 1;
 }
 
-.kanban-bubble-speaker-select {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  height: 1.25rem;
-  min-height: 0;
-  font-size: 0.7rem;
-  line-height: 1;
-  padding: 0 1.4rem 0 0.4rem;
-  background-position: right 0.35rem center;
-  background-size: 10px 8px;
-}
-
 .kanban-column-remove-btn {
   opacity: 0;
   transition: opacity 0.2s ease;
@@ -971,5 +994,19 @@ button.kanban-add-column:hover {
 
 .admin-audit-value {
   max-width: 280px;
+  overflow-wrap: anywhere;
+}
+
+/* ============================================================================
+   Single-segment delete confirmation
+   ============================================================================ */
+
+.delete-segment-preview {
+  max-height: 10rem;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--mm-bg-subtle, var(--background));
+  border-left: 3px solid var(--mm-danger, #dc3545);
+  border-radius: 0.25rem;
   overflow-wrap: anywhere;
 }

@@ -30,9 +30,7 @@ describe('TranscriptKanbanView', () => {
   it('groups segments into one column per speaker, ordered by timestamp', () => {
     renderKanban();
 
-    // Column header badges carry a `title` matching the speaker, which
-    // disambiguates them from the speaker name also appearing as an
-    // <option> inside each bubble's "move to speaker" select.
+    // Column header badges carry a `title` matching the speaker.
     expect(screen.getByTitle('SPEAKER_00')).toBeInTheDocument();
     expect(screen.getByTitle('SPEAKER_01')).toBeInTheDocument();
     expect(screen.getByText('Hello everyone')).toBeInTheDocument();
@@ -71,27 +69,14 @@ describe('TranscriptKanbanView', () => {
     expect(handleEditText).toHaveBeenCalledWith(segments[0], 0);
   });
 
-  it('reassigns a segment via the keyboard-accessible speaker select, without triggering seek', () => {
-    const onSeekToSegment = vi.fn();
-    const onMoveSegmentSpeaker = vi.fn();
-    renderKanban({ onSeekToSegment, onMoveSegmentSpeaker });
+  it('has no speaker select on bubbles: a line changes speaker only by being dragged', () => {
+    renderKanban();
 
-    const selects = screen.getAllByLabelText('Move to speaker');
-    expect(selects[0]).toHaveValue('SPEAKER_00');
-
-    fireEvent.change(selects[0], { target: { value: 'SPEAKER_01' } });
-
-    expect(onMoveSegmentSpeaker).toHaveBeenCalledWith(0, 'SPEAKER_01');
-    expect(onSeekToSegment).not.toHaveBeenCalled();
-  });
-
-  it('omits the speaker select when there is only one speaker', () => {
-    const singleSpeakerSegments: TranscriptSegmentType[] = [
-      { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Hello everyone' },
-    ];
-    renderKanban({ segments: singleSpeakerSegments });
-
-    expect(screen.queryByLabelText('Move to speaker')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    // Every bubble is a drag source (dnd-kit's draggable attributes).
+    for (const bubble of document.querySelectorAll('.kanban-bubble')) {
+      expect(bubble).toHaveAttribute('aria-roledescription', 'draggable');
+    }
   });
 
   it('renders nothing when there are no segments', () => {
@@ -99,7 +84,7 @@ describe('TranscriptKanbanView', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('adds a new empty speaker column that segments can be reassigned into', () => {
+  it('adds a new empty speaker column that bubbles can be dragged into', () => {
     renderKanban();
 
     fireEvent.click(screen.getByRole('button', { name: /add speaker/i }));
@@ -109,9 +94,8 @@ describe('TranscriptKanbanView', () => {
     fireEvent.keyDown(screen.getByPlaceholderText('Speaker name'), { key: 'Enter' });
 
     expect(screen.getByTitle('Moderator')).toBeInTheDocument();
-    // The new column's select options include the newly added speaker.
-    const selects = screen.getAllByLabelText('Move to speaker');
-    expect(selects[0]).toContainHTML('Moderator');
+    // The new, empty column is a drop target for dragged bubbles.
+    expect(screen.getByText('Drop here')).toBeInTheDocument();
   });
 
   it('does not add a duplicate speaker (case-insensitive)', () => {
@@ -319,5 +303,22 @@ describe('TranscriptKanbanView', () => {
       const bubble = screen.getByText('Second, from B').closest('.kanban-bubble') as HTMLElement;
       expect(within(bubble).getByText('0:05 - 0:07')).toBeInTheDocument();
     });
+  });
+
+  it('requests deleting a bubble, leaving confirmation to the caller', () => {
+    const onRequestDeleteSegment = vi.fn();
+    const { props } = renderKanban({ onRequestDeleteSegment });
+
+    const bubble = screen.getByText('Hi there').closest('.kanban-bubble') as HTMLElement;
+    fireEvent.click(within(bubble).getByTitle('Delete this segment'));
+
+    expect(onRequestDeleteSegment).toHaveBeenCalledWith(1);
+    expect(props.onDeleteSegments).not.toHaveBeenCalled();
+    expect(props.onSeekToSegment).not.toHaveBeenCalled();
+  });
+
+  it('hides the delete action in select mode', () => {
+    renderKanban({ onRequestDeleteSegment: vi.fn(), selectMode: true });
+    expect(screen.queryByTitle('Delete this segment')).not.toBeInTheDocument();
   });
 });

@@ -305,10 +305,11 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
             return summary
 
         except httpx.HTTPError as e:
-            logger.error("LLM service error: %s", e)
+            reason = _describe_llm_error(e, self.settings.llm_timeout)
+            logger.error("LLM service error: %s", reason)
             raise HTTPException(
                 status_code=503,
-                detail="Summary service temporarily unavailable"
+                detail=f"Summary service unavailable: {reason}"
             ) from e
 
     async def identify_speakers(  # pylint: disable=too-many-locals
@@ -481,10 +482,11 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
             ]
 
         except httpx.HTTPError as e:
-            logger.error("LLM service error during translation: %s", e)
+            reason = _describe_llm_error(e, self.settings.llm_timeout)
+            logger.error("LLM service error during translation: %s", reason)
             raise HTTPException(
                 status_code=503,
-                detail="Translation service temporarily unavailable"
+                detail=f"Translation service unavailable: {reason}"
             ) from e
 
     async def get_cached_summary(self, job_uuid: str) -> Optional[str]:

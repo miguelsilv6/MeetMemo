@@ -40,6 +40,11 @@ class TranslateRequest(BaseModel):
     existing clients that send it keep working.
     """
     target_language: str = Field("pt", pattern="^pt$")
+    # Range of segments to translate. Clients translate long transcripts in
+    # blocks so each request stays inside the LLM and proxy timeouts; without
+    # a limit, everything from `start` on is translated in one request.
+    start: int = Field(0, ge=0)
+    limit: Optional[int] = Field(None, ge=1, le=100)
 
 
 class RenameJobRequest(BaseModel):
@@ -177,7 +182,11 @@ class TranslateResponse(BaseModel):
     status: str
     status_code: int
     target_language: str
+    # The translated segments for the requested range, starting at `start`,
+    # out of `total` segments in the transcript.
     segments: list[dict]
+    start: int = 0
+    total: int = 0
 
 
 class SpeakerUpdateResponse(BaseModel):

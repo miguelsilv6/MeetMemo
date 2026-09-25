@@ -246,14 +246,20 @@ export async function updateTranscript(
   });
 }
 
-// Translate transcript segments into European Portuguese (the only target)
-export async function translateTranscript(uuid: string): Promise<TranslateResponse> {
+// Translate transcript segments into European Portuguese (the only target).
+// `start`/`limit` select a range, so long transcripts can be translated in
+// blocks that each stay inside the LLM and proxy timeouts.
+export async function translateTranscript(
+  uuid: string,
+  start = 0,
+  limit?: number
+): Promise<TranslateResponse> {
   return await apiCall<TranslateResponse>(`/jobs/${uuid}/transcripts/translate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ target_language: 'pt' }),
+    body: JSON.stringify({ target_language: 'pt', start, limit }),
   });
 }
 

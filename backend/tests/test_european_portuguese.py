@@ -12,7 +12,9 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from fastapi import FastAPI
+import httpx
+import pytest
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from services.summary_service import (
     EUROPEAN_PORTUGUESE_REMINDER,
@@ -150,24 +152,44 @@ class _FakeJobRepository:
 
 
 class _FakeTranslator:
-    def __init__(self):
+    """Translates to "PT: <text>" (or "Bom dia"), recording each block's size."""
+
+    def __init__(self, fail_on_call=None):
         self.calls = 0
+        self.block_sizes = []
+        self.fail_on_call = fail_on_call
 
     async def translate_segments(self, segments):
         self.calls += 1
-        return [{**segment, "text": "Bom dia"} for segment in segments]
+        if self.calls == self.fail_on_call:
+            raise HTTPException(status_code=503, detail="LLM timed out")
+        self.block_sizes.append(len(segments))
+        return [
+            {**segment, "text": "Bom dia" if segment["text"] == "Good morning"
+             else f"PT: {segment['text']}"}
+            for segment in segments
+        ]
 
 
-def _client(tmp_path, language):
+def _numbered_segments(count):
+    return [
+        {"speaker": "SPEAKER_00", "start": float(i), "end": i + 1.0, "text": f"line {i}"}
+        for i in range(count)
+    ]
+
+
+def _client(tmp_path, language, segments=None, translator=None):
     transcript_dir = tmp_path / "transcripts"
     transcript_dir.mkdir()
-    (transcript_dir / "call.json").write_text(json.dumps(SEGMENTS), encoding="utf-8")
+    (transcript_dir / "call.json").write_text(
+        json.dumps(SEGMENTS if segments is None else segments), encoding="utf-8"
+    )
     settings = SimpleNamespace(
         transcript_dir=str(transcript_dir),
         transcript_edited_dir=str(tmp_path / "edited"),
         translation_dir=str(tmp_path / "translations"),
     )
-    translator = _FakeTranslator()
+    translator = translator or _FakeTranslator()
 
     app = FastAPI()
     app.include_router(transcripts_api.router, prefix="/api/v1")
@@ -228,3 +250,99 @@ def test_translation_to_another_language_is_rejected(tmp_path):
 
     assert response.status_code == 422
     assert translator.calls == 0
+
+
+# --- Translation in blocks ---------------------------------------------------
+
+TRANSLATE_URL = "/api/v1/jobs/job1/transcripts/translate"
+
+
+def test_whole_transcript_is_sent_to_the_llm_in_small_blocks(tmp_path):
+    client, translator, translation_dir = _client(tmp_path, "en", _numbered_segments(40))
+
+    body = client.post(TRANSLATE_URL).json()
+
+    assert translator.block_sizes == [15, 15, 10]
+    assert body["total"] == 40
+    assert [s["text"] for s in body["segments"]] == [f"PT: line {i}" for i in range(40)]
+    assert (translation_dir / "call.pt-PT.json").exists()
+    assert not (translation_dir / "call.pt-PT.partial.json").exists()
+
+
+def test_a_range_request_translates_only_that_range(tmp_path):
+    client, translator, translation_dir = _client(tmp_path, "en", _numbered_segments(40))
+
+    body = client.post(TRANSLATE_URL, json={"start": 15, "limit": 15}).json()
+
+    assert body["status"] == "generated"
+    assert body["start"] == 15
+    assert body["total"] == 40
+    assert [s["text"] for s in body["segments"]] == [f"PT: line {i}" for i in range(15, 30)]
+    assert body["segments"][0]["start"] == 15.0  # timing and speaker are kept
+    assert translator.block_sizes == [15]
+    assert (translation_dir / "call.pt-PT.partial.json").exists()
+    assert not (translation_dir / "call.pt-PT.json").exists()
+
+
+def test_translating_every_range_completes_the_cache(tmp_path):
+    client, translator, translation_dir = _client(tmp_path, "en", _numbered_segments(20))
+
+    first = client.post(TRANSLATE_URL, json={"start": 0, "limit": 15}).json()
+    second = client.post(TRANSLATE_URL, json={"start": 15, "limit": 15}).json()
+    again = client.post(TRANSLATE_URL, json={"start": 0, "limit": 15}).json()
+
+    assert len(first["segments"]) == 15
+    assert len(second["segments"]) == 5
+    assert again["status"] == "cached"
+    assert translator.calls == 2
+    assert (translation_dir / "call.pt-PT.json").exists()
+    assert not (translation_dir / "call.pt-PT.partial.json").exists()
+
+
+def test_a_failed_run_resumes_from_the_blocks_already_translated(tmp_path):
+    failing = _FakeTranslator(fail_on_call=2)
+    client, _, _ = _client(tmp_path, "en", _numbered_segments(40), translator=failing)
+
+    failed = client.post(TRANSLATE_URL)
+    assert failed.status_code == 503
+    assert failed.json()["detail"] == "LLM timed out"
+
+    retry = _FakeTranslator()
+    client, _, _ = _client_reusing(tmp_path, retry)
+    body = client.post(TRANSLATE_URL).json()
+
+    # Only the 25 segments after the first (saved) block go back to the LLM.
+    assert retry.block_sizes == [15, 10]
+    assert [s["text"] for s in body["segments"]] == [f"PT: line {i}" for i in range(40)]
+
+
+def _client_reusing(tmp_path, translator):
+    """A client over the same transcript and translation dirs as `_client`."""
+    settings = SimpleNamespace(
+        transcript_dir=str(tmp_path / "transcripts"),
+        transcript_edited_dir=str(tmp_path / "edited"),
+        translation_dir=str(tmp_path / "translations"),
+    )
+    app = FastAPI()
+    app.include_router(transcripts_api.router, prefix="/api/v1")
+    app.dependency_overrides[transcripts_api.get_job_repository] = lambda: _FakeJobRepository("en")
+    app.dependency_overrides[transcripts_api.get_summary_service] = lambda: translator
+    app.dependency_overrides[transcripts_api.get_settings] = lambda: settings
+    return TestClient(app), translator, tmp_path / "translations"
+
+
+def test_translation_timeout_explains_what_to_change():
+    class _TimeoutClient:
+        async def post(self, *args, **kwargs):
+            raise httpx.ReadTimeout("")
+
+    service = SummaryService(_TimeoutClient(), _fake_settings(llm_timeout=180.0))
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(service.translate_segments([{"speaker": "A", "text": "Good morning"}]))
+
+    assert excinfo.value.status_code == 503
+    assert excinfo.value.detail == (
+        "Translation service unavailable: The language model did not respond within "
+        "180 seconds. Increase LLM_TIMEOUT if it needs more time."
+    )
