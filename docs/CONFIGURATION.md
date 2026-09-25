@@ -24,6 +24,8 @@ cp example.env .env
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LLM_API_KEY` | API key for LLM service | Empty (none) |
+| `LLM_TIMEOUT` | Seconds to wait for each LLM response (summary, translation, speaker identification); raise it for a local model on CPU | `60` |
+| `LLM_JSON_MODE` | Request a JSON object (`response_format`) for speaker identification; set `false` if your server rejects the field | `true` |
 | `POSTGRES_PASSWORD` | PostgreSQL password | `changeme` |
 | `WHISPER_MODEL_NAME` | Whisper model for transcription | `turbo` |
 | `COMPUTE_TYPE` | Inference precision (float16/int8) | `float16` |
