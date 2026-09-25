@@ -21,21 +21,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _get_transcript_language(uuid: str, job_repo: JobRepository) -> str:
-    """
-    Helper function to retrieve transcript language from job transcription data.
-
-    Args:
-        uuid: Job UUID
-        job_repo: Job repository instance
-
-    Returns:
-        Language code from transcription data, or 'auto' if not found
-    """
-    transcription_data = await job_repo.get_transcription(uuid)
-    return transcription_data.get('language', 'auto') if transcription_data else 'auto'
-
-
 @router.get("/jobs/{uuid}/summaries", response_model=SummaryResponse)
 async def get_summary(
     uuid: str,
@@ -77,11 +62,8 @@ async def get_summary(
     async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
         transcript_json = await f.read()
 
-    # Get language from transcription data
-    transcript_language = await _get_transcript_language(uuid, job_repo)
-
     formatted_transcript = format_transcript_for_llm(transcript_json)
-    summary = await summary_service.summarize(formatted_transcript, language=transcript_language)
+    summary = await summary_service.summarize(formatted_transcript)
 
     # Cache the summary
     await summary_service.save_summary(uuid, summary)
@@ -125,9 +107,6 @@ async def create_summary(
     async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
         transcript_json = await f.read()
 
-    # Get language from transcription data
-    transcript_language = await _get_transcript_language(uuid, job_repo)
-
     formatted_transcript = format_transcript_for_llm(transcript_json)
 
     # Generate summary with optional custom prompts
@@ -138,7 +117,6 @@ async def create_summary(
         formatted_transcript,
         custom_prompt,
         system_prompt,
-        language=transcript_language
     )
 
     # Cache the summary

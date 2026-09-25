@@ -5,7 +5,7 @@ import type { TranscriptSegment } from '../types/api';
 import type { SetError } from '../types/ui';
 
 /**
- * Custom hook for on-demand transcript translation (default target: Portuguese).
+ * Custom hook for on-demand transcript translation into European Portuguese.
  *
  * Translations are cached in component state keyed by the exact `segments`
  * array they were generated from; if the transcript changes (e.g. a segment is
@@ -37,7 +37,7 @@ export default function useTranslation(jobId: string | null, setError: SetError)
     try {
       setTranslating(true);
       setError(null);
-      const result = await api.translateTranscript(jobId, 'pt');
+      const result = await api.translateTranscript(jobId);
       setTranslatedSegments(result.segments ?? null);
       setTranslatedFor(segments);
       setShowTranslation(true);

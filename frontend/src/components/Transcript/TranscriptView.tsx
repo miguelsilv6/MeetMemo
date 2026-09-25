@@ -203,26 +203,30 @@ export default function TranscriptView({
                   <LayoutGrid size={16} />
                 </Button>
               </ButtonGroup>
-              <Button
-                variant={showTranslation ? 'primary' : 'outline-primary'}
-                size="sm"
-                onClick={() => handleToggleTranslation(transcript?.segments)}
-                disabled={translating || !transcript?.segments?.length}
-                title={t('transcript.translateToPortuguese')}
-              >
-                {translating ? (
-                  <span
-                    className="spinner-border spinner-border-sm me-1"
-                    role="status"
-                    aria-hidden="true"
-                  ></span>
-                ) : (
-                  <Languages size={16} className="me-1" />
-                )}
-                {showTranslation
-                  ? t('transcript.showOriginal')
-                  : t('transcript.translateToPortuguese')}
-              </Button>
+              {/* Translation always targets European Portuguese, so it is pointless
+                  for a transcript that is already in Portuguese. */}
+              {transcript?.language !== 'pt' && (
+                <Button
+                  variant={showTranslation ? 'primary' : 'outline-primary'}
+                  size="sm"
+                  onClick={() => handleToggleTranslation(transcript?.segments)}
+                  disabled={translating || !transcript?.segments?.length}
+                  title={t('transcript.translateToPortuguese')}
+                >
+                  {translating ? (
+                    <span
+                      className="spinner-border spinner-border-sm me-1"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                  ) : (
+                    <Languages size={16} className="me-1" />
+                  )}
+                  {showTranslation
+                    ? t('transcript.showOriginal')
+                    : t('transcript.translateToPortuguese')}
+                </Button>
+              )}
               <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
                 <Users size={16} className="me-1" />
                 {t('transcript.editSpeakers')}

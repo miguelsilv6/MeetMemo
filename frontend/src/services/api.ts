@@ -246,17 +246,14 @@ export async function updateTranscript(
   });
 }
 
-// Translate transcript segments (default target: Portuguese)
-export async function translateTranscript(
-  uuid: string,
-  targetLanguage: string = 'pt'
-): Promise<TranslateResponse> {
+// Translate transcript segments into European Portuguese (the only target)
+export async function translateTranscript(uuid: string): Promise<TranslateResponse> {
   return await apiCall<TranslateResponse>(`/jobs/${uuid}/transcripts/translate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ target_language: targetLanguage }),
+    body: JSON.stringify({ target_language: 'pt' }),
   });
 }
 
