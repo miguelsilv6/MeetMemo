@@ -159,6 +159,7 @@ function App() {
     showEditSummaryModal,
     setShowEditSummaryModal,
     handleGenerateSummary,
+    generateSummaryFor,
     handleEditSummary,
     handleSaveSummary,
   } = useSummary(jobId, setCurrentStep, setError);
@@ -168,7 +169,7 @@ function App() {
   // that already has one.
   const handleViewRecentSummary = async (job: RecentJob) => {
     await handleLoadJob(job);
-    await handleGenerateSummary(job.uuid);
+    await generateSummaryFor(job.uuid);
   };
 
   // Start new meeting handler
