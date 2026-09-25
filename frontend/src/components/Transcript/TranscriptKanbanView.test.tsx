@@ -260,22 +260,64 @@ describe('TranscriptKanbanView', () => {
       expect(screen.getAllByText('0:43 of silence').length).toBeGreaterThan(0);
     });
 
-    it('positions bubbles for the same timestamp at the same offset in every column', () => {
-      // Both speakers' first (and only) bubble starts at t=10: they must
-      // land at the same absolute pixel offset within their own column's
-      // body, regardless of which column/speaker they belong to.
-      const simultaneousSegments: TranscriptSegmentType[] = [
-        { speaker: 'SPEAKER_00', start: 10, end: 12, text: 'Same time A' },
-        { speaker: 'SPEAKER_01', start: 10, end: 11, text: 'Same time B' },
+    it('puts the silence label on its own row between the lines it separates', () => {
+      const gappySegments: TranscriptSegmentType[] = [
+        { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Hello' },
+        { speaker: 'SPEAKER_01', start: 62, end: 64, text: 'You still there?' },
       ];
-      renderKanban({ segments: simultaneousSegments });
+      renderKanban({ segments: gappySegments });
 
-      const wrapperA = screen.getByText('Same time A').closest('.kanban-bubble')
-        ?.parentElement as HTMLElement;
-      const wrapperB = screen.getByText('Same time B').closest('.kanban-bubble')
-        ?.parentElement as HTMLElement;
-      expect(wrapperA.style.top).not.toBe('');
-      expect(wrapperA.style.top).toBe(wrapperB.style.top);
+      const rowOf = (el: Element | null) => (el as HTMLElement).style.gridRow;
+      expect(rowOf(screen.getByText('Hello').closest('.kanban-cell'))).toBe('2');
+      expect(rowOf(screen.getByText('1:00 of silence'))).toBe('3');
+      expect(rowOf(screen.getByText('You still there?').closest('.kanban-cell'))).toBe('4');
+    });
+  });
+
+  describe('chronological rows', () => {
+    const interleaved: TranscriptSegmentType[] = [
+      // Deliberately out of order, as can happen after editing/inserting.
+      { speaker: 'SPEAKER_01', start: 5, end: 7, text: 'Second, from B' },
+      { speaker: 'SPEAKER_00', start: 0, end: 4, text: 'First, from A' },
+      { speaker: 'SPEAKER_00', start: 8, end: 9, text: 'Third, from A' },
+      { speaker: 'SPEAKER_01', start: 8, end: 10, text: 'Fourth, from B' },
+    ];
+
+    const cellFor = (text: string) => screen.getByText(text).closest('.kanban-cell') as HTMLElement;
+
+    it('gives every line its own row, in timestamp order regardless of speaker', () => {
+      renderKanban({ segments: interleaved });
+
+      expect(cellFor('First, from A').style.gridRow).toBe('2');
+      expect(cellFor('Second, from B').style.gridRow).toBe('3');
+      expect(cellFor('Third, from A').style.gridRow).toBe('4');
+      // Same start time as the line above: still the next row, never side by side.
+      expect(cellFor('Fourth, from B').style.gridRow).toBe('5');
+    });
+
+    it('places each line in its speaker column', () => {
+      renderKanban({ segments: interleaved });
+
+      expect(cellFor('First, from A').style.gridColumn).toBe('1');
+      expect(cellFor('Second, from B').style.gridColumn).toBe('2');
+      expect(cellFor('Third, from A').style.gridColumn).toBe('1');
+      expect(cellFor('Fourth, from B').style.gridColumn).toBe('2');
+    });
+
+    it('renders bubbles in reading order for screen readers and keyboard focus', () => {
+      const { container } = renderKanban({ segments: interleaved });
+
+      const texts = [...container.querySelectorAll('.kanban-bubble-text')].map(
+        (el) => el.textContent
+      );
+      expect(texts).toEqual(['First, from A', 'Second, from B', 'Third, from A', 'Fourth, from B']);
+    });
+
+    it('shows the time range under each bubble', () => {
+      renderKanban({ segments: interleaved });
+
+      const bubble = screen.getByText('Second, from B').closest('.kanban-bubble') as HTMLElement;
+      expect(within(bubble).getByText('0:05 - 0:07')).toBeInTheDocument();
     });
   });
 });

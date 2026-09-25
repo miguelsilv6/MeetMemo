@@ -595,57 +595,99 @@
    Transcript Kanban View
    ============================================================================ */
 
+/* One grid: a sticky header row, then one row per segment in time order. */
 .kanban-board {
-  display: flex;
-  gap: 0.75rem;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
+  display: grid;
+  grid-auto-rows: auto;
+  align-items: start;
+  overflow: auto;
   max-height: 600px;
-}
-
-.kanban-column {
-  flex: 0 0 260px;
-  display: flex;
-  flex-direction: column;
   background-color: var(--mm-bg-subtle, var(--background));
   border: 1px solid var(--mm-border, var(--border));
-  border-top-width: 3px;
   border-radius: 0.5rem;
-  overflow: hidden;
+}
+
+.kanban-column-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  align-self: stretch;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--mm-surface, var(--surface));
+  border-bottom: 2px solid var(--mm-border, var(--border));
+}
+
+/* Full-height column background, also the drop target for that speaker. */
+.kanban-column {
+  z-index: 0;
+  align-self: stretch;
+  min-height: 120px;
+  border-left: 1px dashed var(--mm-border, var(--border));
+  transition: background-color 0.15s ease;
+}
+
+.kanban-column-first {
+  border-left: none;
 }
 
 .kanban-column-over {
   background-color: var(--mm-primary-subtle, var(--primary-light));
 }
 
-.kanban-column-header {
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--mm-border, var(--border));
-  background-color: var(--mm-surface, var(--surface));
+.kanban-column-empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
 }
 
-.kanban-column-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.5rem;
-  min-height: 120px;
+/* Sits above the column background so bubbles stay clickable. */
+.kanban-cell {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding: 0.3rem 0.75rem;
 }
 
 .kanban-bubble {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 100%;
+  cursor: grab;
+}
+
+.kanban-bubble:focus-visible {
+  outline: none;
+}
+
+.kanban-bubble-text {
+  max-width: 100%;
+  padding: 0.45rem 0.75rem;
   background-color: var(--mm-surface, var(--surface));
   border: 1px solid var(--mm-border, var(--border));
-  border-left-width: 3px;
-  border-radius: 0.75rem;
-  cursor: grab;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  transition:
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
 }
 
-.kanban-bubble:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+.kanban-bubble:hover .kanban-bubble-text {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.kanban-bubble-active {
+.kanban-bubble:focus-visible .kanban-bubble-text {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.kanban-bubble-active .kanban-bubble-text,
+.kanban-bubble-selected .kanban-bubble-text {
   background-color: var(--primary-light);
+  border-color: var(--primary);
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
@@ -657,20 +699,32 @@
   cursor: pointer;
 }
 
-.kanban-bubble-selected {
-  background-color: var(--primary-light);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+.kanban-bubble-meta {
+  margin-top: 0.2rem;
+  padding-left: 0.15rem;
+  min-height: 1.25rem;
+  line-height: 1.25rem;
 }
 
 .kanban-gap-label {
+  position: relative;
+  z-index: 1;
+  margin: 0.35rem 0.75rem;
+  padding: 0.15rem 0;
+  border-top: 1px dashed var(--mm-border, var(--border));
+  border-bottom: 1px dashed var(--mm-border, var(--border));
   font-size: 0.7rem;
-  opacity: 0.75;
+  text-align: center;
+  opacity: 0.8;
 }
 
 .kanban-bubble-overlay {
   cursor: grabbing;
+  max-width: 260px;
+}
+
+.kanban-bubble-overlay .kanban-bubble-text {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  width: 220px;
 }
 
 .kanban-bubble-timestamp {
@@ -681,6 +735,14 @@
 .kanban-bubble-action {
   opacity: 0;
   transition: opacity 0.2s ease;
+}
+
+.kanban-bubble-meta .btn.kanban-bubble-action {
+  display: inline-flex;
+  align-items: center;
+  height: 1.25rem;
+  min-height: 0;
+  line-height: 1;
 }
 
 .kanban-bubble:hover .kanban-bubble-action,
@@ -697,8 +759,13 @@
   display: block;
   width: auto;
   max-width: 100%;
+  height: 1.25rem;
+  min-height: 0;
   font-size: 0.7rem;
-  padding: 0.1rem 1.5rem 0.1rem 0.4rem;
+  line-height: 1;
+  padding: 0 1.4rem 0 0.4rem;
+  background-position: right 0.35rem center;
+  background-size: 10px 8px;
 }
 
 .kanban-column-remove-btn {
@@ -706,19 +773,23 @@
   transition: opacity 0.2s ease;
 }
 
-.kanban-column:hover .kanban-column-remove-btn,
+.kanban-column-header:hover .kanban-column-remove-btn,
 .kanban-column-remove-btn:focus {
   opacity: 1;
 }
 
+.kanban-add-column-cell {
+  padding: 0.35rem 0.5rem;
+  border-left: 1px dashed var(--mm-border, var(--border));
+}
+
 .kanban-add-column {
-  flex: 0 0 260px;
-  align-self: flex-start;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0.6rem;
+  width: 100%;
+  min-height: 36px;
+  padding: 0.4rem;
   background: transparent;
   border: 2px dashed var(--mm-border, var(--border));
   border-radius: 0.5rem;
@@ -734,7 +805,7 @@ button.kanban-add-column:hover {
 
 .kanban-add-column-editing {
   border-style: solid;
-  padding: 0.5rem;
+  padding: 0.25rem;
 }
 
 /* ============================================================================
