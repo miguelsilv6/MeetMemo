@@ -15,6 +15,7 @@ import TranscriptSegment from './TranscriptSegment';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
+import { formatTime } from '../../utils/timeFormat';
 import type { TranslationProgress } from '../../hooks/useTranslation';
 import type {
   SelectedFile,
@@ -110,6 +111,8 @@ export default function TranscriptView({
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
   const [bulkMoveTarget, setBulkMoveTarget] = useState('');
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  // Index of a single segment awaiting delete confirmation.
+  const [pendingDeleteIndex, setPendingDeleteIndex] = useState<number | null>(null);
   const audioPlayerRef = useRef<AudioPlayerHandle | null>(null);
 
   const speakers = useMemo(
@@ -143,6 +146,14 @@ export default function TranscriptView({
     if (!bulkMoveTarget || selectedIndices.size === 0) return;
     handleBulkMoveSegments([...selectedIndices], bulkMoveTarget);
     exitSelectMode();
+  };
+
+  const pendingDeleteSegment =
+    pendingDeleteIndex !== null ? transcript?.segments?.[pendingDeleteIndex] : undefined;
+
+  const handleConfirmDeleteSegment = () => {
+    if (pendingDeleteIndex !== null) handleDeleteSegments([pendingDeleteIndex]);
+    setPendingDeleteIndex(null);
   };
 
   const handleConfirmBulkDelete = () => {
@@ -324,6 +335,7 @@ export default function TranscriptView({
                     onDeleteSegments={handleDeleteSegments}
                     onInsertSegmentAfter={handleInsertSegmentAfter}
                     onSplitSegment={handleRequestSplitSegment}
+                    onRequestDeleteSegment={setPendingDeleteIndex}
                     selectMode={selectMode}
                     selectedIndices={selectedIndices}
                     onToggleSelect={handleToggleSelect}
@@ -342,6 +354,7 @@ export default function TranscriptView({
                       onSeekToSegment={handleSeekToSegment}
                       onInsertSegmentAfter={handleInsertSegmentAfter}
                       onSplitSegment={handleRequestSplitSegment}
+                      onDeleteSegment={setPendingDeleteIndex}
                       selectMode={selectMode}
                       isSelected={selectedIndices.has(index)}
                       onToggleSelect={handleToggleSelect}
@@ -375,6 +388,32 @@ export default function TranscriptView({
           jobId={jobId}
         />
       </Col>
+
+      <Modal show={pendingDeleteSegment !== undefined} onHide={() => setPendingDeleteIndex(null)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{t('transcript.deleteSegmentConfirmTitle')}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>{t('transcript.deleteSegmentConfirmBody')}</p>
+          {pendingDeleteSegment && (
+            <blockquote className="delete-segment-preview mb-0">
+              <small className="text-muted d-block mb-1">
+                {pendingDeleteSegment.speaker} · {formatTime(pendingDeleteSegment.start)} -{' '}
+                {formatTime(pendingDeleteSegment.end)}
+              </small>
+              {pendingDeleteSegment.text}
+            </blockquote>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={() => setPendingDeleteIndex(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="danger" onClick={handleConfirmDeleteSegment}>
+            {t('common.delete')}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showBulkDeleteConfirm} onHide={() => setShowBulkDeleteConfirm(false)}>
         <Modal.Header closeButton>

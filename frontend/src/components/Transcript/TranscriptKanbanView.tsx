@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
-import { AlertTriangle, Pencil, Play, Plus, Scissors, X } from 'lucide-react';
+import { AlertTriangle, Pencil, Play, Plus, Scissors, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
@@ -36,6 +36,8 @@ interface TranscriptKanbanViewProps {
   onDeleteSegments: (indices: number[]) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
+  /** Asks to delete one segment; the caller confirms before deleting. */
+  onRequestDeleteSegment?: (index: number) => void;
   /** When true, bubbles render as checkbox rows for bulk actions instead of their normal controls/drag handle. */
   selectMode?: boolean;
   selectedIndices?: Set<number>;
@@ -58,6 +60,7 @@ function KanbanBubble({
   onMoveSegmentSpeaker,
   onInsertSegmentAfter,
   onSplitSegment,
+  onRequestDeleteSegment,
   selectMode,
   isSelected,
   onToggleSelect,
@@ -71,6 +74,7 @@ function KanbanBubble({
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   onInsertSegmentAfter: (index: number) => void;
   onSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
+  onRequestDeleteSegment?: (index: number) => void;
   selectMode: boolean;
   isSelected: boolean;
   onToggleSelect?: (index: number) => void;
@@ -191,6 +195,21 @@ function KanbanBubble({
             >
               <Scissors size={12} />
             </Button>
+            {onRequestDeleteSegment && (
+              <Button
+                variant="link"
+                size="sm"
+                className="p-0 kanban-bubble-action"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRequestDeleteSegment(index);
+                }}
+                title={t('transcript.deleteSegment')}
+                style={{ color: 'var(--mm-danger, #dc3545)' }}
+              >
+                <Trash2 size={12} />
+              </Button>
+            )}
           </>
         )}
         {!selectMode && speakers.length > 1 && (
@@ -363,6 +382,7 @@ export default function TranscriptKanbanView({
   onDeleteSegments,
   onInsertSegmentAfter,
   onSplitSegment,
+  onRequestDeleteSegment,
   selectMode = false,
   selectedIndices = new Set<number>(),
   onToggleSelect,
@@ -524,6 +544,7 @@ export default function TranscriptKanbanView({
                   onMoveSegmentSpeaker={onMoveSegmentSpeaker}
                   onInsertSegmentAfter={onInsertSegmentAfter}
                   onSplitSegment={onSplitSegment}
+                  onRequestDeleteSegment={onRequestDeleteSegment}
                   selectMode={selectMode}
                   isSelected={selectedIndices.has(row.index)}
                   onToggleSelect={onToggleSelect}

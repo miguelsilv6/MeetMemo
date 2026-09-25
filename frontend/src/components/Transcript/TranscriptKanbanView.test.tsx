@@ -320,4 +320,21 @@ describe('TranscriptKanbanView', () => {
       expect(within(bubble).getByText('0:05 - 0:07')).toBeInTheDocument();
     });
   });
+
+  it('requests deleting a bubble, leaving confirmation to the caller', () => {
+    const onRequestDeleteSegment = vi.fn();
+    const { props } = renderKanban({ onRequestDeleteSegment });
+
+    const bubble = screen.getByText('Hi there').closest('.kanban-bubble') as HTMLElement;
+    fireEvent.click(within(bubble).getByTitle('Delete this segment'));
+
+    expect(onRequestDeleteSegment).toHaveBeenCalledWith(1);
+    expect(props.onDeleteSegments).not.toHaveBeenCalled();
+    expect(props.onSeekToSegment).not.toHaveBeenCalled();
+  });
+
+  it('hides the delete action in select mode', () => {
+    renderKanban({ onRequestDeleteSegment: vi.fn(), selectMode: true });
+    expect(screen.queryByTitle('Delete this segment')).not.toBeInTheDocument();
+  });
 });
