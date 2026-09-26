@@ -185,10 +185,11 @@ LLM_API_KEY=sk-...
 
 ### Timeout Settings
 
-Adjust LLM timeout in `backend/config.py`:
+Set `LLM_TIMEOUT` in `.env` (seconds per LLM request, default 60), then
+rebuild the backend. A local model on CPU may need several minutes:
 
-```python
-llm_timeout: float = 60.0  # 60 seconds
+```bash
+LLM_TIMEOUT=180
 ```
 
 ### Reasoning ("thinking") models
