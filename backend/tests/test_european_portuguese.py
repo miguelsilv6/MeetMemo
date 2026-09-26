@@ -33,7 +33,6 @@ def _fake_settings(**overrides):
         "llm_api_url": "http://fake-llm",
         "llm_model_name": "fake-model",
         "llm_api_key": None,
-        "llm_json_mode": True,
         "llm_timeout": 60.0,
     }
     values.update(overrides)

@@ -28,11 +28,6 @@ class UpdateSummaryRequest(BaseModel):
     summary: str = Field(..., min_length=1)
 
 
-class SpeakerIdentificationRequest(BaseModel):
-    """Model for LLM-based speaker identification requests."""
-    context: Optional[str] = None
-
-
 class TranslateRequest(BaseModel):
     """Model for transcript translation requests.
 
@@ -195,13 +190,6 @@ class SpeakerUpdateResponse(BaseModel):
     status: str
     message: str
     transcript: list[dict]
-
-
-class SpeakerIdentificationResponse(BaseModel):
-    """Model for speaker identification response."""
-    uuid: str
-    status: str
-    suggestions: dict[str, str]
 
 
 class JobListResponse(BaseModel):

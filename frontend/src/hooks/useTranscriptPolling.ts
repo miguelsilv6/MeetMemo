@@ -3,13 +3,7 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import type { ApiError } from '../types/api';
-import type {
-  AutoIdentifySpeakers,
-  SetCurrentStep,
-  SetError,
-  SetTranscriptWithColors,
-  SetUploading,
-} from '../types/ui';
+import type { SetCurrentStep, SetError, SetTranscriptWithColors, SetUploading } from '../types/ui';
 
 /**
  * Custom hook for job status polling and workflow state tracking
@@ -19,8 +13,7 @@ export default function useTranscriptPolling(
   setTranscriptWithColors: SetTranscriptWithColors,
   setCurrentStep: SetCurrentStep,
   setUploading: SetUploading | null,
-  setError: SetError,
-  autoIdentifySpeakers: AutoIdentifySpeakers | null
+  setError: SetError
 ) {
   const { t } = useTranslation();
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -157,11 +150,6 @@ export default function useTranscriptPolling(
             setTranscriptWithColors(normalizeTranscript(transcriptData));
             setCurrentStep('transcript');
             if (setUploading) setUploading(false);
-
-            // Auto-identify speakers in the background
-            if (autoIdentifySpeakers) {
-              autoIdentifySpeakers(uuid);
-            }
           } catch (err) {
             console.error('Failed to fetch transcript:', err);
             if (setUploading) setUploading(false);

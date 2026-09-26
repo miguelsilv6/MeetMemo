@@ -124,8 +124,7 @@
     "detectedLanguage": "Detected Language",
     "confidenceTitle": "Confidence reported by the speech recognition model",
     "speakers": "Speakers",
-    "identifyingSpeakers": "AI is identifying speakers...",
-    "speakerHint": "Speaker names are auto-identified by AI when possible. Use \"Edit Speakers\" to make changes.",
+    "speakerHint": "Speakers are only named by hand. Use \"Edit Speakers\" to replace a label with a name.",
     "nextSteps": "Next Steps",
     "generatingSummary": "Generating...",
     "generateSummary": "Generate AI Summary",
@@ -136,12 +135,8 @@
   "modals": {
     "editSpeakers": {
       "title": "Edit Speaker Names",
-      "description": "Replace speaker labels with actual names. AI suggestions are automatically applied when available.",
+      "description": "Replace speaker labels with actual names.",
       "tip": "Tip: To add a new speaker, use the ✏️ button on any transcript segment.",
-      "identifying": "Identifying speakers...",
-      "aiSuggestions": "AI Suggestions",
-      "acceptSuggestion": "Accept this suggestion",
-      "dismissSuggestion": "Dismiss this suggestion",
       "speakerNames": "Speaker Names",
       "namePlaceholder": "Enter speaker name"
     },
@@ -275,7 +270,6 @@
     "splitSegment": "Failed to split segment",
     "undo": "Failed to undo the last change",
     "updateSpeakers": "Failed to update speakers",
-    "identifySpeakers": "Failed to identify speakers automatically",
     "translateTranscript": "Failed to translate transcript",
     "generateSummary": "Failed to generate summary",
     "updateSummary": "Failed to update summary",

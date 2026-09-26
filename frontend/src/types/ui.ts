@@ -12,5 +12,4 @@ export type SetUploading = Dispatch<SetStateAction<boolean>>;
 
 export type SetTranscriptWithColors = (transcript: Transcript | null) => void;
 export type StartPolling = (uuid: string) => void;
-export type AutoIdentifySpeakers = (uuid: string) => Promise<void>;
 export type HandleUpload = (file: File | null, existingUuid?: string | null) => Promise<void>;

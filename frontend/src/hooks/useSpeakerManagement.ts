@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
-import { normalizeTranscript } from '../utils/transcript';
-import type { SpeakerMapping, SpeakerSuggestions, Transcript } from '../types/api';
+import type { SpeakerMapping, Transcript } from '../types/api';
 import type { SetError, SetTranscriptWithColors } from '../types/ui';
 
 /**
- * Custom hook for speaker identification and editing
- * Handles automatic speaker identification and manual speaker name editing
+ * Custom hook for manual speaker name editing. Speakers are only ever renamed
+ * by the user; nothing assigns names automatically.
  */
 export default function useSpeakerManagement(
   jobId: string | null,
@@ -16,74 +15,8 @@ export default function useSpeakerManagement(
   setError: SetError
 ) {
   const { t } = useTranslation();
-  const [identifyingSpeakers, setIdentifyingSpeakers] = useState(false);
-  const [speakerSuggestions, setSpeakerSuggestions] = useState<SpeakerSuggestions | null>(null);
   const [editingSpeakers, setEditingSpeakers] = useState<SpeakerMapping>({});
   const [showEditSpeakersModal, setShowEditSpeakersModal] = useState(false);
-
-  // Auto-identify speakers and apply valid names automatically
-  const autoIdentifySpeakers = async (uuid: string) => {
-    if (!uuid) return;
-
-    try {
-      setIdentifyingSpeakers(true);
-      const result = await api.identifySpeakers(uuid);
-
-      if (result.status === 'success' && result.suggestions) {
-        // Build mapping for speakers with valid identified names
-        const speakerMapping: SpeakerMapping = {};
-
-        Object.entries(result.suggestions).forEach(([speakerLabel, suggestedName]) => {
-          // Convert "Speaker 1" to SPEAKER_00, "Speaker 2" to SPEAKER_01, etc.
-          const speakerNumber = parseInt(speakerLabel.replace('Speaker ', '')) - 1;
-          const speakerKey = `SPEAKER_${String(speakerNumber).padStart(2, '0')}`;
-
-          // Only auto-accept if a valid name/role was identified
-          // Reject if the suggestion is generic/unclear (contains these keywords)
-          const lowerSuggestion = (suggestedName || '').toLowerCase().trim();
-          const isGeneric =
-            !suggestedName ||
-            lowerSuggestion.includes('speaker') ||
-            lowerSuggestion.includes('unknown') ||
-            lowerSuggestion.includes('cannot') ||
-            lowerSuggestion.includes('not determined') ||
-            lowerSuggestion.includes('not be determined') ||
-            lowerSuggestion.includes('unclear') ||
-            lowerSuggestion.includes('unidentified') ||
-            lowerSuggestion === 'n/a' ||
-            lowerSuggestion === '-';
-
-          if (!isGeneric) {
-            // Valid name/role identified - auto-apply it
-            speakerMapping[speakerKey] = suggestedName;
-          }
-          // For generic/undetermined speakers, don't add to mapping or suggestions
-          // They will remain as SPEAKER_00, SPEAKER_01, etc.
-        });
-
-        // Auto-apply identified speaker names to backend
-        if (Object.keys(speakerMapping).length > 0) {
-          try {
-            await api.updateSpeakers(uuid, speakerMapping);
-
-            // Reload transcript to reflect updated speaker names
-            const transcriptData = await api.getTranscript(uuid);
-            setTranscriptWithColors(normalizeTranscript(transcriptData));
-          } catch (err) {
-            console.error('Failed to auto-apply speaker names:', err);
-          }
-        }
-        // Undetermined speakers will remain as SPEAKER_00, SPEAKER_01, etc.
-      }
-    } catch (err) {
-      console.error('Failed to auto-identify speakers:', err);
-      // Show error to user so they know speaker identification failed
-      const errorMessage = (err as Error).message || t('errors.identifySpeakers');
-      setError(errorMessage);
-    } finally {
-      setIdentifyingSpeakers(false);
-    }
-  };
 
   // Open edit speakers modal
   const handleEditSpeakers = () => {
@@ -97,35 +30,7 @@ export default function useSpeakerManagement(
     });
 
     setEditingSpeakers(speakerMap);
-    setSpeakerSuggestions(null); // Clear previous suggestions
     setShowEditSpeakersModal(true);
-  };
-
-  // Accept a single speaker suggestion
-  const handleAcceptSuggestion = (speakerLabel: string, suggestedName: string) => {
-    // Convert "Speaker 1" to SPEAKER_00, "Speaker 2" to SPEAKER_01, etc.
-    const speakerNumber = parseInt(speakerLabel.replace('Speaker ', '')) - 1;
-    const speakerKey = `SPEAKER_${String(speakerNumber).padStart(2, '0')}`;
-
-    if (editingSpeakers[speakerKey] !== undefined) {
-      setEditingSpeakers({
-        ...editingSpeakers,
-        [speakerKey]: suggestedName,
-      });
-    }
-  };
-
-  // Reject a single speaker suggestion (just dismiss it from the suggestions)
-  const handleRejectSuggestion = (speakerLabel: string) => {
-    const newSuggestions = { ...speakerSuggestions };
-    delete newSuggestions[speakerLabel];
-
-    // If no more suggestions, clear the suggestions state
-    if (Object.keys(newSuggestions).length === 0) {
-      setSpeakerSuggestions(null);
-    } else {
-      setSpeakerSuggestions(newSuggestions);
-    }
   };
 
   // Save speaker names
@@ -152,16 +57,11 @@ export default function useSpeakerManagement(
   };
 
   return {
-    identifyingSpeakers,
-    speakerSuggestions,
     editingSpeakers,
     setEditingSpeakers,
     showEditSpeakersModal,
     setShowEditSpeakersModal,
-    autoIdentifySpeakers,
     handleEditSpeakers,
     handleSaveSpeakers,
-    handleAcceptSuggestion,
-    handleRejectSuggestion,
   };
 }

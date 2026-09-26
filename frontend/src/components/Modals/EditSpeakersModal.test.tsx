@@ -7,13 +7,9 @@ function renderModal(overrides: Partial<ComponentProps<typeof EditSpeakersModal>
   const props = {
     show: true,
     onHide: vi.fn(),
-    editingSpeakers: { SPEAKER_00: 'SPEAKER_00', SPEAKER_01: 'SPEAKER_01' },
+    editingSpeakers: { SPEAKER_00: 'SPEAKER_00', SPEAKER_01: 'Ana' },
     setEditingSpeakers: vi.fn(),
     handleSaveSpeakers: vi.fn(),
-    identifyingSpeakers: false,
-    speakerSuggestions: { SPEAKER_00: 'Ana Costa', SPEAKER_01: 'Cannot be determined' },
-    handleAcceptSuggestion: vi.fn(),
-    handleRejectSuggestion: vi.fn(),
     ...overrides,
   };
   render(<EditSpeakersModal {...props} />);
@@ -21,30 +17,39 @@ function renderModal(overrides: Partial<ComponentProps<typeof EditSpeakersModal>
 }
 
 describe('EditSpeakersModal', () => {
-  it('shows an AI suggestion for each speaker', () => {
+  it('shows one name field per speaker, filled with its current name', () => {
     renderModal();
 
-    const alerts = screen.getAllByRole('alert');
-    expect(alerts).toHaveLength(2);
-    expect(alerts[0]).toHaveTextContent('SPEAKER_00: Ana Costa');
-    expect(alerts[1]).toHaveTextContent('SPEAKER_01: Cannot be determined');
+    expect(screen.getByLabelText('SPEAKER_00')).toHaveValue('SPEAKER_00');
+    expect(screen.getByLabelText('SPEAKER_01')).toHaveValue('Ana');
   });
 
-  it('accepts or dismisses a suggestion', () => {
+  it('renames a speaker as the user types', () => {
     const props = renderModal();
-    const [suggestion, undetermined] = screen.getAllByRole('alert');
 
-    fireEvent.click(within(suggestion).getByTitle('Accept this suggestion'));
-    expect(props.handleAcceptSuggestion).toHaveBeenCalledWith('SPEAKER_00', 'Ana Costa');
+    fireEvent.change(screen.getByLabelText('SPEAKER_00'), { target: { value: 'João Silva' } });
 
-    // An undetermined suggestion can only be dismissed.
-    expect(within(undetermined).queryByTitle('Accept this suggestion')).not.toBeInTheDocument();
-    fireEvent.click(within(undetermined).getByTitle(/dismiss/i));
-    expect(props.handleRejectSuggestion).toHaveBeenCalledWith('SPEAKER_01');
+    expect(props.setEditingSpeakers).toHaveBeenCalledWith({
+      SPEAKER_00: 'João Silva',
+      SPEAKER_01: 'Ana',
+    });
   });
 
-  it('shows no suggestions section when there are none', () => {
-    renderModal({ speakerSuggestions: null });
+  it('saves or cancels', () => {
+    const props = renderModal();
+    const dialog = screen.getByRole('dialog');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /save/i }));
+    expect(props.handleSaveSpeakers).toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(props.onHide).toHaveBeenCalled();
+  });
+
+  it('offers no automatic name suggestions', () => {
+    renderModal();
+
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText(/suggestion/i)).not.toBeInTheDocument();
   });
 });

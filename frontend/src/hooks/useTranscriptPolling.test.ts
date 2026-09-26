@@ -10,15 +10,8 @@ function setup() {
   const setCurrentStep = vi.fn();
   const setUploading = vi.fn();
   const setError = vi.fn();
-  const autoIdentifySpeakers = vi.fn().mockResolvedValue(undefined);
   const hook = renderHook(() =>
-    useTranscriptPolling(
-      setTranscriptWithColors,
-      setCurrentStep,
-      setUploading,
-      setError,
-      autoIdentifySpeakers
-    )
+    useTranscriptPolling(setTranscriptWithColors, setCurrentStep, setUploading, setError)
   );
   return {
     hook,
@@ -26,7 +19,6 @@ function setup() {
     setCurrentStep,
     setUploading,
     setError,
-    autoIdentifySpeakers,
   };
 }
 
@@ -70,7 +62,7 @@ describe('useTranscriptPolling', () => {
       full_transcript: JSON.stringify([{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }]),
     });
 
-    const { hook, setTranscriptWithColors, setCurrentStep, autoIdentifySpeakers } = setup();
+    const { hook, setTranscriptWithColors, setCurrentStep } = setup();
     act(() => hook.result.current.startPolling('job1'));
 
     await waitFor(() => expect(setCurrentStep).toHaveBeenCalledWith('transcript'));
@@ -79,7 +71,8 @@ describe('useTranscriptPolling', () => {
         segments: [{ speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' }],
       })
     );
-    expect(autoIdentifySpeakers).toHaveBeenCalledWith('job1');
+    // Speakers keep their labels: nothing renames them after transcription.
+    expect(api.updateSpeakers).not.toHaveBeenCalled();
   });
 
   it('surfaces an error when the workflow reports failure', async () => {

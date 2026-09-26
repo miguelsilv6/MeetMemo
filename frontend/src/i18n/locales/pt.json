@@ -124,8 +124,7 @@
     "detectedLanguage": "Idioma Detetado",
     "confidenceTitle": "Confiança reportada pelo modelo de reconhecimento de voz",
     "speakers": "Interlocutores",
-    "identifyingSpeakers": "A IA está a identificar os interlocutores...",
-    "speakerHint": "Os nomes dos interlocutores são identificados automaticamente pela IA quando possível. Usa \"Editar Interlocutores\" para fazer alterações.",
+    "speakerHint": "Os interlocutores só são nomeados manualmente. Usa \"Editar Interlocutores\" para substituir uma etiqueta por um nome.",
     "nextSteps": "Próximos Passos",
     "generatingSummary": "A gerar...",
     "generateSummary": "Gerar Resumo com IA",
@@ -136,12 +135,8 @@
   "modals": {
     "editSpeakers": {
       "title": "Editar Nomes dos Interlocutores",
-      "description": "Substitui as etiquetas dos interlocutores por nomes reais. As sugestões de IA são aplicadas automaticamente quando disponíveis.",
+      "description": "Substitui as etiquetas dos interlocutores por nomes reais.",
       "tip": "Dica: para adicionares um novo interlocutor, usa o botão ✏️ em qualquer segmento da transcrição.",
-      "identifying": "A identificar interlocutores...",
-      "aiSuggestions": "Sugestões da IA",
-      "acceptSuggestion": "Aceitar esta sugestão",
-      "dismissSuggestion": "Rejeitar esta sugestão",
       "speakerNames": "Nomes dos Interlocutores",
       "namePlaceholder": "Introduz o nome do interlocutor"
     },
@@ -275,7 +270,6 @@
     "splitSegment": "Falha ao dividir o segmento",
     "undo": "Falha ao desfazer a última alteração",
     "updateSpeakers": "Falha ao atualizar os interlocutores",
-    "identifySpeakers": "Falha ao identificar interlocutores automaticamente",
     "translateTranscript": "Falha ao traduzir a transcrição",
     "generateSummary": "Falha ao gerar o resumo",
     "updateSummary": "Falha ao atualizar o resumo",

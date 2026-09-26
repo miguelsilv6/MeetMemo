@@ -8,7 +8,6 @@ import {
 } from '../utils/fileNaming';
 import type {
   ApiError,
-  IdentifySpeakersResponse,
   JobStatus,
   JobsResponse,
   SpeakerMapping,
@@ -203,22 +202,6 @@ export async function getWaveformPeaks(
     buckets: String(buckets),
   });
   return await apiCall<WaveformResponse>(`/jobs/${uuid}/waveform?${params}`);
-}
-
-// Identify speakers with AI
-export async function identifySpeakers(
-  uuid: string,
-  context: string | null = null
-): Promise<IdentifySpeakersResponse> {
-  const body = context ? { context } : {};
-
-  return await apiCall<IdentifySpeakersResponse>(`/jobs/${uuid}/speaker-identifications`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
 }
 
 // Update speaker names

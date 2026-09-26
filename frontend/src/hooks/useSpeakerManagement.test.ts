@@ -17,59 +17,22 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('useSpeakerManagement.autoIdentifySpeakers', () => {
-  it('applies valid identified names and maps "Speaker N" to SPEAKER_0(N-1)', async () => {
-    vi.mocked(api.identifySpeakers).mockResolvedValue({
-      status: 'success',
-      suggestions: { 'Speaker 1': 'Alice', 'Speaker 2': 'Bob' },
-    });
-    vi.mocked(api.updateSpeakers).mockResolvedValue({});
-    vi.mocked(api.getTranscript).mockResolvedValue(transcript);
-
+describe('useSpeakerManagement.handleEditSpeakers', () => {
+  it('opens the editor with every speaker keeping its current label', () => {
     const { result } = renderHook(() => useSpeakerManagement('job1', transcript, vi.fn(), vi.fn()));
 
-    await act(async () => {
-      await result.current.autoIdentifySpeakers('job1');
+    act(() => {
+      result.current.handleEditSpeakers();
     });
 
-    expect(api.updateSpeakers).toHaveBeenCalledWith('job1', {
-      SPEAKER_00: 'Alice',
-      SPEAKER_01: 'Bob',
+    expect(result.current.showEditSpeakersModal).toBe(true);
+    expect(result.current.editingSpeakers).toEqual({
+      SPEAKER_00: 'SPEAKER_00',
+      SPEAKER_01: 'SPEAKER_01',
     });
-  });
-
-  it('rejects generic / undetermined suggestions', async () => {
-    vi.mocked(api.identifySpeakers).mockResolvedValue({
-      status: 'success',
-      suggestions: {
-        'Speaker 1': 'Cannot be determined',
-        'Speaker 2': 'Unknown speaker',
-        'Speaker 3': 'n/a',
-      },
-    });
-
-    const { result } = renderHook(() => useSpeakerManagement('job1', transcript, vi.fn(), vi.fn()));
-
-    await act(async () => {
-      await result.current.autoIdentifySpeakers('job1');
-    });
-
-    // Every suggestion is generic, so nothing is applied.
+    // Names are only ever set by the user: nothing is fetched or saved here.
     expect(api.updateSpeakers).not.toHaveBeenCalled();
-  });
-
-  it('surfaces an error when identification fails', async () => {
-    vi.mocked(api.identifySpeakers).mockRejectedValue(new Error('offline'));
-    const setError = vi.fn();
-    const { result } = renderHook(() =>
-      useSpeakerManagement('job1', transcript, vi.fn(), setError)
-    );
-
-    await act(async () => {
-      await result.current.autoIdentifySpeakers('job1');
-    });
-
-    expect(setError).toHaveBeenCalledWith('offline');
+    expect(api.getTranscript).not.toHaveBeenCalled();
   });
 });
 

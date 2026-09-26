@@ -10,7 +10,6 @@ import type { SelectedFile, Summary, Transcript } from '../../types/api';
 interface MeetingInfoSidebarProps {
   selectedFile: SelectedFile;
   transcript: Transcript | null;
-  identifyingSpeakers: boolean;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
   summary: Summary | null;
@@ -20,7 +19,6 @@ interface MeetingInfoSidebarProps {
 export default function MeetingInfoSidebar({
   selectedFile,
   transcript,
-  identifyingSpeakers,
   handleGenerateSummary,
   generatingSummary,
   summary,
@@ -86,12 +84,6 @@ export default function MeetingInfoSidebar({
                 <span className="text-muted">{t('common.notAvailable')}</span>
               )}
             </div>
-            {identifyingSpeakers && (
-              <div className="small text-muted">
-                <Sparkles size={12} className="me-1" />
-                {t('meetingInfo.identifyingSpeakers')}
-              </div>
-            )}
             <div className="small text-muted" style={{ fontSize: '0.75rem', lineHeight: '1.3' }}>
               <AlertCircle size={12} className="me-1" />
               {t('meetingInfo.speakerHint')}

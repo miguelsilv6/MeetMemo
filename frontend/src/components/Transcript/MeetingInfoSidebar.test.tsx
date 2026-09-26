@@ -7,7 +7,6 @@ function renderSidebar(overrides: Partial<ComponentProps<typeof MeetingInfoSideb
   const props = {
     selectedFile: { name: 'meeting.mp3' },
     transcript: null,
-    identifyingSpeakers: false,
     handleGenerateSummary: vi.fn(),
     generatingSummary: false,
     summary: null,

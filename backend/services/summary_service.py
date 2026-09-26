@@ -1,11 +1,12 @@
 """
-Summary service for LLM-powered summarization and speaker identification.
+Summary service for LLM-powered summarization and translation.
 
-This service handles LLM API calls for transcript summarization, speaker identification,
-and summary caching.
+This service handles LLM API calls for transcript summarization and translation,
+and summary caching. It never assigns names to speakers.
 """
 import json
 import logging
+import re
 from typing import Optional
 
 import aiofiles
@@ -36,70 +37,6 @@ EUROPEAN_PORTUGUESE_RULE = (
 EUROPEAN_PORTUGUESE_REMINDER = "Responde apenas em português de Portugal."
 
 
-def _extract_speaker_mapping(content: str) -> Optional[dict]:
-    """
-    Extract a speaker->name mapping from an LLM response.
-
-    LLMs do not reliably return a bare JSON object: the mapping may be fenced in
-    a markdown code block, or embedded in surrounding prose. This tolerantly
-    recovers the first valid JSON object and validates it is a flat mapping of
-    string labels to string names.
-
-    Args:
-        content: Raw assistant message content.
-
-    Returns:
-        A dict of speaker label -> suggested name, or None if no valid mapping
-        could be parsed.
-    """
-    if not content:
-        return None
-
-    candidates = []
-
-    # 1) Fenced code block (```json ... ``` or ``` ... ```), if present.
-    if "```" in content:
-        fenced = content.split("```", 2)
-        if len(fenced) >= 2:
-            block = fenced[1]
-            if block.lstrip().lower().startswith("json"):
-                block = block.lstrip()[len("json"):]
-            candidates.append(block.strip())
-
-    # 2) The whole (stripped) string.
-    candidates.append(content.strip())
-
-    # 3) Every balanced {...} object found in the text, in order. Scanning all
-    #    of them (not just the first) means a leading non-mapping object does
-    #    not hide a valid mapping that appears later in the prose.
-    depth = 0
-    obj_start = -1
-    for i, ch in enumerate(content):
-        if ch == "{":
-            if depth == 0:
-                obj_start = i
-            depth += 1
-        elif ch == "}" and depth > 0:
-            depth -= 1
-            if depth == 0 and obj_start != -1:
-                candidates.append(content[obj_start:i + 1])
-
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            parsed = json.loads(candidate)
-        except (ValueError, TypeError):
-            continue
-        # Only accept a flat mapping of string -> string.
-        if isinstance(parsed, dict) and parsed and all(
-            isinstance(k, str) and isinstance(v, str) for k, v in parsed.items()
-        ):
-            return parsed
-
-    return None
-
-
 def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     """
     Extract an ordered list of translated strings from an LLM response.
@@ -107,8 +44,8 @@ def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     The model is asked to return a JSON array of ``{"i": <index>, "text": <translation>}``
     objects (rather than a bare array of strings) so a translation that legitimately
     contains stray punctuation or gets reordered by the model can still be matched back
-    to its original segment by index. Tolerates the same fenced/prose-wrapped shapes as
-    ``_extract_speaker_mapping``.
+    to its original segment by index. Tolerates answers fenced in a code block or
+    wrapped in prose.
 
     Args:
         content: Raw assistant message content.
@@ -173,6 +110,42 @@ def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     return None
 
 
+# Qwen3's documented soft switch that turns off its "thinking" phase for one
+# request. Left on, a small Qwen3 can spend its whole token budget reasoning
+# (Ollama returns that separately, as `reasoning`) and answer with nothing.
+QWEN3_NO_THINK = "/no_think"
+
+# Reasoning some servers leave inline in the answer; an unclosed block (the
+# answer was cut off mid-thought) runs to the end.
+_THINK_BLOCK = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL | re.IGNORECASE)
+
+
+def _without_thinking(model_name: str, user_prompt: str) -> str:
+    """Appends Qwen3's no-think switch to the user prompt for Qwen3 models."""
+    if "qwen3" in (model_name or "").lower():
+        return f"{user_prompt}\n\n{QWEN3_NO_THINK}"
+    return user_prompt
+
+
+def _read_completion(data: dict) -> tuple[str, Optional[str]]:
+    """The answer text (reasoning removed) and finish reason of a chat completion."""
+    choice = data["choices"][0]
+    content = choice.get("message", {}).get("content") or ""
+    return _THINK_BLOCK.sub("", content).strip(), choice.get("finish_reason")
+
+
+def _unusable_answer_reason(content: str, finish_reason: Optional[str]) -> str:
+    """Why a model answer could not be used, in words a user can act on."""
+    if finish_reason == "length":
+        return (
+            "the model's answer was cut off because it reached its output limit "
+            "before finishing"
+        )
+    if not content:
+        return "the model returned an empty answer"
+    return "the model's answer was not in the expected format"
+
+
 def _describe_llm_error(error: Exception, timeout: float) -> str:
     """
     Turn an LLM request failure into a message a user can act on.
@@ -189,7 +162,7 @@ def _describe_llm_error(error: Exception, timeout: float) -> str:
 
 
 class SummaryService:
-    """Service for LLM-based summarization and speaker identification."""
+    """Service for LLM-based summarization and translation."""
 
     def __init__(self, http_client: httpx.AsyncClient, settings: Settings):
         """
@@ -277,6 +250,7 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
         else:
             final_user_prompt = default_user_prompt + transcript
         final_user_prompt += f"\n\n{EUROPEAN_PORTUGUESE_REMINDER}"
+        final_user_prompt = _without_thinking(model_name, final_user_prompt)
 
         payload = {
             "model": model_name,
@@ -300,8 +274,13 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 timeout=self.settings.llm_timeout
             )
             response.raise_for_status()
-            data = response.json()
-            summary = data["choices"][0]["message"]["content"].strip()
+            summary, finish_reason = _read_completion(response.json())
+            if not summary:
+                reason = _unusable_answer_reason(summary, finish_reason)
+                logger.error("Summary unusable (finish_reason=%s): %s", finish_reason, reason)
+                raise HTTPException(
+                    status_code=502, detail=f"Could not generate the summary: {reason}."
+                )
             return summary
 
         except httpx.HTTPError as e:
@@ -311,93 +290,6 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 status_code=503,
                 detail=f"Summary service unavailable: {reason}"
             ) from e
-
-    async def identify_speakers(  # pylint: disable=too-many-locals
-        self,
-        transcript: str,
-        context: Optional[str] = None
-    ) -> dict:
-        """
-        Identify speakers using LLM based on transcript content.
-
-        Args:
-            transcript: Formatted transcript text
-            context: Optional meeting context
-
-        Returns:
-            Dict with status and speaker name suggestions
-
-        Raises:
-            HTTPException: If LLM service is unavailable
-        """
-        base_url = self.settings.llm_api_url
-        url = f"{base_url.rstrip('/')}/v1/chat/completions"
-        model_name = self.settings.llm_model_name
-
-        system_prompt = (
-            "You are a helpful assistant that identifies speakers in meeting transcripts. "
-            "Based on the conversation content, suggest likely names or roles for each speaker. "
-            "Return ONLY a JSON object mapping speaker labels to suggested names."
-        )
-
-        context_text = f"\nContext: {context}\n\n" if context else "\n\n"
-        user_prompt = (
-            "Analyze this transcript and suggest names or roles for each speaker. "
-            f"{context_text}Transcript:\n{transcript}\n\n"
-            "Return a JSON object like: "
-            '{\"SPEAKER_00\": \"John (CEO)\", \"SPEAKER_01\": \"Sarah (CTO)\"}'
-        )
-
-        payload = {
-            "model": model_name,
-            "temperature": 0.2,
-            "max_tokens": 500,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        }
-
-        # Request a JSON object where the serving stack supports it. Servers
-        # that ignore the field still work (the response is parsed defensively
-        # below); the toggle exists for servers that reject unknown fields.
-        if self.settings.llm_json_mode:
-            payload["response_format"] = {"type": "json_object"}
-
-        try:
-            headers = {"Content-Type": "application/json"}
-            if self.settings.llm_api_key:
-                headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
-
-            response = await self.http_client.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self.settings.llm_timeout
-            )
-            response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
-
-            suggestions = _extract_speaker_mapping(content)
-            if suggestions is None:
-                logger.error(
-                    "Speaker identification could not parse a speaker mapping from LLM output"
-                )
-                logger.debug("Unparseable speaker-identification content: %r", content)
-                return {
-                    "status": "error",
-                    "message": "Could not parse speaker suggestions from the model response."
-                }
-            return {"status": "success", "suggestions": suggestions}
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            reason = _describe_llm_error(e, self.settings.llm_timeout)
-            logger.error("Speaker identification failed: %s", reason, exc_info=True)
-            return {
-                "status": "error",
-                "message": f"Speaker identification failed: {reason}"
-            }
 
     async def translate_segments(self, segments: list[dict]) -> list[dict]:
         """
@@ -438,7 +330,9 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
             f"{EUROPEAN_PORTUGUESE_RULE}"
         )
         numbered_segments = [{"i": i, "text": text} for i, text in enumerate(texts)]
-        user_prompt = json.dumps(numbered_segments, ensure_ascii=False)
+        user_prompt = _without_thinking(
+            model_name, json.dumps(numbered_segments, ensure_ascii=False)
+        )
 
         payload = {
             "model": model_name,
@@ -462,18 +356,19 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 timeout=self.settings.llm_timeout
             )
             response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
+            content, finish_reason = _read_completion(response.json())
 
             translated_texts = _extract_translated_texts(content, len(texts))
             if translated_texts is None:
+                reason = _unusable_answer_reason(content, finish_reason)
                 logger.error(
-                    "Translation could not parse a complete segment list from LLM output"
+                    "Translation unusable (finish_reason=%s, %d chars): %s",
+                    finish_reason, len(content), reason
                 )
                 logger.debug("Unparseable translation content: %r", content)
                 raise HTTPException(
                     status_code=502,
-                    detail="Could not parse the translated transcript from the model response."
+                    detail=f"Could not read the translated transcript: {reason}."
                 )
 
             return [
