@@ -25,7 +25,6 @@ function renderView(overrides: Partial<ComponentProps<typeof TranscriptView>> = 
     handleGenerateSummary: vi.fn(),
     generatingSummary: false,
     summary: null,
-    identifyingSpeakers: false,
     translatedSegments: null,
     translating: false,
     showTranslation: false,

@@ -36,9 +36,6 @@ export interface Summary {
   action_items?: string[];
 }
 
-/** Suggestions returned by the speaker identification endpoint. */
-export type SpeakerSuggestions = Record<string, string>;
-
 /** Response returned by the transcript translation endpoint. */
 export interface TranslateResponse {
   status?: string;
@@ -48,11 +45,6 @@ export interface TranslateResponse {
   start?: number;
   /** Number of segments in the whole transcript. */
   total?: number;
-}
-
-export interface IdentifySpeakersResponse {
-  status?: string;
-  suggestions?: SpeakerSuggestions;
 }
 
 /** A single min/max peak pair, normalized to [-1, 1]. */

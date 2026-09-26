@@ -319,10 +319,10 @@ Types:
 
 Example:
 ```
-feat: add speaker name suggestions using LLM
+feat: add waveform zoom to the audio player
 
-Implement AI-powered speaker identification that suggests
-possible names based on conversation context.
+Let reviewers zoom into the waveform to place the playhead
+precisely around pauses and overlaps.
 
 Closes #123
 ```

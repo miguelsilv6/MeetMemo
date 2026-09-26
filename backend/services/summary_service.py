@@ -1,8 +1,8 @@
 """
-Summary service for LLM-powered summarization and speaker identification.
+Summary service for LLM-powered summarization and translation.
 
-This service handles LLM API calls for transcript summarization, speaker identification,
-and summary caching.
+This service handles LLM API calls for transcript summarization and translation,
+and summary caching. It never assigns names to speakers.
 """
 import json
 import logging
@@ -31,78 +31,10 @@ EUROPEAN_PORTUGUESE_RULE = (
     "(e não \"você faz\" como tratamento genérico)."
 )
 
-# Suggestion used for a speaker the model cannot identify; the edit-speakers
-# dialog recognises this exact text and offers only to dismiss it.
-UNDETERMINED_SPEAKER = "Cannot be determined"
-
 # Final reminder placed after the transcript: small models weigh the end of
 # the prompt heavily, and a long transcript can push the system prompt out of
 # their attention.
 EUROPEAN_PORTUGUESE_REMINDER = "Responde apenas em português de Portugal."
-
-
-def _extract_speaker_mapping(content: str) -> Optional[dict]:
-    """
-    Extract a speaker->name mapping from an LLM response.
-
-    LLMs do not reliably return a bare JSON object: the mapping may be fenced in
-    a markdown code block, or embedded in surrounding prose. This tolerantly
-    recovers the first valid JSON object and validates it is a flat mapping of
-    string labels to string names.
-
-    Args:
-        content: Raw assistant message content.
-
-    Returns:
-        A dict of speaker label -> suggested name, or None if no valid mapping
-        could be parsed.
-    """
-    if not content:
-        return None
-
-    candidates = []
-
-    # 1) Fenced code block (```json ... ``` or ``` ... ```), if present.
-    if "```" in content:
-        fenced = content.split("```", 2)
-        if len(fenced) >= 2:
-            block = fenced[1]
-            if block.lstrip().lower().startswith("json"):
-                block = block.lstrip()[len("json"):]
-            candidates.append(block.strip())
-
-    # 2) The whole (stripped) string.
-    candidates.append(content.strip())
-
-    # 3) Every balanced {...} object found in the text, in order. Scanning all
-    #    of them (not just the first) means a leading non-mapping object does
-    #    not hide a valid mapping that appears later in the prose.
-    depth = 0
-    obj_start = -1
-    for i, ch in enumerate(content):
-        if ch == "{":
-            if depth == 0:
-                obj_start = i
-            depth += 1
-        elif ch == "}" and depth > 0:
-            depth -= 1
-            if depth == 0 and obj_start != -1:
-                candidates.append(content[obj_start:i + 1])
-
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            parsed = json.loads(candidate)
-        except (ValueError, TypeError):
-            continue
-        # Only accept a flat mapping of string -> string.
-        if isinstance(parsed, dict) and parsed and all(
-            isinstance(k, str) and isinstance(v, str) for k, v in parsed.items()
-        ):
-            return parsed
-
-    return None
 
 
 def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
@@ -112,8 +44,8 @@ def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     The model is asked to return a JSON array of ``{"i": <index>, "text": <translation>}``
     objects (rather than a bare array of strings) so a translation that legitimately
     contains stray punctuation or gets reordered by the model can still be matched back
-    to its original segment by index. Tolerates the same fenced/prose-wrapped shapes as
-    ``_extract_speaker_mapping``.
+    to its original segment by index. Tolerates answers fenced in a code block or
+    wrapped in prose.
 
     Args:
         content: Raw assistant message content.
@@ -230,7 +162,7 @@ def _describe_llm_error(error: Exception, timeout: float) -> str:
 
 
 class SummaryService:
-    """Service for LLM-based summarization and speaker identification."""
+    """Service for LLM-based summarization and translation."""
 
     def __init__(self, http_client: httpx.AsyncClient, settings: Settings):
         """
@@ -358,105 +290,6 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 status_code=503,
                 detail=f"Summary service unavailable: {reason}"
             ) from e
-
-    async def identify_speakers(  # pylint: disable=too-many-locals
-        self,
-        transcript: str,
-        context: Optional[str] = None
-    ) -> dict:
-        """
-        Identify speakers using LLM based on transcript content.
-
-        Args:
-            transcript: Formatted transcript text
-            context: Optional meeting context
-
-        Returns:
-            Dict with status and speaker name suggestions
-
-        Raises:
-            HTTPException: If LLM service is unavailable
-        """
-        base_url = self.settings.llm_api_url
-        url = f"{base_url.rstrip('/')}/v1/chat/completions"
-        model_name = self.settings.llm_model_name
-
-        # The names in the example are placeholders a small model tends to
-        # copy, so the prompt insists on names taken from the transcript and
-        # on UNDETERMINED_SPEAKER (which the UI recognises) otherwise.
-        system_prompt = (
-            "You identify who is speaking in a meeting or phone call transcript. "
-            "Use only names or roles that the transcript states or clearly implies, "
-            "for example someone introducing themselves or being addressed by name. "
-            "Never invent or guess names, and never copy names from the example. "
-            f'If a speaker cannot be identified, use exactly "{UNDETERMINED_SPEAKER}". '
-            "Write roles in European Portuguese. "
-            "Return ONLY a JSON object mapping every speaker label to a name."
-        )
-
-        context_text = f"\nContext: {context}\n\n" if context else "\n\n"
-        user_prompt = _without_thinking(
-            model_name,
-            "Identify each speaker in this transcript. "
-            f"{context_text}Transcript:\n{transcript}\n\n"
-            "Return a JSON object shaped like: "
-            '{"SPEAKER_00": "<Nome> (<papel>)", '
-            f'"SPEAKER_01": "{UNDETERMINED_SPEAKER}"}}',
-        )
-
-        payload = {
-            "model": model_name,
-            "temperature": 0.2,
-            # Room for models that still reason before answering.
-            "max_tokens": 2000,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        }
-
-        # Request a JSON object where the serving stack supports it. Servers
-        # that ignore the field still work (the response is parsed defensively
-        # below); the toggle exists for servers that reject unknown fields.
-        if self.settings.llm_json_mode:
-            payload["response_format"] = {"type": "json_object"}
-
-        try:
-            headers = {"Content-Type": "application/json"}
-            if self.settings.llm_api_key:
-                headers["Authorization"] = f"Bearer {self.settings.llm_api_key}"
-
-            response = await self.http_client.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self.settings.llm_timeout
-            )
-            response.raise_for_status()
-            content, finish_reason = _read_completion(response.json())
-
-            suggestions = _extract_speaker_mapping(content)
-            if suggestions is None:
-                reason = _unusable_answer_reason(content, finish_reason)
-                # The answer quotes the conversation, so it is only logged at debug level.
-                logger.error(
-                    "Speaker identification unusable (finish_reason=%s, %d chars): %s",
-                    finish_reason, len(content), reason
-                )
-                logger.debug("Unparseable speaker-identification content: %r", content)
-                return {
-                    "status": "error",
-                    "message": f"Could not read speaker suggestions: {reason}."
-                }
-            return {"status": "success", "suggestions": suggestions}
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            reason = _describe_llm_error(e, self.settings.llm_timeout)
-            logger.error("Speaker identification failed: %s", reason, exc_info=True)
-            return {
-                "status": "error",
-                "message": f"Speaker identification failed: {reason}"
-            }
 
     async def translate_segments(self, segments: list[dict]) -> list[dict]:
         """

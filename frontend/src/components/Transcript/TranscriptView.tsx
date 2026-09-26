@@ -44,7 +44,6 @@ interface TranscriptViewProps {
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
   summary: Summary | null;
-  identifyingSpeakers: boolean;
   translatedSegments: TranscriptSegmentType[] | null;
   translating: boolean;
   /** Blocks translated so far, while a translation is running. */
@@ -95,7 +94,6 @@ export default function TranscriptView({
   handleGenerateSummary,
   generatingSummary,
   summary,
-  identifyingSpeakers,
   translatedSegments,
   translating,
   translationProgress = null,
@@ -381,7 +379,6 @@ export default function TranscriptView({
         <MeetingInfoSidebar
           selectedFile={selectedFile}
           transcript={transcript}
-          identifyingSpeakers={identifyingSpeakers}
           handleGenerateSummary={handleGenerateSummary}
           generatingSummary={generatingSummary}
           summary={summary}

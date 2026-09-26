@@ -24,8 +24,7 @@ cp example.env .env
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LLM_API_KEY` | API key for LLM service | Empty (none) |
-| `LLM_TIMEOUT` | Seconds to wait for each LLM response (summary, translation, speaker identification); raise it for a local model on CPU | `60` |
-| `LLM_JSON_MODE` | Request a JSON object (`response_format`) for speaker identification; set `false` if your server rejects the field | `true` |
+| `LLM_TIMEOUT` | Seconds to wait for each LLM response (summary, translation); raise it for a local model on CPU | `60` |
 | `POSTGRES_PASSWORD` | PostgreSQL password | `changeme` |
 | `WHISPER_MODEL_NAME` | Whisper model for transcription | `turbo` |
 | `COMPUTE_TYPE` | Inference precision (float16/int8) | `float16` |
@@ -198,7 +197,7 @@ Models such as **Qwen3** reason before answering. With a small model on CPU
 that reasoning can use the whole output budget and leave the answer empty
 (Ollama returns it separately, as `reasoning`, with `finish_reason: "length"`).
 For any model whose name contains `qwen3`, MeetMemo appends Qwen3's `/no_think`
-switch to summary, translation and speaker-identification requests, which also
+switch to summary and translation requests, which also
 makes them several times faster. Reasoning left inline as `<think>…</think>`
 by any model is removed before the answer is used.
 

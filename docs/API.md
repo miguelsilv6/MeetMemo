@@ -262,19 +262,8 @@ Update speaker names.
 }
 ```
 
-### POST /jobs/{uuid}/speaker-identifications
-
-AI-powered speaker name suggestions based on transcript context.
-
-**Response:**
-```json
-{
-  "suggestions": {
-    "SPEAKER_00": ["John", "Michael"],
-    "SPEAKER_01": ["Jane", "Sarah"]
-  }
-}
-```
+Speakers are only renamed through this endpoint, by the user. There is no
+automatic (LLM-based) speaker naming.
 
 ## Exports (Synchronous)
 

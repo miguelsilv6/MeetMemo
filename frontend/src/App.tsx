@@ -83,28 +83,17 @@ function App() {
 
   // Speaker management
   const {
-    identifyingSpeakers,
-    speakerSuggestions,
     editingSpeakers,
     setEditingSpeakers,
     showEditSpeakersModal,
     setShowEditSpeakersModal,
-    autoIdentifySpeakers,
     handleEditSpeakers,
     handleSaveSpeakers,
-    handleAcceptSuggestion,
-    handleRejectSuggestion,
   } = useSpeakerManagement(jobId, transcript, setTranscriptWithColors, setError);
 
   // Transcript polling (defined before useFileUpload that depends on it)
   const { processingProgress, startPolling, stopPolling, setProcessingProgress } =
-    useTranscriptPolling(
-      setTranscriptWithColors,
-      setCurrentStep,
-      null,
-      setError,
-      autoIdentifySpeakers
-    );
+    useTranscriptPolling(setTranscriptWithColors, setCurrentStep, null, setError);
 
   // File upload
   const {
@@ -255,7 +244,6 @@ function App() {
                 handleGenerateSummary={handleGenerateSummary}
                 generatingSummary={generatingSummary}
                 summary={summary}
-                identifyingSpeakers={identifyingSpeakers}
                 translatedSegments={translatedSegments}
                 translating={translating}
                 translationProgress={translationProgress}
@@ -291,10 +279,6 @@ function App() {
         editingSpeakers={editingSpeakers}
         setEditingSpeakers={setEditingSpeakers}
         handleSaveSpeakers={handleSaveSpeakers}
-        identifyingSpeakers={identifyingSpeakers}
-        speakerSuggestions={speakerSuggestions}
-        handleAcceptSuggestion={handleAcceptSuggestion}
-        handleRejectSuggestion={handleRejectSuggestion}
       />
 
       <EditTextModal

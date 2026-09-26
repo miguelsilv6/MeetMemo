@@ -2,8 +2,8 @@
 How LLM answers are requested and read: Qwen3's thinking is switched off,
 reasoning is never taken for the answer, and an unusable answer says why.
 
-The empty-answer case reproduces what Ollama returned for qwen3:1.7b: the
-whole 500-token budget spent on `reasoning`, `content` empty and
+The cut-off cases reproduce what Ollama returned for qwen3:1.7b: the whole
+token budget spent on `reasoning`, `content` empty and
 `finish_reason: "length"`.
 """
 import asyncio
@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
-from services.summary_service import QWEN3_NO_THINK, UNDETERMINED_SPEAKER, SummaryService
+from services.summary_service import QWEN3_NO_THINK, SummaryService
 
 TRANSCRIPT = (
     "SPEAKER_00: Bom dia, fala a Ana do apoio ao cliente, em que posso ajudar hoje?\n"
@@ -24,7 +24,6 @@ def _settings(model="qwen3:1.7b"):
         llm_api_url="http://fake-llm",
         llm_model_name=model,
         llm_api_key=None,
-        llm_json_mode=True,
         llm_timeout=60.0,
     )
 
@@ -64,75 +63,23 @@ def _user_prompt(client):
 
 @pytest.mark.parametrize("model", ["qwen3:1.7b", "Qwen3-8B-Instruct"])
 def test_qwen3_requests_switch_thinking_off(model):
-    client = _Client('{"SPEAKER_00": "Ana"}')
+    client = _Client("# Resumo")
     service = SummaryService(client, _settings(model))
 
-    asyncio.run(service.identify_speakers(TRANSCRIPT))
     asyncio.run(service.summarize(TRANSCRIPT))
     client.message["content"] = '[{"i": 0, "text": "Bom dia"}]'
     asyncio.run(service.translate_segments([{"speaker": "A", "text": "Good morning"}]))
 
-    assert len(client.payloads) == 3
+    assert len(client.payloads) == 2
     for payload in client.payloads:
         assert payload["messages"][-1]["content"].endswith(QWEN3_NO_THINK)
 
 
 def test_other_models_get_no_qwen_switch():
-    client = _Client('{"SPEAKER_00": "Ana"}')
-    asyncio.run(SummaryService(client, _settings("llama3.1:8b")).identify_speakers(TRANSCRIPT))
+    client = _Client("# Resumo")
+    asyncio.run(SummaryService(client, _settings("llama3.1:8b")).summarize(TRANSCRIPT))
 
     assert QWEN3_NO_THINK not in _user_prompt(client)
-
-
-# --- Speaker identification ----------------------------------------------------
-
-
-def test_budget_spent_on_reasoning_explains_the_cut_off():
-    # What Ollama returned for qwen3:1.7b.
-    client = _Client("", finish_reason="length", reasoning="Okay, let's see. The user...")
-    result = asyncio.run(SummaryService(client, _settings()).identify_speakers(TRANSCRIPT))
-
-    assert result["status"] == "error"
-    assert result["message"] == (
-        "Could not read speaker suggestions: the model's answer was cut off because it "
-        "reached its output limit before finishing."
-    )
-
-
-def test_an_empty_answer_is_reported_as_such():
-    client = _Client("")
-    result = asyncio.run(SummaryService(client, _settings()).identify_speakers(TRANSCRIPT))
-
-    assert result["message"] == "Could not read speaker suggestions: the model returned an empty answer."
-
-
-def test_inline_reasoning_is_ignored_even_when_it_contains_json():
-    # The reasoning quotes a wrong mapping before the real answer.
-    client = _Client(
-        '<think>Maybe {"SPEAKER_00": "John"}? No, she says she is Ana.</think>\n'
-        '{"SPEAKER_00": "Ana (apoio ao cliente)", "SPEAKER_01": "João Silva"}'
-    )
-    result = asyncio.run(SummaryService(client, _settings()).identify_speakers(TRANSCRIPT))
-
-    assert result == {
-        "status": "success",
-        "suggestions": {"SPEAKER_00": "Ana (apoio ao cliente)", "SPEAKER_01": "João Silva"},
-    }
-
-
-def test_identification_prompt_asks_for_names_from_the_transcript_only():
-    client = _Client('{"SPEAKER_00": "Ana"}')
-    asyncio.run(SummaryService(client, _settings()).identify_speakers(TRANSCRIPT))
-
-    payload = client.payloads[-1]
-    system, user = payload["messages"][0]["content"], payload["messages"][1]["content"]
-    prompts = system + user
-    # No placeholder names for a small model to copy.
-    assert "John" not in prompts and "Sarah" not in prompts
-    assert "Never invent or guess names" in system
-    assert f'"{UNDETERMINED_SPEAKER}"' in system
-    assert f'"SPEAKER_01": "{UNDETERMINED_SPEAKER}"' in user
-    assert payload["max_tokens"] == 2000
 
 
 # --- Summary and translation ---------------------------------------------------
@@ -143,6 +90,32 @@ def test_summary_never_contains_reasoning():
     summary = asyncio.run(SummaryService(client, _settings()).summarize(TRANSCRIPT))
 
     assert summary == "# Resumo\n\nA Ana atendeu o João."
+
+
+def test_an_empty_summary_is_reported_as_such():
+    client = _Client("")
+
+    with pytest.raises(HTTPException) as excinfo:
+        asyncio.run(SummaryService(client, _settings()).summarize(TRANSCRIPT))
+
+    assert excinfo.value.detail == (
+        "Could not generate the summary: the model returned an empty answer."
+    )
+
+
+def test_a_translation_with_inline_reasoning_uses_only_the_answer():
+    # The reasoning quotes a wrong translation before the real answer.
+    client = _Client(
+        '<think>Maybe [{"i": 0, "text": "Bom dia, pá"}]? No.</think>\n'
+        '[{"i": 0, "text": "Bom dia"}]'
+    )
+    result = asyncio.run(
+        SummaryService(client, _settings()).translate_segments(
+            [{"speaker": "A", "text": "Good morning"}]
+        )
+    )
+
+    assert result == [{"speaker": "A", "text": "Bom dia"}]
 
 
 def test_an_empty_summary_is_an_error_not_a_blank_summary():
