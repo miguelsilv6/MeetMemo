@@ -143,3 +143,45 @@ def test_a_translation_cut_off_mid_reasoning_says_so():
         "Could not read the translated transcript: the model's answer was cut off because "
         "it reached its output limit before finishing."
     )
+
+
+# --- Summary wrapped in a code block ---------------------------------------------
+
+FENCED_SUMMARY = """```markdown
+# Resumo da Reunião
+
+**Participantes:**
+- **Yuri**
+- **Restaurante**
+
+1. **Yuri** marcou uma mesa para **nove pessoas**.
+
+```"""
+
+
+def test_a_summary_wrapped_in_a_code_block_is_unwrapped():
+    # What qwen3:1.7b returned, which the UI showed as raw code.
+    client = _Client(FENCED_SUMMARY)
+    summary = asyncio.run(SummaryService(client, _settings()).summarize(TRANSCRIPT))
+
+    assert summary.startswith("# Resumo da Reunião")
+    assert "```" not in summary
+    assert summary.endswith("1. **Yuri** marcou uma mesa para **nove pessoas**.")
+
+
+def test_code_blocks_inside_a_summary_are_kept():
+    answer = "# Resumo\n\nComando referido:\n\n```\nls -la\n```\n\nFim."
+    summary = asyncio.run(SummaryService(_Client(answer), _settings()).summarize(TRANSCRIPT))
+
+    assert summary == answer
+
+
+def test_cached_summaries_from_before_are_unwrapped_when_read(tmp_path):
+    (tmp_path / "job1.txt").write_text(FENCED_SUMMARY, encoding="utf-8")
+    settings = _settings()
+    settings.summary_path = tmp_path
+
+    cached = asyncio.run(SummaryService(_Client(""), settings).get_cached_summary("job1"))
+
+    assert cached.startswith("# Resumo da Reunião")
+    assert "```" not in cached
