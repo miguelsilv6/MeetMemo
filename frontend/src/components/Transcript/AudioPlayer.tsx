@@ -12,6 +12,7 @@ import {
   ZoomOut,
   Keyboard,
   Gauge,
+  Headphones,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../../services/api';
@@ -31,6 +32,8 @@ import {
   zoomViewStart,
 } from '../../utils/playerView';
 import useWaveformPeaks from '../../hooks/useWaveformPeaks';
+import useChannelRouting from '../../hooks/useChannelRouting';
+import type { ChannelMode } from '../../hooks/useChannelRouting';
 import AudioWaveform from './AudioWaveform';
 import type { RangePeaks } from './AudioWaveform';
 
@@ -70,11 +73,23 @@ interface AudioPlayerProps {
   currentSegmentRef?: RefObject<AudioPlayerHandle | null>;
 }
 
+type WaveformLayout = 'combined' | 'split';
+
+/** Height of the sticky page header the pinned player sits under. */
+function measureHeaderHeight(): number {
+  return document.querySelector('.app-header')?.getBoundingClientRect().height ?? 0;
+}
+
+/** Channels drawn faded because only the other one is being heard. */
+const MUTED_CHANNELS: Record<ChannelMode, number[]> = { stereo: [], left: [1], right: [0] };
+
 /**
  * AudioPlayer component with playback controls and progress tracking.
  * Syncs with transcript segments via onTimeUpdate callback. Supports
- * playback speed, waveform zoom (following the playhead) and keyboard
- * shortcuts, which are listed in a panel toggled from the player.
+ * playback speed, waveform zoom (following the playhead), listening to a
+ * single channel, a per-channel waveform and keyboard shortcuts (listed in a
+ * panel toggled from the player). When the player scrolls out of view, a
+ * compact copy of its main controls is pinned to the top of the page.
  */
 export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: AudioPlayerProps) {
   const { t, i18n } = useTranslation();
@@ -92,6 +107,11 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
   const [zoom, setZoom] = useState<number>(1);
   const [viewStart, setViewStart] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [channelMode, setChannelMode] = useState<ChannelMode>('stereo');
+  const [waveformLayout, setWaveformLayout] = useState<WaveformLayout>('combined');
+  const [pinned, setPinned] = useState(false);
+  const [pinnedTop, setPinnedTop] = useState(0);
+  const playerRef = useRef<HTMLDivElement | null>(null);
 
   // Get audio URL
   const audioUrl = jobId ? api.getAudioUrl(jobId) : null;
@@ -103,7 +123,12 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
   // Waveform peaks for the whole track (fetched once metadata gives us the
   // duration); falls back to the plain progress bar below while loading, on
   // error, or if there's nothing to show yet.
-  const { peaks: waveformPeaks } = useWaveformPeaks(jobId, 0, duration, WAVEFORM_BUCKETS);
+  const {
+    peaks: waveformPeaks,
+    channelPeaks: waveformChannelPeaks,
+    channels,
+  } = useWaveformPeaks(jobId, 0, duration, WAVEFORM_BUCKETS, true);
+  const isMultichannel = (channels ?? 1) > 1;
 
   // Detailed peaks for the zoomed view, fetched once the view stops moving.
   const [detailRange, setDetailRange] = useState<{ start: number; end: number } | null>(null);
@@ -114,14 +139,62 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
     );
     return () => clearTimeout(timer);
   }, [isZoomed, viewStart, viewEnd]);
-  const { peaks: detailPeaksList, range: detailPeaksRange } = useWaveformPeaks(
+  const {
+    peaks: detailPeaksList,
+    channelPeaks: detailChannelPeaks,
+    range: detailPeaksRange,
+  } = useWaveformPeaks(
     jobId,
     detailRange?.start ?? 0,
     detailRange?.end ?? 0,
-    WAVEFORM_BUCKETS
+    WAVEFORM_BUCKETS,
+    true
   );
   const detailPeaks: RangePeaks | null =
-    detailPeaksList && detailPeaksRange ? { ...detailPeaksRange, peaks: detailPeaksList } : null;
+    detailPeaksList && detailPeaksRange
+      ? { ...detailPeaksRange, peaks: detailPeaksList, channelPeaks: detailChannelPeaks }
+      : null;
+
+  // Listening to one channel (in both ears) and volume/mute go through the
+  // Web Audio API; a mono recording always plays as it is.
+  const effectiveChannelMode: ChannelMode = isMultichannel ? channelMode : 'stereo';
+  const { supported: channelRoutingSupported } = useChannelRouting(
+    audioRef,
+    effectiveChannelMode,
+    volume,
+    isMuted
+  );
+  const effectiveLayout: WaveformLayout = isMultichannel ? waveformLayout : 'combined';
+
+  // Pin a compact copy of the controls under the page header once the player
+  // has scrolled up out of view (not when it is merely below the fold).
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player || typeof IntersectionObserver === 'undefined') return;
+    const headerHeight = measureHeaderHeight();
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const currentHeaderHeight = measureHeaderHeight();
+        setPinned(!entry.isIntersecting && entry.boundingClientRect.top < currentHeaderHeight);
+      },
+      { rootMargin: `-${Math.round(headerHeight)}px 0px 0px 0px`, threshold: 0 }
+    );
+    observer.observe(player);
+    return () => observer.disconnect();
+  }, [jobId]);
+
+  // Keep the pinned bar right under the header, whose height changes with the
+  // viewport (e.g. its tagline wraps on a phone).
+  useEffect(() => {
+    if (!pinned) return;
+    const update = () => setPinnedTop(measureHeaderHeight());
+    const frame = requestAnimationFrame(update);
+    window.addEventListener('resize', update);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', update);
+    };
+  }, [pinned]);
 
   // Keep the element's speed in sync (defaultPlaybackRate survives a reload of the source).
   useEffect(() => {
@@ -188,11 +261,8 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
 
   // Toggle mute
   const toggleMute = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  }, [isMuted]);
+    setIsMuted((muted) => !muted);
+  }, []);
 
   // Seek to specific time
   const seekTo = useCallback(
@@ -232,10 +302,6 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
   const handleVolumeChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const newVolume = parseFloat(e.target.value);
     setVolume(newVolume);
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume;
-      audioRef.current.muted = newVolume === 0;
-    }
     setIsMuted(newVolume === 0);
   }, []);
 
@@ -350,255 +416,373 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
   }
 
   const keySpace = t('audioPlayer.keySpace');
+  const playTitle = `${isPlaying ? t('audioPlayer.pause') : t('audioPlayer.play')} (${keySpace})`;
+
+  const channelTitle = !isMultichannel
+    ? t('audioPlayer.monoAudioHint')
+    : channelRoutingSupported
+      ? t('audioPlayer.channelHint')
+      : t('audioPlayer.channelUnsupported');
+
+  const renderSpeedSelect = () => (
+    <label
+      className={`audio-speed d-flex align-items-center gap-1 ${
+        playbackRate !== DEFAULT_PLAYBACK_RATE ? 'audio-speed-changed' : ''
+      }`}
+      title={`${t('audioPlayer.playbackSpeed')} (, .)`}
+    >
+      <Gauge size={16} aria-hidden="true" />
+      <select
+        className="form-select form-select-sm audio-speed-select"
+        value={playbackRate}
+        onChange={(e) => changePlaybackRate(Number(e.target.value))}
+        aria-label={t('audioPlayer.playbackSpeed')}
+      >
+        {PLAYBACK_RATES.map((rate) => (
+          <option key={rate} value={rate}>
+            {formatPlaybackRate(rate, i18n.language)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
+  const renderChannelSelect = () => (
+    <label
+      className={`audio-channel d-flex align-items-center gap-1 ${
+        effectiveChannelMode !== 'stereo' ? 'audio-channel-changed' : ''
+      }`}
+      title={channelTitle}
+    >
+      <Headphones size={16} aria-hidden="true" />
+      <select
+        className="form-select form-select-sm audio-channel-select"
+        value={effectiveChannelMode}
+        onChange={(e) => setChannelMode(e.target.value as ChannelMode)}
+        aria-label={t('audioPlayer.channel')}
+        disabled={!isMultichannel || !channelRoutingSupported}
+      >
+        <option value="stereo">
+          {isMultichannel ? t('audioPlayer.channelStereo') : t('audioPlayer.monoAudio')}
+        </option>
+        {isMultichannel && (
+          <>
+            <option value="left">{t('audioPlayer.channelLeft')}</option>
+            <option value="right">{t('audioPlayer.channelRight')}</option>
+          </>
+        )}
+      </select>
+    </label>
+  );
+
+  const renderWaveform = (laneHeight?: number) =>
+    waveformPeaks && (
+      <AudioWaveform
+        peaks={waveformPeaks}
+        channelPeaks={waveformChannelPeaks}
+        layout={effectiveLayout}
+        mutedChannels={MUTED_CHANNELS[effectiveChannelMode]}
+        duration={duration}
+        currentTime={currentTime}
+        onSeek={seekTo}
+        viewStart={isZoomed ? viewStart : 0}
+        viewEnd={isZoomed ? viewEnd : duration}
+        detailPeaks={detailPeaks}
+        onZoom={zoomBy}
+        onPan={panBy}
+        laneHeight={laneHeight}
+      />
+    );
 
   return (
-    <Card className="audio-player-card mb-3">
-      <Card.Body className="p-3">
-        <div className="audio-player">
-          {/* Hidden audio element */}
-          <audio
-            ref={audioRef}
-            src={audioUrl ?? undefined}
-            preload="metadata"
-            onLoadedMetadata={handleLoadedMetadata}
-            onTimeUpdate={handleTimeUpdate}
-            onEnded={handleEnded}
-            onError={handleError}
-            onCanPlay={handleCanPlay}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-          />
-
-          {/* Error display */}
-          {error && <div className="audio-error text-danger small mb-2">{error}</div>}
-
-          {/* Loading state */}
-          {isLoading && !error && (
-            <div className="audio-loading text-muted small mb-2">{t('audioPlayer.loading')}</div>
-          )}
-
-          {/* Progress: waveform when available, falling back to a plain bar */}
-          {waveformPeaks && waveformPeaks.length > 0 ? (
-            <div className="mb-2">
-              <AudioWaveform
-                peaks={waveformPeaks}
-                duration={duration}
-                currentTime={currentTime}
-                onSeek={seekTo}
-                viewStart={isZoomed ? viewStart : 0}
-                viewEnd={isZoomed ? viewEnd : duration}
-                detailPeaks={detailPeaks}
-                onZoom={zoomBy}
-                onPan={panBy}
+    <>
+      <div ref={playerRef}>
+        <Card className="audio-player-card mb-3">
+          <Card.Body className="p-3">
+            <div className="audio-player">
+              {/* Hidden audio element */}
+              <audio
+                ref={audioRef}
+                src={audioUrl ?? undefined}
+                preload="metadata"
+                onLoadedMetadata={handleLoadedMetadata}
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={handleEnded}
+                onError={handleError}
+                onCanPlay={handleCanPlay}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
               />
-              {isZoomed && (
-                <div className="audio-zoom-view d-flex align-items-center gap-2 mt-1">
-                  <small className="text-muted audio-zoom-edge">{formatTime(viewStart)}</small>
+
+              {/* Error display */}
+              {error && <div className="audio-error text-danger small mb-2">{error}</div>}
+
+              {/* Loading state */}
+              {isLoading && !error && (
+                <div className="audio-loading text-muted small mb-2">
+                  {t('audioPlayer.loading')}
+                </div>
+              )}
+
+              {/* Progress: waveform when available, falling back to a plain bar */}
+              {waveformPeaks && waveformPeaks.length > 0 ? (
+                <div className="mb-2">
+                  {renderWaveform()}
+                  {isZoomed && (
+                    <div className="audio-zoom-view d-flex align-items-center gap-2 mt-1">
+                      <small className="text-muted audio-zoom-edge">{formatTime(viewStart)}</small>
+                      <input
+                        type="range"
+                        className="audio-zoom-pan flex-grow-1"
+                        min={0}
+                        max={Math.max(0, duration - span)}
+                        step={span / 100 || 1}
+                        value={viewStart}
+                        onChange={(e) => panBy(Number(e.target.value) - viewStart)}
+                        aria-label={t('audioPlayer.panView')}
+                        title={t('audioPlayer.viewRange', {
+                          start: formatTime(viewStart),
+                          end: formatTime(viewEnd),
+                        })}
+                      />
+                      <small className="text-muted audio-zoom-edge">{formatTime(viewEnd)}</small>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  ref={progressRef}
+                  className="audio-progress-container"
+                  onClick={handleProgressClick}
+                  role="slider"
+                  aria-label={t('audioPlayer.progress')}
+                  aria-valuenow={currentTime}
+                  aria-valuemin={0}
+                  aria-valuemax={duration}
+                  tabIndex={0}
+                >
+                  <div className="audio-progress-bar">
+                    <div
+                      className="audio-progress-fill"
+                      style={{ width: `${progressPercentage}%` }}
+                    />
+                    <div
+                      className="audio-progress-handle"
+                      style={{ left: `${progressPercentage}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Time display */}
+              <div className="audio-time-display d-flex justify-content-between mb-2">
+                <small className="text-muted">{formatTime(currentTime)}</small>
+                <small className="text-muted">{formatTime(duration)}</small>
+              </div>
+
+              {/* Controls */}
+              <div className="audio-controls d-flex align-items-center justify-content-center gap-2">
+                {/* Skip backward */}
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="audio-control-btn p-1"
+                  onClick={skipBackward}
+                  title={t('audioPlayer.skipBack')}
+                  disabled={isLoading}
+                >
+                  <SkipBack size={18} />
+                </Button>
+
+                {/* Play/Pause */}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="audio-play-btn rounded-circle p-2"
+                  onClick={togglePlay}
+                  title={playTitle}
+                  disabled={isLoading || !!error}
+                >
+                  {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                </Button>
+
+                {/* Skip forward */}
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="audio-control-btn p-1"
+                  onClick={skipForward}
+                  title={t('audioPlayer.skipForward')}
+                  disabled={isLoading}
+                >
+                  <SkipForward size={18} />
+                </Button>
+
+                {/* Volume control */}
+                <div className="audio-volume-control d-flex align-items-center ms-3">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="audio-control-btn p-1"
+                    onClick={toggleMute}
+                    title={isMuted ? t('audioPlayer.unmute') : t('audioPlayer.mute')}
+                  >
+                    {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </Button>
                   <input
                     type="range"
-                    className="audio-zoom-pan flex-grow-1"
-                    min={0}
-                    max={Math.max(0, duration - span)}
-                    step={span / 100 || 1}
-                    value={viewStart}
-                    onChange={(e) => panBy(Number(e.target.value) - viewStart)}
-                    aria-label={t('audioPlayer.panView')}
-                    title={t('audioPlayer.viewRange', {
-                      start: formatTime(viewStart),
-                      end: formatTime(viewEnd),
-                    })}
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                    className="audio-volume-slider"
+                    aria-label={t('audioPlayer.volume')}
                   />
-                  <small className="text-muted audio-zoom-edge">{formatTime(viewEnd)}</small>
+                </div>
+              </div>
+
+              {/* Speed, zoom and shortcuts */}
+              <div className="audio-tools d-flex flex-wrap align-items-center justify-content-center gap-3 mt-2">
+                {renderSpeedSelect()}
+                {renderChannelSelect()}
+
+                {isMultichannel && (
+                  <div
+                    className="btn-group btn-group-sm audio-layout-toggle"
+                    role="group"
+                    aria-label={t('audioPlayer.waveformLayout')}
+                  >
+                    <Button
+                      size="sm"
+                      variant={effectiveLayout === 'combined' ? 'primary' : 'outline-primary'}
+                      aria-pressed={effectiveLayout === 'combined'}
+                      onClick={() => setWaveformLayout('combined')}
+                      title={t('audioPlayer.waveformCombinedHint')}
+                    >
+                      {t('audioPlayer.waveformCombined')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={effectiveLayout === 'split' ? 'primary' : 'outline-primary'}
+                      aria-pressed={effectiveLayout === 'split'}
+                      onClick={() => setWaveformLayout('split')}
+                      title={t('audioPlayer.waveformSplitHint')}
+                    >
+                      {t('audioPlayer.waveformSplit')}
+                    </Button>
+                  </div>
+                )}
+
+                <div
+                  className="audio-zoom-controls d-flex align-items-center gap-1"
+                  role="group"
+                  aria-label={t('audioPlayer.zoomGroup')}
+                >
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="audio-control-btn p-1"
+                    onClick={() => zoomBy(-1)}
+                    disabled={zoom <= 1 || duration <= 0}
+                    title={`${t('audioPlayer.zoomOut')} (−)`}
+                  >
+                    <ZoomOut size={18} />
+                  </Button>
+                  <small className="audio-zoom-level text-muted" aria-live="polite">
+                    {t('audioPlayer.zoomLevel', { level: zoom })}
+                  </small>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="audio-control-btn p-1"
+                    onClick={() => zoomBy(1)}
+                    disabled={zoom >= MAX_ZOOM || duration <= 0}
+                    title={`${t('audioPlayer.zoomIn')} (+)`}
+                  >
+                    <ZoomIn size={18} />
+                  </Button>
+                </div>
+
+                <Button
+                  variant="link"
+                  size="sm"
+                  className={`audio-control-btn p-1 ${showShortcuts ? 'active' : ''}`}
+                  onClick={() => setShowShortcuts((shown) => !shown)}
+                  aria-expanded={showShortcuts}
+                  aria-controls="audio-shortcuts"
+                  title={t('audioPlayer.shortcuts')}
+                >
+                  <Keyboard size={18} />
+                </Button>
+              </div>
+
+              {showShortcuts && (
+                <div id="audio-shortcuts" className="audio-shortcuts mt-2">
+                  <h6 className="audio-shortcuts-title">{t('audioPlayer.shortcuts')}</h6>
+                  <dl className="mb-1">
+                    <dt>
+                      <kbd>{keySpace}</kbd>
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutPlayPause')}</dd>
+                    <dt>
+                      <kbd>←</kbd> <kbd>→</kbd>
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutSeek', { seconds: ARROW_SEEK_SECONDS })}</dd>
+                    <dt>
+                      <kbd>,</kbd> <kbd>.</kbd>
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutSpeed')}</dd>
+                    <dt>
+                      <kbd>−</kbd> <kbd>+</kbd>
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutZoom')}</dd>
+                    <dt>
+                      <kbd>Ctrl</kbd> + {t('audioPlayer.mouseWheel')}
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutWheelZoom')}</dd>
+                    <dt>
+                      <kbd>Shift</kbd> + {t('audioPlayer.mouseWheel')}
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutWheelPan')}</dd>
+                  </dl>
+                  <small className="text-muted">{t('audioPlayer.shortcutsNote')}</small>
                 </div>
               )}
             </div>
-          ) : (
-            <div
-              ref={progressRef}
-              className="audio-progress-container"
-              onClick={handleProgressClick}
-              role="slider"
-              aria-label={t('audioPlayer.progress')}
-              aria-valuenow={currentTime}
-              aria-valuemin={0}
-              aria-valuemax={duration}
-              tabIndex={0}
-            >
-              <div className="audio-progress-bar">
-                <div className="audio-progress-fill" style={{ width: `${progressPercentage}%` }} />
-                <div className="audio-progress-handle" style={{ left: `${progressPercentage}%` }} />
-              </div>
-            </div>
-          )}
+          </Card.Body>
+        </Card>
+      </div>
 
-          {/* Time display */}
-          <div className="audio-time-display d-flex justify-content-between mb-2">
-            <small className="text-muted">{formatTime(currentTime)}</small>
-            <small className="text-muted">{formatTime(duration)}</small>
-          </div>
-
-          {/* Controls */}
-          <div className="audio-controls d-flex align-items-center justify-content-center gap-2">
-            {/* Skip backward */}
-            <Button
-              variant="link"
-              size="sm"
-              className="audio-control-btn p-1"
-              onClick={skipBackward}
-              title={t('audioPlayer.skipBack')}
-              disabled={isLoading}
-            >
-              <SkipBack size={18} />
-            </Button>
-
-            {/* Play/Pause */}
+      {pinned && (
+        <div
+          className="audio-player-pinned"
+          style={{ top: pinnedTop }}
+          role="region"
+          aria-label={t('audioPlayer.pinnedPlayer')}
+        >
+          <div className="container d-flex flex-wrap align-items-center gap-2">
             <Button
               variant="primary"
               size="sm"
-              className="audio-play-btn rounded-circle p-2"
+              className="audio-play-btn audio-play-btn-sm rounded-circle p-1"
               onClick={togglePlay}
-              title={`${isPlaying ? t('audioPlayer.pause') : t('audioPlayer.play')} (${keySpace})`}
+              title={playTitle}
               disabled={isLoading || !!error}
             >
-              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
             </Button>
-
-            {/* Skip forward */}
-            <Button
-              variant="link"
-              size="sm"
-              className="audio-control-btn p-1"
-              onClick={skipForward}
-              title={t('audioPlayer.skipForward')}
-              disabled={isLoading}
-            >
-              <SkipForward size={18} />
-            </Button>
-
-            {/* Volume control */}
-            <div className="audio-volume-control d-flex align-items-center ms-3">
-              <Button
-                variant="link"
-                size="sm"
-                className="audio-control-btn p-1"
-                onClick={toggleMute}
-                title={isMuted ? t('audioPlayer.unmute') : t('audioPlayer.mute')}
-              >
-                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </Button>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                className="audio-volume-slider"
-                aria-label={t('audioPlayer.volume')}
-              />
+            <small className="audio-pinned-time text-muted">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </small>
+            <div className="audio-pinned-waveform flex-grow-1">
+              {renderWaveform(effectiveLayout === 'split' ? 22 : 32)}
             </div>
+            {renderSpeedSelect()}
+            {renderChannelSelect()}
           </div>
-
-          {/* Speed, zoom and shortcuts */}
-          <div className="audio-tools d-flex flex-wrap align-items-center justify-content-center gap-3 mt-2">
-            <label
-              className={`audio-speed d-flex align-items-center gap-1 ${
-                playbackRate !== DEFAULT_PLAYBACK_RATE ? 'audio-speed-changed' : ''
-              }`}
-              title={`${t('audioPlayer.playbackSpeed')} (, .)`}
-            >
-              <Gauge size={16} aria-hidden="true" />
-              <select
-                className="form-select form-select-sm audio-speed-select"
-                value={playbackRate}
-                onChange={(e) => changePlaybackRate(Number(e.target.value))}
-                aria-label={t('audioPlayer.playbackSpeed')}
-              >
-                {PLAYBACK_RATES.map((rate) => (
-                  <option key={rate} value={rate}>
-                    {formatPlaybackRate(rate, i18n.language)}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div
-              className="audio-zoom-controls d-flex align-items-center gap-1"
-              role="group"
-              aria-label={t('audioPlayer.zoomGroup')}
-            >
-              <Button
-                variant="link"
-                size="sm"
-                className="audio-control-btn p-1"
-                onClick={() => zoomBy(-1)}
-                disabled={zoom <= 1 || duration <= 0}
-                title={`${t('audioPlayer.zoomOut')} (−)`}
-              >
-                <ZoomOut size={18} />
-              </Button>
-              <small className="audio-zoom-level text-muted" aria-live="polite">
-                {t('audioPlayer.zoomLevel', { level: zoom })}
-              </small>
-              <Button
-                variant="link"
-                size="sm"
-                className="audio-control-btn p-1"
-                onClick={() => zoomBy(1)}
-                disabled={zoom >= MAX_ZOOM || duration <= 0}
-                title={`${t('audioPlayer.zoomIn')} (+)`}
-              >
-                <ZoomIn size={18} />
-              </Button>
-            </div>
-
-            <Button
-              variant="link"
-              size="sm"
-              className={`audio-control-btn p-1 ${showShortcuts ? 'active' : ''}`}
-              onClick={() => setShowShortcuts((shown) => !shown)}
-              aria-expanded={showShortcuts}
-              aria-controls="audio-shortcuts"
-              title={t('audioPlayer.shortcuts')}
-            >
-              <Keyboard size={18} />
-            </Button>
-          </div>
-
-          {showShortcuts && (
-            <div id="audio-shortcuts" className="audio-shortcuts mt-2">
-              <h6 className="audio-shortcuts-title">{t('audioPlayer.shortcuts')}</h6>
-              <dl className="mb-1">
-                <dt>
-                  <kbd>{keySpace}</kbd>
-                </dt>
-                <dd>{t('audioPlayer.shortcutPlayPause')}</dd>
-                <dt>
-                  <kbd>←</kbd> <kbd>→</kbd>
-                </dt>
-                <dd>{t('audioPlayer.shortcutSeek', { seconds: ARROW_SEEK_SECONDS })}</dd>
-                <dt>
-                  <kbd>,</kbd> <kbd>.</kbd>
-                </dt>
-                <dd>{t('audioPlayer.shortcutSpeed')}</dd>
-                <dt>
-                  <kbd>−</kbd> <kbd>+</kbd>
-                </dt>
-                <dd>{t('audioPlayer.shortcutZoom')}</dd>
-                <dt>
-                  <kbd>Ctrl</kbd> + {t('audioPlayer.mouseWheel')}
-                </dt>
-                <dd>{t('audioPlayer.shortcutWheelZoom')}</dd>
-                <dt>
-                  <kbd>Shift</kbd> + {t('audioPlayer.mouseWheel')}
-                </dt>
-                <dd>{t('audioPlayer.shortcutWheelPan')}</dd>
-              </dl>
-              <small className="text-muted">{t('audioPlayer.shortcutsNote')}</small>
-            </div>
-          )}
         </div>
-      </Card.Body>
-    </Card>
+      )}
+    </>
   );
 }

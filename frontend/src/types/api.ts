@@ -54,7 +54,12 @@ export interface WaveformPeak {
 }
 
 export interface WaveformResponse {
+  /** Downmixed (mono) envelope. */
   peaks: WaveformPeak[];
+  /** Number of channels in the recording. */
+  channels?: number;
+  /** One envelope per channel (left first), when requested with splitChannels. */
+  channel_peaks?: WaveformPeak[][];
 }
 
 /** Response returned when uploading audio / creating a job. */

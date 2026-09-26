@@ -16,7 +16,7 @@ from dependencies import get_job_repository
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from repositories.job_repository import JobRepository
-from utils.waveform import compute_waveform_peaks
+from utils.waveform import compute_waveform
 
 logger = logging.getLogger(__name__)
 
@@ -231,24 +231,28 @@ async def get_waveform(
     start: float = Query(..., ge=0),
     end: float = Query(..., ge=0),
     buckets: int = Query(100, ge=1, le=2000),
+    split_channels: bool = Query(False),
     job_repo: JobRepository = Depends(get_job_repository),
     settings: Settings = Depends(get_settings)
 ):
     """
     Compute a downsampled waveform peak envelope for a time range of a job's
-    audio, for rendering a scrubber (e.g. picking a precise split point in
-    the transcript editor) without shipping raw audio to the client.
+    audio, for rendering the player's waveform or a scrubber (e.g. picking a
+    precise split point in the transcript editor) without shipping raw audio
+    to the client.
 
     Args:
         uuid: Job UUID
         start: Range start in seconds
         end: Range end in seconds
-        buckets: Number of min/max peak pairs to return
+        buckets: Number of min/max peak pairs to return (per envelope)
+        split_channels: Also return one envelope per channel
         job_repo: Job repository dependency
         settings: Application settings dependency
 
     Returns:
-        {"peaks": [{"min": float, "max": float}, ...]}
+        {"channels": int, "peaks": [{"min": float, "max": float}, ...]}, plus
+        "channel_peaks" (one list per channel, left first) with split_channels
 
     Raises:
         HTTPException: 404 if job or audio file not found, 400 if the range
@@ -261,8 +265,8 @@ async def get_waveform(
 
     try:
         loop = asyncio.get_event_loop()
-        peaks = await loop.run_in_executor(
-            None, compute_waveform_peaks, file_path, start, end, buckets
+        waveform = await loop.run_in_executor(
+            None, compute_waveform, file_path, start, end, buckets, split_channels
         )
     except Exception as e:
         logger.error("Error computing waveform for job %s: %s", uuid, e, exc_info=True)
@@ -271,4 +275,4 @@ async def get_waveform(
             detail="Internal server error while computing waveform"
         ) from e
 
-    return {"peaks": peaks}
+    return waveform

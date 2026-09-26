@@ -156,6 +156,34 @@ curl -H "Range: bytes=0-1000000" http://localhost/api/v1/jobs/{uuid}/audio
 - FLAC (`audio/flac`)
 - OGG (`audio/ogg`)
 
+### GET /jobs/{uuid}/waveform
+
+Downsampled min/max peak envelope of a time range, for drawing the player's
+waveform and the split-segment scrubber.
+
+**Query parameters:** `start`, `end` (seconds), `buckets` (1-2000, default
+100), `split_channels` (default `false`).
+
+**Response:**
+```json
+{
+  "channels": 2,
+  "peaks": [{"min": -0.42, "max": 0.45}],
+  "channel_peaks": [
+    [{"min": -0.81, "max": 0.83}],
+    [{"min": -0.02, "max": 0.02}]
+  ]
+}
+```
+
+`peaks` is always the downmixed envelope; `channel_peaks` (one list per
+channel, left first) is only present with `split_channels=true`.
+
+> The stored recording keeps its original channels and sample rate (a
+> non-WAV upload is converted to WAV without downmixing or resampling), so
+> each channel can be heard and inspected on its own. Transcription and
+> diarization use a separate 16 kHz mono copy.
+
 ## Transcript
 
 ### GET /jobs/{uuid}/transcript

@@ -24,7 +24,7 @@ describe('useWaveformPeaks', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 10, 12, 50);
+    expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 10, 12, 50, false);
     expect(result.current.peaks).toEqual([
       { min: -0.5, max: 0.5 },
       { min: -0.2, max: 0.3 },
@@ -70,6 +70,23 @@ describe('useWaveformPeaks', () => {
     rerender({ start: 2, end: 4 });
 
     await waitFor(() => expect(api.getWaveformPeaks).toHaveBeenCalledTimes(2));
-    expect(api.getWaveformPeaks).toHaveBeenLastCalledWith('job1', 2, 4, 100);
+    expect(api.getWaveformPeaks).toHaveBeenLastCalledWith('job1', 2, 4, 100, false);
+  });
+
+  it('returns one envelope per channel and the channel count when asked', async () => {
+    const left = [{ min: -0.8, max: 0.8 }];
+    const right = [{ min: 0, max: 0 }];
+    vi.mocked(api.getWaveformPeaks).mockResolvedValue({
+      peaks: [{ min: -0.4, max: 0.4 }],
+      channels: 2,
+      channel_peaks: [left, right],
+    });
+
+    const { result } = renderHook(() => useWaveformPeaks('job1', 0, 5, 1, true));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 0, 5, 1, true);
+    expect(result.current.channels).toBe(2);
+    expect(result.current.channelPeaks).toEqual([left, right]);
   });
 });

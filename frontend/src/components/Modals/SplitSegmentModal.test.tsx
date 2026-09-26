@@ -22,6 +22,8 @@ const DEFAULT_RATIO = 11 / 18;
 beforeEach(() => {
   vi.mocked(useWaveformPeaks).mockReturnValue({
     peaks: null,
+    channelPeaks: null,
+    channels: null,
     range: null,
     loading: false,
     error: null,
@@ -150,6 +152,8 @@ describe('SplitSegmentModal', () => {
         { min: -0.2, max: 0.2 },
         { min: -0.4, max: 0.4 },
       ],
+      channelPeaks: null,
+      channels: 1,
       range: { start: 0, end: 1 },
       loading: false,
       error: null,

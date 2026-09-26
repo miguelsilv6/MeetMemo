@@ -122,4 +122,44 @@ describe('AudioWaveform', () => {
       expect(scroll.defaultPrevented).toBe(false);
     });
   });
+
+  describe('channels', () => {
+    const left = Array.from({ length: 20 }, () => ({ min: -0.8, max: 0.8 }));
+    const right = Array.from({ length: 20 }, () => ({ min: 0, max: 0 }));
+
+    it('draws one lane per channel in the split layout', () => {
+      renderWaveform({ channelPeaks: [left, right], layout: 'split' });
+      const canvas = screen.getByRole('slider');
+
+      expect(canvas).toHaveAttribute('data-lanes', '2');
+      expect(canvas).toHaveClass('audio-waveform-split');
+      // Two 40px lanes and the gap between them.
+      expect(canvas).toHaveAttribute('height', '86');
+      expect(canvas.style.height).toBe('86px');
+    });
+
+    it('labels the left and right lanes', () => {
+      const { container } = renderWaveform({ channelPeaks: [left, right], layout: 'split' });
+      const labels = [...container.querySelectorAll('.audio-waveform-lane-label')];
+
+      expect(labels.map((label) => label.textContent)).toEqual(['L', 'R']);
+      expect(labels.map((label) => (label as HTMLElement).style.top)).toEqual(['0px', '46px']);
+    });
+
+    it('draws the mixed envelope in the combined layout', () => {
+      renderWaveform({ channelPeaks: [left, right], layout: 'combined' });
+      expect(screen.getByRole('slider')).toHaveAttribute('data-lanes', '1');
+    });
+
+    it('falls back to one lane for a mono recording', () => {
+      renderWaveform({ channelPeaks: [left], layout: 'split' });
+      expect(screen.getByRole('slider')).toHaveAttribute('data-lanes', '1');
+    });
+
+    it('seeks from either lane by horizontal position', () => {
+      const { props } = renderWaveform({ channelPeaks: [left, right], layout: 'split' });
+      fireEvent.pointerDown(screen.getByRole('slider'), { clientX: 200, pointerId: 1 });
+      expect(props.onSeek).toHaveBeenCalledWith(25);
+    });
+  });
 });
