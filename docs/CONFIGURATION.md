@@ -191,6 +191,16 @@ Adjust LLM timeout in `backend/config.py`:
 llm_timeout: float = 60.0  # 60 seconds
 ```
 
+### Reasoning ("thinking") models
+
+Models such as **Qwen3** reason before answering. With a small model on CPU
+that reasoning can use the whole output budget and leave the answer empty
+(Ollama returns it separately, as `reasoning`, with `finish_reason: "length"`).
+For any model whose name contains `qwen3`, MeetMemo appends Qwen3's `/no_think`
+switch to summary, translation and speaker-identification requests, which also
+makes them several times faster. Reasoning left inline as `<think>…</think>`
+by any model is removed before the answer is used.
+
 ## Port Configuration
 
 ### Using Environment Variables (Recommended)

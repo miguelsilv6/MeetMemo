@@ -6,6 +6,7 @@ and summary caching.
 """
 import json
 import logging
+import re
 from typing import Optional
 
 import aiofiles
@@ -29,6 +30,10 @@ EUROPEAN_PORTUGUESE_RULE = (
     "\"estou a fazer\" (e não \"estou fazendo\"), \"tu fazes\" ou \"o senhor faz\" "
     "(e não \"você faz\" como tratamento genérico)."
 )
+
+# Suggestion used for a speaker the model cannot identify; the edit-speakers
+# dialog recognises this exact text and offers only to dismiss it.
+UNDETERMINED_SPEAKER = "Cannot be determined"
 
 # Final reminder placed after the transcript: small models weigh the end of
 # the prompt heavily, and a long transcript can push the system prompt out of
@@ -173,6 +178,42 @@ def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     return None
 
 
+# Qwen3's documented soft switch that turns off its "thinking" phase for one
+# request. Left on, a small Qwen3 can spend its whole token budget reasoning
+# (Ollama returns that separately, as `reasoning`) and answer with nothing.
+QWEN3_NO_THINK = "/no_think"
+
+# Reasoning some servers leave inline in the answer; an unclosed block (the
+# answer was cut off mid-thought) runs to the end.
+_THINK_BLOCK = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL | re.IGNORECASE)
+
+
+def _without_thinking(model_name: str, user_prompt: str) -> str:
+    """Appends Qwen3's no-think switch to the user prompt for Qwen3 models."""
+    if "qwen3" in (model_name or "").lower():
+        return f"{user_prompt}\n\n{QWEN3_NO_THINK}"
+    return user_prompt
+
+
+def _read_completion(data: dict) -> tuple[str, Optional[str]]:
+    """The answer text (reasoning removed) and finish reason of a chat completion."""
+    choice = data["choices"][0]
+    content = choice.get("message", {}).get("content") or ""
+    return _THINK_BLOCK.sub("", content).strip(), choice.get("finish_reason")
+
+
+def _unusable_answer_reason(content: str, finish_reason: Optional[str]) -> str:
+    """Why a model answer could not be used, in words a user can act on."""
+    if finish_reason == "length":
+        return (
+            "the model's answer was cut off because it reached its output limit "
+            "before finishing"
+        )
+    if not content:
+        return "the model returned an empty answer"
+    return "the model's answer was not in the expected format"
+
+
 def _describe_llm_error(error: Exception, timeout: float) -> str:
     """
     Turn an LLM request failure into a message a user can act on.
@@ -277,6 +318,7 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
         else:
             final_user_prompt = default_user_prompt + transcript
         final_user_prompt += f"\n\n{EUROPEAN_PORTUGUESE_REMINDER}"
+        final_user_prompt = _without_thinking(model_name, final_user_prompt)
 
         payload = {
             "model": model_name,
@@ -300,8 +342,13 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 timeout=self.settings.llm_timeout
             )
             response.raise_for_status()
-            data = response.json()
-            summary = data["choices"][0]["message"]["content"].strip()
+            summary, finish_reason = _read_completion(response.json())
+            if not summary:
+                reason = _unusable_answer_reason(summary, finish_reason)
+                logger.error("Summary unusable (finish_reason=%s): %s", finish_reason, reason)
+                raise HTTPException(
+                    status_code=502, detail=f"Could not generate the summary: {reason}."
+                )
             return summary
 
         except httpx.HTTPError as e:
@@ -334,24 +381,34 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         model_name = self.settings.llm_model_name
 
+        # The names in the example are placeholders a small model tends to
+        # copy, so the prompt insists on names taken from the transcript and
+        # on UNDETERMINED_SPEAKER (which the UI recognises) otherwise.
         system_prompt = (
-            "You are a helpful assistant that identifies speakers in meeting transcripts. "
-            "Based on the conversation content, suggest likely names or roles for each speaker. "
-            "Return ONLY a JSON object mapping speaker labels to suggested names."
+            "You identify who is speaking in a meeting or phone call transcript. "
+            "Use only names or roles that the transcript states or clearly implies, "
+            "for example someone introducing themselves or being addressed by name. "
+            "Never invent or guess names, and never copy names from the example. "
+            f'If a speaker cannot be identified, use exactly "{UNDETERMINED_SPEAKER}". '
+            "Write roles in European Portuguese. "
+            "Return ONLY a JSON object mapping every speaker label to a name."
         )
 
         context_text = f"\nContext: {context}\n\n" if context else "\n\n"
-        user_prompt = (
-            "Analyze this transcript and suggest names or roles for each speaker. "
+        user_prompt = _without_thinking(
+            model_name,
+            "Identify each speaker in this transcript. "
             f"{context_text}Transcript:\n{transcript}\n\n"
-            "Return a JSON object like: "
-            '{\"SPEAKER_00\": \"John (CEO)\", \"SPEAKER_01\": \"Sarah (CTO)\"}'
+            "Return a JSON object shaped like: "
+            '{"SPEAKER_00": "<Nome> (<papel>)", '
+            f'"SPEAKER_01": "{UNDETERMINED_SPEAKER}"}}',
         )
 
         payload = {
             "model": model_name,
             "temperature": 0.2,
-            "max_tokens": 500,
+            # Room for models that still reason before answering.
+            "max_tokens": 2000,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -376,18 +433,20 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 timeout=self.settings.llm_timeout
             )
             response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
+            content, finish_reason = _read_completion(response.json())
 
             suggestions = _extract_speaker_mapping(content)
             if suggestions is None:
+                reason = _unusable_answer_reason(content, finish_reason)
+                # The answer quotes the conversation, so it is only logged at debug level.
                 logger.error(
-                    "Speaker identification could not parse a speaker mapping from LLM output"
+                    "Speaker identification unusable (finish_reason=%s, %d chars): %s",
+                    finish_reason, len(content), reason
                 )
                 logger.debug("Unparseable speaker-identification content: %r", content)
                 return {
                     "status": "error",
-                    "message": "Could not parse speaker suggestions from the model response."
+                    "message": f"Could not read speaker suggestions: {reason}."
                 }
             return {"status": "success", "suggestions": suggestions}
 
@@ -438,7 +497,9 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
             f"{EUROPEAN_PORTUGUESE_RULE}"
         )
         numbered_segments = [{"i": i, "text": text} for i, text in enumerate(texts)]
-        user_prompt = json.dumps(numbered_segments, ensure_ascii=False)
+        user_prompt = _without_thinking(
+            model_name, json.dumps(numbered_segments, ensure_ascii=False)
+        )
 
         payload = {
             "model": model_name,
@@ -462,18 +523,19 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
                 timeout=self.settings.llm_timeout
             )
             response.raise_for_status()
-            data = response.json()
-            content = data["choices"][0]["message"]["content"].strip()
+            content, finish_reason = _read_completion(response.json())
 
             translated_texts = _extract_translated_texts(content, len(texts))
             if translated_texts is None:
+                reason = _unusable_answer_reason(content, finish_reason)
                 logger.error(
-                    "Translation could not parse a complete segment list from LLM output"
+                    "Translation unusable (finish_reason=%s, %d chars): %s",
+                    finish_reason, len(content), reason
                 )
                 logger.debug("Unparseable translation content: %r", content)
                 raise HTTPException(
                     status_code=502,
-                    detail="Could not parse the translated transcript from the model response."
+                    detail=f"Could not read the translated transcript: {reason}."
                 )
 
             return [
