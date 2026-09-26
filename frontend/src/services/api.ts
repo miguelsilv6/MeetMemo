@@ -189,18 +189,21 @@ export async function getTranscript(uuid: string): Promise<Transcript> {
   return await apiCall<Transcript>(`/jobs/${uuid}/transcripts`);
 }
 
-// Get downsampled waveform peaks for a time range, for the split-segment scrubber
+// Get downsampled waveform peaks for a time range (optionally one envelope per
+// channel), for the audio player and the split-segment scrubber
 export async function getWaveformPeaks(
   uuid: string,
   start: number,
   end: number,
-  buckets = 100
+  buckets = 100,
+  splitChannels = false
 ): Promise<WaveformResponse> {
   const params = new URLSearchParams({
     start: String(start),
     end: String(end),
     buckets: String(buckets),
   });
+  if (splitChannels) params.set('split_channels', 'true');
   return await apiCall<WaveformResponse>(`/jobs/${uuid}/waveform?${params}`);
 }
 

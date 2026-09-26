@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import AudioPlayer from './AudioPlayer';
 import * as api from '../../services/api';
 
@@ -174,7 +174,9 @@ describe('AudioPlayer speed, zoom and shortcuts', () => {
     expect(screen.getByText('Zoom 2×')).toBeInTheDocument();
     expect(screen.getByLabelText('Move the zoomed waveform')).toBeInTheDocument();
     expect(screen.getByTitle('Showing 0:00 – 1:00')).toBeInTheDocument();
-    await waitFor(() => expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 0, 60, 300));
+    await waitFor(() =>
+      expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 0, 60, 300, true)
+    );
 
     fireEvent.click(screen.getByTitle('Zoom out of the waveform (−)'));
     expect(screen.getByText('Zoom 1×')).toBeInTheDocument();
@@ -270,5 +272,139 @@ describe('AudioPlayer speed, zoom and shortcuts', () => {
   it('shows the Space shortcut in the play button tooltip', async () => {
     await renderLoaded();
     expect(screen.getByTitle('Play (Space)')).toBeInTheDocument();
+  });
+});
+
+describe('AudioPlayer channels and pinning', () => {
+  const PEAKS = [
+    { min: -0.5, max: 0.5 },
+    { min: -0.2, max: 0.3 },
+  ];
+
+  class FakeNode {
+    connect = vi.fn();
+    disconnect = vi.fn();
+  }
+  let audioContexts: number;
+
+  class FakeAudioContext {
+    state = 'running';
+    destination = new FakeNode();
+    constructor() {
+      audioContexts += 1;
+    }
+    createMediaElementSource = () => new FakeNode();
+    createChannelSplitter = () => new FakeNode();
+    createChannelMerger = () => new FakeNode();
+    createGain = () => Object.assign(new FakeNode(), { gain: { value: 1 } });
+    resume = vi.fn();
+    close = vi.fn(async () => {});
+  }
+
+  type ObserverCallback = (entries: Partial<IntersectionObserverEntry>[]) => void;
+  let observerCallback: ObserverCallback | null;
+
+  beforeEach(() => {
+    audioContexts = 0;
+    observerCallback = null;
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: ObserverCallback) {
+          observerCallback = callback;
+        }
+        observe() {}
+        disconnect() {}
+      }
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  async function renderWithChannels(channels: number) {
+    vi.mocked(api.getWaveformPeaks).mockResolvedValue({
+      peaks: PEAKS,
+      channels,
+      channel_peaks: Array.from({ length: channels }, () => PEAKS),
+    });
+    const view = render(<AudioPlayer jobId="job1" />);
+    setDuration(view.container, 120);
+    await waitFor(() =>
+      expect(view.container.querySelector('canvas.audio-waveform')).toBeInTheDocument()
+    );
+    return view;
+  }
+
+  it('offers no channel choice for a mono recording', async () => {
+    await renderWithChannels(1);
+
+    const select = screen.getByLabelText('Channel to hear');
+    expect(select).toBeDisabled();
+    expect(select).toHaveDisplayValue('Mono audio');
+    expect(screen.queryByRole('group', { name: 'Waveform layout' })).not.toBeInTheDocument();
+  });
+
+  it('plays only the chosen channel of a stereo recording', async () => {
+    await renderWithChannels(2);
+    const select = screen.getByLabelText('Channel to hear');
+    expect(select).toBeEnabled();
+    expect(audioContexts).toBe(0);
+
+    fireEvent.change(select, { target: { value: 'left' } });
+
+    expect(audioContexts).toBe(1);
+    expect(select).toHaveValue('left');
+    expect(select.closest('.audio-channel')).toHaveClass('audio-channel-changed');
+  });
+
+  it('shows each channel in its own lane on request', async () => {
+    const { container } = await renderWithChannels(2);
+    const canvas = () => container.querySelector('canvas.audio-waveform') as HTMLElement;
+    expect(canvas()).toHaveAttribute('data-lanes', '1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Separate channels' }));
+    expect(canvas()).toHaveAttribute('data-lanes', '2');
+    expect(screen.getByRole('button', { name: 'Separate channels' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Combined' }));
+    expect(canvas()).toHaveAttribute('data-lanes', '1');
+  });
+
+  it('pins a compact player once it scrolls up out of view', async () => {
+    await renderWithChannels(2);
+    expect(screen.queryByRole('region', { name: 'Audio player (pinned)' })).not.toBeInTheDocument();
+
+    // Scrolled past: above the viewport.
+    act(() =>
+      observerCallback?.([{ isIntersecting: false, boundingClientRect: { top: -300 } as DOMRect }])
+    );
+    const pinned = screen.getByRole('region', { name: 'Audio player (pinned)' });
+    expect(within(pinned).getByTitle('Play (Space)')).toBeInTheDocument();
+    expect(within(pinned).getByLabelText('Playback speed')).toBeInTheDocument();
+    expect(within(pinned).getByLabelText('Channel to hear')).toBeInTheDocument();
+    expect(pinned.querySelector('canvas.audio-waveform')).toBeInTheDocument();
+
+    // Back in view.
+    act(() =>
+      observerCallback?.([{ isIntersecting: true, boundingClientRect: { top: 80 } as DOMRect }])
+    );
+    expect(screen.queryByRole('region', { name: 'Audio player (pinned)' })).not.toBeInTheDocument();
+  });
+
+  it('does not pin a player that is only below the fold', async () => {
+    await renderWithChannels(2);
+
+    act(() =>
+      observerCallback?.([{ isIntersecting: false, boundingClientRect: { top: 1200 } as DOMRect }])
+    );
+
+    expect(screen.queryByRole('region', { name: 'Audio player (pinned)' })).not.toBeInTheDocument();
   });
 });

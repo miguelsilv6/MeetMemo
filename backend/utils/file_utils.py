@@ -70,20 +70,22 @@ def calculate_file_hash(chunks: list[bytes]) -> str:
     return sha256_hash.hexdigest()
 
 
-def convert_to_wav(input_path: str, output_path: str, sample_rate: int = 16000) -> None:
+def convert_to_wav(input_path: str, output_path: str) -> None:
     """
-    Convert audio file to WAV format.
+    Convert an audio file to WAV, keeping its channels and sample rate.
+
+    The WAV is the recording users listen to and inspect (per channel, too),
+    so nothing is downmixed or resampled here. Transcription and diarization
+    work on a separate 16 kHz mono derivative (see ``utils.asr_audio``).
 
     Args:
         input_path: Path to input audio file
         output_path: Path to output WAV file
-        sample_rate: Target sample rate in Hz (default: 16000)
 
     Example:
-        >>> convert_to_wav("/tmp/audio.mp3", "/tmp/audio.wav")
+        >>> convert_to_wav("/tmp/call.mp3", "/tmp/call.wav")
     """
     audio = AudioSegment.from_file(input_path)
-    audio = audio.set_frame_rate(sample_rate).set_channels(1)
     audio.export(output_path, format="wav")
 
 

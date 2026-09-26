@@ -96,15 +96,13 @@ class AudioService:
         self,
         input_filename: str,
         output_filename: str,
-        sample_rate: int = 16000
     ) -> None:
         """
-        Convert audio file to WAV format (async wrapper).
+        Convert audio file to WAV, keeping its channels and sample rate (async wrapper).
 
         Args:
             input_filename: Input audio filename in upload directory
             output_filename: Output WAV filename in upload directory
-            sample_rate: Target sample rate in Hz (default: 16000)
 
         Raises:
             Exception: If conversion fails
@@ -114,7 +112,7 @@ class AudioService:
 
         # Run conversion in thread pool to avoid blocking event loop
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, convert_to_wav, input_path, output_path, sample_rate)
+        await loop.run_in_executor(None, convert_to_wav, input_path, output_path)
 
     async def ensure_asr_audio(
         self,
