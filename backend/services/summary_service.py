@@ -10,6 +10,7 @@ import re
 from typing import Optional
 
 import aiofiles
+import aiofiles.os
 import httpx
 from config import Settings
 from fastapi import HTTPException
@@ -118,6 +119,17 @@ QWEN3_NO_THINK = "/no_think"
 # Reasoning some servers leave inline in the answer; an unclosed block (the
 # answer was cut off mid-thought) runs to the end.
 _THINK_BLOCK = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL | re.IGNORECASE)
+
+
+# A whole answer wrapped in one fenced code block (```markdown ... ```), which
+# models produce despite being asked not to; the UI would show it as raw code.
+_WHOLE_ANSWER_FENCE = re.compile(r"\A\s*```[\w-]*[ \t]*\n(.*?)\n?[ \t]*```\s*\Z", re.DOTALL)
+
+
+def _unwrap_code_fence(text: str) -> str:
+    """Returns the content of an answer that is entirely one fenced code block."""
+    match = _WHOLE_ANSWER_FENCE.match(text)
+    return match.group(1).strip() if match else text
 
 
 def _without_thinking(model_name: str, user_prompt: str) -> str:
@@ -275,6 +287,7 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
             )
             response.raise_for_status()
             summary, finish_reason = _read_completion(response.json())
+            summary = _unwrap_code_fence(summary)
             if not summary:
                 reason = _unusable_answer_reason(summary, finish_reason)
                 logger.error("Summary unusable (finish_reason=%s): %s", finish_reason, reason)
@@ -398,7 +411,8 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
 
         if await aiofiles.os.path.exists(str(summary_path)):
             async with aiofiles.open(summary_path, "r", encoding="utf-8") as f:
-                return await f.read()
+                # Summaries cached before fences were removed display correctly too.
+                return _unwrap_code_fence(await f.read())
 
         return None
 
