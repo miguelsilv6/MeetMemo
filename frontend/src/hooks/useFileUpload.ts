@@ -3,6 +3,7 @@ import type { ChangeEvent, DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
+import { exceedsUploadLimit, sizeInMb } from '../utils/uploadLimit';
 import type { SelectedFile } from '../types/api';
 import type {
   SetCurrentStep,
@@ -42,12 +43,22 @@ export default function useFileUpload(
   const applyDefaultLanguage = useCallback((language: string | null) => {
     if (!languageChosenByUser.current) setSelectedLanguage(language);
   }, []);
+  // Largest file accepted, in MB (set in the admin panel); null until known.
+  const [maxUploadMb, setMaxUploadMb] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Refuse a file over the limit here rather than after uploading it.
+  const rejectIfTooLarge = (file: File): boolean => {
+    if (!exceedsUploadLimit(file, maxUploadMb)) return false;
+    setError(t('errors.fileTooLarge', { name: file.name, size: sizeInMb(file), max: maxUploadMb }));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    return true;
+  };
 
   // Handle file selection
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && !rejectIfTooLarge(file)) {
       setSelectedFile(file);
       // Immediately show processing UI
       setCurrentStep('processing');
@@ -69,7 +80,7 @@ export default function useFileUpload(
     if (uploading) return;
 
     const file = e.dataTransfer.files[0];
-    if (file) {
+    if (file && !rejectIfTooLarge(file)) {
       setSelectedFile(file);
       setCurrentStep('processing');
       setProcessingProgress(10);
@@ -153,5 +164,7 @@ export default function useFileUpload(
     selectedLanguage,
     setSelectedLanguage: changeLanguage,
     applyDefaultLanguage,
+    maxUploadMb,
+    applyUploadLimit: setMaxUploadMb,
   };
 }

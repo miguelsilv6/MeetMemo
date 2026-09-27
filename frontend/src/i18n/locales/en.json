@@ -37,7 +37,8 @@
     "languageLabel": "Transcription Language",
     "clickToBrowse": "Click to browse",
     "orDragDrop": "or drag & drop",
-    "supportedFormats": "Supports MP3, WAV, M4A, WEBM, FLAC, OGG, AAC (max 100MB)",
+    "supportedFormats": "Supports MP3, WAV, M4A, WEBM, FLAC, OGG, AAC",
+    "maxSize": "max {{max}} MB",
     "uploading": "Uploading..."
   },
   "recording": {
@@ -263,11 +264,6 @@
     "reload": "Reload Application",
     "goHome": "Go to Home"
   },
-  "themeSwitcher": {
-    "light": "Light mode — click for dark",
-    "dark": "Dark mode — click for system",
-    "system": "System mode — click for light"
-  },
   "languageSwitcher": {
     "switchToEnglish": "Switch to English",
     "switchToPortuguese": "Mudar para Português"
@@ -302,7 +298,8 @@
     "startAlignment": "Failed to start alignment. Please try again.",
     "loadTranscript": "Failed to load transcript. Please refresh and try again.",
     "processingFailed": "Processing failed. Please try again.",
-    "processingGeneric": "An error occurred while processing. Please try again."
+    "processingGeneric": "An error occurred while processing. Please try again.",
+    "fileTooLarge": "The file “{{name}}” is {{size}} MB, over the {{max}} MB limit per file."
   },
   "admin": {
     "title": "Administration",
@@ -339,6 +336,7 @@
         "antiHallucination": "Anti-hallucination",
         "audio": "Audio preprocessing",
         "languageRetention": "Language and retention",
+        "uploads": "Uploads",
         "prompts": "LLM prompts (summaries and translation)",
         "restartOnly": "Restart-only configuration (read-only)"
       },
@@ -437,6 +435,10 @@
         "llm_language_reminder": {
           "label": "Final reminder",
           "help": "Placed after the transcript: small models weigh the end of the request most."
+        },
+        "max_upload_mb": {
+          "label": "Maximum size per file (MB)",
+          "help": "Applies from now on to uploaded audios, recordings made in the browser and project audios. At most 500 MB: that is nginx's limit, and each file is held in memory while it is received."
         }
       },
       "restartOnly": {
@@ -551,7 +553,8 @@
         "queued": "queued for processing",
         "duplicate": "already in this project (as {{name}}), skipped",
         "unsupported": "unsupported format",
-        "rejected": "not uploaded ({{reason}})"
+        "rejected": "not uploaded ({{reason}})",
+        "tooLarge": "over the {{max}} MB limit per file"
       }
     },
     "audios": {

@@ -62,6 +62,11 @@ PROMPT_MAX_LENGTHS = {
 }
 PROMPT_FIELDS = tuple(PROMPT_MAX_LENGTHS)
 
+# Largest upload the panel may allow, in MB. nginx rejects bodies above 500 MB
+# (client_max_body_size), and an upload is held in memory while it is checked.
+MAX_UPLOAD_MB_LIMIT = 500
+MIB = 1024 * 1024
+
 
 class RuntimeSettings(BaseModel):
     """Every option the admin panel can change, with its allowed range."""
@@ -96,6 +101,9 @@ class RuntimeSettings(BaseModel):
     job_retention_hours: int = Field(default=12, ge=1, le=8760)
     # Applied when a project is created; its expiry date never changes after.
     project_retention_days: int = Field(default=7, ge=1, le=365)
+
+    # Uploads (single audios, recordings and project audios)
+    max_upload_mb: int = Field(default=100, ge=1, le=MAX_UPLOAD_MB_LIMIT)
 
     # LLM prompts (summaries and translations)
     llm_summary_system_prompt: str = Field(
@@ -210,11 +218,14 @@ def allowed_whisper_models(env_model_name: str) -> list[str]:
     return models
 
 
-def default_runtime_settings(env_model_name: str, env_retention_hours: int) -> RuntimeSettings:
+def default_runtime_settings(
+    env_model_name: str, env_retention_hours: int, env_max_file_size: int = 100 * MIB
+) -> RuntimeSettings:
     """Defaults before anything is saved from the panel."""
     return RuntimeSettings(
         whisper_model_name=env_model_name,
         job_retention_hours=env_retention_hours,
+        max_upload_mb=min(MAX_UPLOAD_MB_LIMIT, max(1, env_max_file_size // MIB)),
     )
 
 

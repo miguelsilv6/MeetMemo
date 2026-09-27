@@ -127,6 +127,8 @@ function App() {
     selectedLanguage,
     setSelectedLanguage,
     applyDefaultLanguage,
+    maxUploadMb,
+    applyUploadLimit,
   } = useFileUpload(
     setError,
     setCurrentStep,
@@ -282,6 +284,8 @@ function App() {
                 selectedLanguage={selectedLanguage}
                 onLanguageChange={setSelectedLanguage}
                 onDefaultLanguage={applyDefaultLanguage}
+                maxUploadMb={maxUploadMb}
+                onUploadLimit={applyUploadLimit}
                 onOpenProjects={openProjects}
               />
             )}

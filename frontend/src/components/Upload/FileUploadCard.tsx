@@ -12,6 +12,8 @@ interface FileUploadCardProps {
   handleDrop: (e: DragEvent<HTMLDivElement>) => void;
   selectedLanguage: string | null;
   onLanguageChange: (language: string | null) => void;
+  /** Largest file accepted, in MB (null until known). */
+  maxUploadMb?: number | null;
 }
 
 export default function FileUploadCard({
@@ -22,6 +24,7 @@ export default function FileUploadCard({
   handleDrop,
   selectedLanguage,
   onLanguageChange,
+  maxUploadMb = null,
 }: FileUploadCardProps) {
   const { t } = useTranslation();
 
@@ -64,7 +67,10 @@ export default function FileUploadCard({
           <p className="mb-2">
             <strong>{t('fileUpload.clickToBrowse')}</strong> {t('fileUpload.orDragDrop')}
           </p>
-          <small className="text-muted">{t('fileUpload.supportedFormats')}</small>
+          <small className="text-muted">
+            {t('fileUpload.supportedFormats')}
+            {maxUploadMb !== null && ` (${t('fileUpload.maxSize', { max: maxUploadMb })})`}
+          </small>
         </div>
         <input
           type="file"

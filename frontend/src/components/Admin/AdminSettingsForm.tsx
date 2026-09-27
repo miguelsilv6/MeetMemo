@@ -344,6 +344,12 @@ export default function AdminSettingsForm({
             </Row>
           </Section>
 
+          <Section title={t('admin.settings.sections.uploads')}>
+            <Row>
+              <Col md={6}>{numberField('max_upload_mb')}</Col>
+            </Row>
+          </Section>
+
           <Section title={t('admin.settings.sections.prompts')}>
             <p className="small text-muted">{t('admin.settings.prompts.intro')}</p>
             <h6 className="admin-subsection">{t('admin.settings.prompts.summary')}</h6>

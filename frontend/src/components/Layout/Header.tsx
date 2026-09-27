@@ -1,7 +1,6 @@
 import { Button, Container } from '@govtechsg/sgds-react';
 import { FileText, FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import ThemeSwitcher from '../ThemeSwitcher';
 import LanguageSwitcher from '../LanguageSwitcher';
 
 interface HeaderProps {
@@ -45,7 +44,6 @@ export default function Header({ onStartNewMeeting, onOpenProjects, projectsActi
               </Button>
             )}
             <LanguageSwitcher />
-            <ThemeSwitcher />
           </div>
         </div>
       </Container>

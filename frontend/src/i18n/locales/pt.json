@@ -37,7 +37,8 @@
     "languageLabel": "Idioma da Transcrição",
     "clickToBrowse": "Clica para escolher",
     "orDragDrop": "ou arrasta e larga",
-    "supportedFormats": "Suporta MP3, WAV, M4A, WEBM, FLAC, OGG, AAC (máx. 100MB)",
+    "supportedFormats": "Suporta MP3, WAV, M4A, WEBM, FLAC, OGG, AAC",
+    "maxSize": "máx. {{max}} MB",
     "uploading": "A carregar..."
   },
   "recording": {
@@ -263,11 +264,6 @@
     "reload": "Recarregar Aplicação",
     "goHome": "Voltar ao Início"
   },
-  "themeSwitcher": {
-    "light": "Modo claro — clica para escuro",
-    "dark": "Modo escuro — clica para automático",
-    "system": "Modo automático — clica para claro"
-  },
   "languageSwitcher": {
     "switchToEnglish": "Switch to English",
     "switchToPortuguese": "Mudar para Português"
@@ -302,7 +298,8 @@
     "startAlignment": "Falha ao iniciar o alinhamento. Tenta novamente.",
     "loadTranscript": "Falha ao carregar a transcrição. Atualiza a página e tenta novamente.",
     "processingFailed": "O processamento falhou. Tenta novamente.",
-    "processingGeneric": "Ocorreu um erro durante o processamento. Tenta novamente."
+    "processingGeneric": "Ocorreu um erro durante o processamento. Tenta novamente.",
+    "fileTooLarge": "O ficheiro «{{name}}» tem {{size}} MB e excede o limite de {{max}} MB por ficheiro."
   },
   "admin": {
     "title": "Administração",
@@ -339,6 +336,7 @@
         "antiHallucination": "Anti-alucinação",
         "audio": "Pré-processamento de áudio",
         "languageRetention": "Idioma e retenção",
+        "uploads": "Carregamentos",
         "prompts": "Prompts do LLM (resumos e tradução)",
         "restartOnly": "Configuração que exige reinício (só leitura)"
       },
@@ -437,6 +435,10 @@
         "llm_language_reminder": {
           "label": "Lembrete final",
           "help": "Colocado depois da transcrição: os modelos pequenos dão mais peso ao fim do pedido."
+        },
+        "max_upload_mb": {
+          "label": "Tamanho máximo por ficheiro (MB)",
+          "help": "Aplica-se aos áudios carregados, às gravações feitas no browser e aos áudios dos projetos, a partir de agora. Máximo 500 MB: é o limite do nginx, e cada ficheiro é mantido em memória enquanto é recebido."
         }
       },
       "restartOnly": {
@@ -551,7 +553,8 @@
         "queued": "em fila para processamento",
         "duplicate": "já existe neste projeto (como {{name}}), ignorado",
         "unsupported": "formato não suportado",
-        "rejected": "não foi carregado ({{reason}})"
+        "rejected": "não foi carregado ({{reason}})",
+        "tooLarge": "excede o limite de {{max}} MB por ficheiro"
       }
     },
     "audios": {

@@ -44,4 +44,11 @@ describe('FileUploadCard', () => {
     fireEvent.change(input, { target: { files: [file] } });
     expect(handleFileSelect).toHaveBeenCalledTimes(1);
   });
+
+  it('shows the upload limit set in the admin panel', () => {
+    renderCard({ maxUploadMb: 250 });
+    expect(
+      screen.getByText('Supports MP3, WAV, M4A, WEBM, FLAC, OGG, AAC (max 250 MB)')
+    ).toBeInTheDocument();
+  });
 });

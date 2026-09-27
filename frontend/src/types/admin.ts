@@ -19,6 +19,7 @@ export interface RuntimeSettings {
   default_language: string | null;
   job_retention_hours: number;
   project_retention_days: number;
+  max_upload_mb: number;
   llm_summary_system_prompt: string;
   llm_summary_request: string;
   llm_language_rule: string;
