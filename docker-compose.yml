@@ -48,6 +48,7 @@ services:
       # auto-detection/defaults take effect instead of a hardcoded override.
       - HARDWARE_PROFILE
       - WHISPER_MODEL_NAME
+      - WHISPER_CPU_THREADS
       - COMPUTE_TYPE
       - PYANNOTE_MODEL_NAME
       - DEVICE

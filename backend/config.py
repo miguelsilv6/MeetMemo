@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     whisper_model_name: str = "turbo"
     pyannote_model_name: str = "pyannote/speaker-diarization-3.1"
     compute_type: str = "float16"  # Options: float16, int8, int8_float16
+    # Threads faster-whisper uses on CPU. 0 = every CPU available to the
+    # container (its library default would be only 4).
+    whisper_cpu_threads: int = 0
 
     # File Storage Paths
     upload_dir: str = "audiofiles"

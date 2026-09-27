@@ -49,7 +49,11 @@ class DiarizationService:
             self._pipeline_cache = self._pipeline_cache.to(
                 torch.device(self.settings.device)
             )
-            logger.info("PyAnnote pipeline loaded successfully")
+            logger.info(
+                "PyAnnote pipeline loaded successfully on %s (%d torch CPU threads)",
+                self.settings.device,
+                torch.get_num_threads(),
+            )
 
         return self._pipeline_cache
 

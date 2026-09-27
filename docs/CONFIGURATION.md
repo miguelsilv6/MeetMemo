@@ -28,6 +28,7 @@ cp example.env .env
 | `POSTGRES_PASSWORD` | PostgreSQL password | `changeme` |
 | `WHISPER_MODEL_NAME` | Whisper model for transcription | `turbo` |
 | `COMPUTE_TYPE` | Inference precision (float16/int8) | `float16` |
+| `WHISPER_CPU_THREADS` | CPU threads for transcription on CPU; `0` uses every CPU available to the container (faster-whisper alone would use 4) | `0` |
 | `TIMEZONE_OFFSET` | Timezone offset from UTC (hours) | `+8` |
 | `NVIDIA_VISIBLE_DEVICES` | GPU selection (`all`, `0`, `0,1`) | `all` |
 | `HTTP_PORT` | External HTTP port for nginx | `80` |
