@@ -9,6 +9,7 @@ import {
 import type {
   ApiError,
   JobStatus,
+  PublicConfig,
   JobsResponse,
   SpeakerMapping,
   Summary,
@@ -403,9 +404,9 @@ export async function getSystemInfo(): Promise<SystemInfo> {
   return await apiCall<SystemInfo>('/system');
 }
 
-// Non-sensitive runtime settings the upload screen needs (set in the admin panel).
-export async function getPublicConfig(): Promise<{ default_language: string | null }> {
-  return await apiCall<{ default_language: string | null }>('/config');
+// Non-sensitive runtime settings the upload screens need (set in the admin panel).
+export async function getPublicConfig(): Promise<PublicConfig> {
+  return await apiCall<PublicConfig>('/config');
 }
 
 // ============================================================================

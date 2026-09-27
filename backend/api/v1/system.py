@@ -38,4 +38,7 @@ async def system_info(settings: Settings = Depends(get_settings)):
 async def public_config(settings: Settings = Depends(get_settings)):
     """Non-sensitive runtime settings the upload screen needs."""
     runtime = await RuntimeSettingsService(settings).get()
-    return {"default_language": runtime.default_language}
+    return {
+        "default_language": runtime.default_language,
+        "max_upload_mb": runtime.max_upload_mb,
+    }

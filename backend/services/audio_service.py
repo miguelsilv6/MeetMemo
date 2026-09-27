@@ -14,9 +14,12 @@ import aiofiles
 from config import Settings
 from fastapi import HTTPException, UploadFile
 from repositories.job_repository import JobRepository
+from runtime_settings import MIB
 from security import sanitize_filename
 from utils.asr_audio import asr_audio_path, prepare_asr_audio
 from utils.file_utils import calculate_file_hash, convert_to_wav, get_unique_filename
+
+from services.runtime_settings_service import RuntimeSettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +27,27 @@ logger = logging.getLogger(__name__)
 class AudioService:
     """Service for audio file operations."""
 
-    def __init__(self, settings: Settings, job_repo: JobRepository):
+    def __init__(
+        self,
+        settings: Settings,
+        job_repo: JobRepository,
+        runtime_settings: Optional[RuntimeSettingsService] = None,
+    ):
         """
         Initialize AudioService.
 
         Args:
             settings: Application settings
             job_repo: Job repository for database operations
+            runtime_settings: Source of the admin-panel upload limit
         """
         self.settings = settings
         self.job_repo = job_repo
+        self.runtime_settings = runtime_settings or RuntimeSettingsService(settings)
+
+    async def max_upload_bytes(self) -> int:
+        """The upload size limit set in the admin panel, in bytes."""
+        return (await self.runtime_settings.get()).max_upload_mb * MIB
 
     async def upload_audio(
         self,
@@ -54,19 +68,17 @@ class AudioService:
             HTTPException: If file is invalid or too large
         """
         # Validate file size and collect chunks
+        max_bytes = await self.max_upload_bytes()
         file_size = 0
         chunks = []
 
         chunk = await file.read(8192)
         while chunk:
             file_size += len(chunk)
-            if file_size > self.settings.max_file_size:
+            if file_size > max_bytes:
                 raise HTTPException(
                     status_code=413,
-                    detail=(
-                        f"File too large. Maximum size: "
-                        f"{self.settings.max_file_size / 1024 / 1024:.0f}MB"
-                    )
+                    detail=f"File too large. Maximum size: {max_bytes // MIB} MB"
                 )
             chunks.append(chunk)
             chunk = await file.read(8192)

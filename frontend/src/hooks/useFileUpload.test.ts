@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type React from 'react';
 import useFileUpload from './useFileUpload';
 import * as api from '../services/api';
 
@@ -123,5 +124,42 @@ describe('useFileUpload.handleUpload', () => {
 
     expect(setError).toHaveBeenCalledWith('too big');
     expect(setCurrentStep).toHaveBeenCalledWith('upload');
+  });
+});
+
+describe('useFileUpload upload limit', () => {
+  const MIB = 1024 * 1024;
+  const fileOf = (bytes: number) => {
+    const file = new File(['x'], 'long call.wav', { type: 'audio/wav' });
+    Object.defineProperty(file, 'size', { value: bytes });
+    return file;
+  };
+  const select = (file: File) =>
+    ({ target: { files: [file] } }) as unknown as React.ChangeEvent<HTMLInputElement>;
+
+  it('refuses a file over the admin limit without uploading it', () => {
+    const { hook, setError, setCurrentStep } = setup();
+    act(() => hook.result.current.applyUploadLimit(100));
+
+    act(() => hook.result.current.handleFileSelect(select(fileOf(150 * MIB))));
+
+    expect(setError).toHaveBeenCalledWith(
+      'The file “long call.wav” is 150.0 MB, over the 100 MB limit per file.'
+    );
+    expect(api.uploadAudio).not.toHaveBeenCalled();
+    expect(setCurrentStep).not.toHaveBeenCalled();
+    expect(hook.result.current.maxUploadMb).toBe(100);
+  });
+
+  it('uploads a file within the limit', async () => {
+    vi.mocked(api.uploadAudio).mockResolvedValue({ uuid: 'job-1', status_code: 202 });
+    const { hook } = setup();
+    act(() => hook.result.current.applyUploadLimit(100));
+
+    await act(async () => {
+      hook.result.current.handleFileSelect(select(fileOf(99 * MIB)));
+    });
+
+    expect(api.uploadAudio).toHaveBeenCalled();
   });
 });

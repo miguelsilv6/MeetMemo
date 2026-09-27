@@ -23,6 +23,10 @@ interface UploadViewProps {
   onLanguageChange: (language: string | null) => void;
   /** Receives the admin-configured default language each time this view opens. */
   onDefaultLanguage: (language: string | null) => void;
+  /** Largest file accepted, in MB (null until known). */
+  maxUploadMb?: number | null;
+  /** Receives the admin-configured upload limit each time this view opens. */
+  onUploadLimit?: (maxUploadMb: number) => void;
   /** Open the projects page, for several audios of the same case. */
   onOpenProjects?: () => void;
 }
@@ -41,6 +45,8 @@ export default function UploadView({
   selectedLanguage,
   onLanguageChange,
   onDefaultLanguage,
+  maxUploadMb = null,
+  onUploadLimit,
   onOpenProjects,
 }: UploadViewProps) {
   const { t } = useTranslation();
@@ -52,7 +58,9 @@ export default function UploadView({
     api
       .getPublicConfig()
       .then((config) => {
-        if (!cancelled) onDefaultLanguage(config.default_language);
+        if (cancelled) return;
+        onDefaultLanguage(config.default_language);
+        onUploadLimit?.(config.max_upload_mb);
       })
       .catch(() => {
         // Keep auto-detect if the config can't be loaded.
@@ -60,7 +68,7 @@ export default function UploadView({
     return () => {
       cancelled = true;
     };
-  }, [onDefaultLanguage]);
+  }, [onDefaultLanguage, onUploadLimit]);
 
   return (
     <Row className="justify-content-center">
@@ -80,6 +88,7 @@ export default function UploadView({
               handleDrop={handleDrop}
               selectedLanguage={selectedLanguage}
               onLanguageChange={onLanguageChange}
+              maxUploadMb={maxUploadMb}
             />
           </Col>
         </Row>

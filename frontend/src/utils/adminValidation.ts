@@ -22,6 +22,7 @@ export const NUMERIC_RULES = {
   low_confidence_compression_ratio: { min: 1, max: 10, step: 0.1 },
   job_retention_hours: { min: 1, max: 8760, step: 1, integer: true },
   project_retention_days: { min: 1, max: 365, step: 1, integer: true },
+  max_upload_mb: { min: 1, max: 500, step: 1, integer: true },
 } satisfies Record<string, NumericRule>;
 
 export type NumericField = keyof typeof NUMERIC_RULES;

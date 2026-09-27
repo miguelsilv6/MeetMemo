@@ -118,6 +118,13 @@ export interface SystemInfo {
   warnings: string[];
 }
 
+/** Non-sensitive settings from the admin panel that the upload screens use. */
+export interface PublicConfig {
+  default_language: string | null;
+  /** Largest file accepted per upload, in MB. */
+  max_upload_mb: number;
+}
+
 /** Error thrown by the API layer, augmented with response metadata. */
 export interface ApiError extends Error {
   status?: number;

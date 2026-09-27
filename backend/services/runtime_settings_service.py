@@ -11,6 +11,7 @@ from typing import Optional
 from config import Settings
 from repositories.admin_repository import AdminRepository
 from runtime_settings import (
+    MIB,
     RuntimeSettings,
     allowed_whisper_models,
     default_runtime_settings,
@@ -32,7 +33,9 @@ class RuntimeSettingsService:
     def defaults(self) -> RuntimeSettings:
         """Values in effect before anything is saved from the panel."""
         return default_runtime_settings(
-            self.settings.whisper_model_name, self.settings.job_retention_hours
+            self.settings.whisper_model_name,
+            self.settings.job_retention_hours,
+            getattr(self.settings, "max_file_size", 100 * MIB),
         )
 
     def allowed_models(self) -> list[str]:

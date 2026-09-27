@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 import { Card, Form } from '@govtechsg/sgds-react';
 import { Upload as UploadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WHISPER_LANGUAGES } from '../../constants/languages';
+import { getPublicConfig } from '../../services/api';
 import { uploadProjectAudios } from '../../services/projectsApi';
+import { exceedsUploadLimit } from '../../utils/uploadLimit';
 import type { UploadResult } from '../../types/projects';
 
 export const AUDIO_ACCEPT = '.mp3,.wav,.m4a,.webm,.ogg,.flac,.aac';
@@ -30,6 +32,22 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
     null
   );
   const [results, setResults] = useState<UploadResult[]>([]);
+  // Largest file accepted, in MB (set in the admin panel); null until known.
+  const [maxUploadMb, setMaxUploadMb] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPublicConfig()
+      .then((config) => {
+        if (!cancelled) setMaxUploadMb(config.max_upload_mb);
+      })
+      .catch(() => {
+        // Without the limit the server still refuses oversized files.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const uploadAll = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
@@ -39,6 +57,8 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
       setProgress({ index: index + 1, total: files.length, name: file.name });
       if (!isAudio(file)) {
         collected.push({ file_name: file.name, status: 'rejected', detail: 'type' });
+      } else if (exceedsUploadLimit(file, maxUploadMb)) {
+        collected.push({ file_name: file.name, status: 'rejected', detail: 'size' });
       } else {
         try {
           collected.push(...(await uploadProjectAudios(projectUuid, [file], language)));
@@ -66,6 +86,7 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
     if (result.status === 'queued') return t('projects.upload.result.queued');
     if (result.status === 'duplicate')
       return t('projects.upload.result.duplicate', { name: result.detail });
+    if (result.detail === 'size') return t('projects.upload.result.tooLarge', { max: maxUploadMb });
     return result.detail === 'type' || result.detail === 'Unsupported file type'
       ? t('projects.upload.result.unsupported')
       : t('projects.upload.result.rejected', { reason: result.detail });
@@ -114,7 +135,10 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
           <p className="mb-1">
             <strong>{t('projects.upload.choose')}</strong> {t('fileUpload.orDragDrop')}
           </p>
-          <small className="text-muted">{t('fileUpload.supportedFormats')}</small>
+          <small className="text-muted">
+            {t('fileUpload.supportedFormats')}
+            {maxUploadMb !== null && ` (${t('fileUpload.maxSize', { max: maxUploadMb })})`}
+          </small>
         </div>
         <input
           ref={inputRef}

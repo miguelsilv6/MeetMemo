@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     logs_dir: str = "logs"
 
     # File Limits
+    # Default upload limit (bytes) until one is set in the admin panel.
     max_file_size: int = 100 * 1024 * 1024  # 100MB
     allowed_audio_types: list[str] = [
         'audio/wav',

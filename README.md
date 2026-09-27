@@ -153,7 +153,7 @@ are deleted.
 
 ### Supported Audio Formats
 
-MP3, WAV, M4A, FLAC, WebM, OGG (max 100MB default)
+MP3, WAV, M4A, FLAC, WebM, OGG (max 100 MB per file by default; the administrator can change it in the admin panel, up to 500 MB)
 
 ## Tech Stack
 

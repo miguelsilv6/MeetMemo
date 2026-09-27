@@ -4,6 +4,10 @@ import ProjectView, { PROJECT_POLL_MS } from './ProjectView';
 import * as projectsApi from '../../services/projectsApi';
 import type { ProjectAudio, ProjectDetail } from '../../types/projects';
 
+vi.mock('../../services/api', () => ({
+  getPublicConfig: vi.fn().mockResolvedValue({ default_language: null, max_upload_mb: 1 }),
+}));
+
 vi.mock('../../services/projectsApi', () => ({
   getProject: vi.fn(),
   updateProject: vi.fn(),
@@ -131,6 +135,21 @@ describe('ProjectView', () => {
     expect(vi.mocked(projectsApi.uploadProjectAudios).mock.calls[0][1]).toEqual([files[0]]);
     // The list is refreshed after each stored file.
     expect(projectsApi.getProject).toHaveBeenCalledTimes(3);
+  });
+
+  it('skips files over the upload limit without sending them', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValue(project([]));
+    renderView();
+    expect(await screen.findByText(/\(max 1 MB\)/)).toBeInTheDocument();
+
+    const big = new File(['x'], 'long.wav', { type: 'audio/wav' });
+    Object.defineProperty(big, 'size', { value: 2 * 1024 * 1024 });
+    fireEvent.change(screen.getByLabelText('Choose one or more files'), {
+      target: { files: [big] },
+    });
+
+    expect(await screen.findByText(/over the 1 MB limit per file/)).toBeInTheDocument();
+    expect(projectsApi.uploadProjectAudios).not.toHaveBeenCalled();
   });
 
   it('opens completed audios and retries failed ones', async () => {
