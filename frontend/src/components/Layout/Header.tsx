@@ -1,14 +1,18 @@
-import { Container } from '@govtechsg/sgds-react';
-import { FileText } from 'lucide-react';
+import { Button, Container } from '@govtechsg/sgds-react';
+import { FileText, FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ThemeSwitcher from '../ThemeSwitcher';
 import LanguageSwitcher from '../LanguageSwitcher';
 
 interface HeaderProps {
   onStartNewMeeting: () => void;
+  /** Open the projects page; the button is hidden without it. */
+  onOpenProjects?: () => void;
+  /** Whether the projects pages are showing (marks the button as current). */
+  projectsActive?: boolean;
 }
 
-export default function Header({ onStartNewMeeting }: HeaderProps) {
+export default function Header({ onStartNewMeeting, onOpenProjects, projectsActive }: HeaderProps) {
   const { t } = useTranslation();
 
   return (
@@ -27,6 +31,19 @@ export default function Header({ onStartNewMeeting }: HeaderProps) {
             </div>
           </div>
           <div className="d-flex align-items-center gap-2">
+            {onOpenProjects && (
+              <Button
+                variant={projectsActive ? 'primary' : 'outline-primary'}
+                size="sm"
+                onClick={onOpenProjects}
+                aria-current={projectsActive ? 'page' : undefined}
+                aria-label={t('projects.nav')}
+                className="header-projects-button"
+              >
+                <FolderOpen size={16} className="me-1" />
+                <span>{t('projects.nav')}</span>
+              </Button>
+            )}
             <LanguageSwitcher />
             <ThemeSwitcher />
           </div>

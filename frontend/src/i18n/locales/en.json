@@ -412,7 +412,11 @@
         },
         "job_retention_hours": {
           "label": "Retention (hours)",
-          "help": "Jobs and their files are deleted automatically after this many hours."
+          "help": "Audios uploaded on their own, and their files, are deleted automatically after this many hours. Does not apply to projects."
+        },
+        "project_retention_days": {
+          "label": "Project retention (days)",
+          "help": "Projects and all their files are deleted automatically after this many days. Applies to projects created from now on; a project's expiry date never changes once it is created."
         },
         "llm_summary_system_prompt": {
           "label": "Summary: system instructions",
@@ -498,6 +502,84 @@
       "from": "Old value",
       "to": "New value",
       "passwordChanged": "Admin password changed"
+    }
+  },
+  "projects": {
+    "nav": "Projects",
+    "title": "Projects",
+    "subtitle": "Group several audios of the same case. They are processed on the server, one at a time, and deleted automatically when the project expires.",
+    "back": "Back to projects",
+    "backTo": "Back to project “{{name}}”",
+    "notFound": "This project does not exist or has already expired (and was deleted with all its files).",
+    "uploadHint": "Several audios from the same case?",
+    "uploadHintButton": "Create a project",
+    "fields": {
+      "name": "Project name",
+      "namePlaceholder": "E.g. Inquiry 123/26",
+      "reference": "Reference",
+      "referencePlaceholder": "E.g. case or file number",
+      "description": "Description"
+    },
+    "create": {
+      "title": "New project",
+      "submit": "Create project",
+      "creating": "Creating…",
+      "retention_one": "The project and all its files are deleted automatically after {{count}} day.",
+      "retention_other": "The project and all its files are deleted automatically after {{count}} days."
+    },
+    "list": {
+      "title": "Active projects",
+      "empty": "No projects yet.",
+      "created": "Created {{date}}",
+      "progress_one": "{{done}} of {{count}} audio completed",
+      "progress_other": "{{done}} of {{count}} audios completed",
+      "errors_one": "{{count}} failed",
+      "errors_other": "{{count}} failed"
+    },
+    "expiry": {
+      "badge_one": "Expires in {{count}} day",
+      "badge_other": "Expires in {{count}} days",
+      "notice_one": "This project and all its files (audios, transcripts, summaries and translations) will be deleted automatically on {{date}} (in {{count}} day).",
+      "notice_other": "This project and all its files (audios, transcripts, summaries and translations) will be deleted automatically on {{date}} (in {{count}} days)."
+    },
+    "upload": {
+      "title": "Add audios",
+      "choose": "Choose one or more files",
+      "hint": "Files already in this project are skipped. The language chosen applies to the files in this upload.",
+      "progress": "Uploading {{index}} of {{total}}: {{name}}",
+      "result": {
+        "queued": "queued for processing",
+        "duplicate": "already in this project (as {{name}}), skipped",
+        "unsupported": "unsupported format",
+        "rejected": "not uploaded ({{reason}})"
+      }
+    },
+    "audios": {
+      "title_one": "{{count}} audio",
+      "title_other": "{{count}} audios",
+      "serverNotice": "Processing runs on the server: you can close this page.",
+      "empty": "No audios in this project yet.",
+      "statuses": {
+        "queued": "Queued",
+        "processing": "Processing",
+        "completed": "Completed",
+        "error": "Error"
+      },
+      "queuedAt": "Queued (no. {{position}})",
+      "processingAt": "Processing · {{progress}}%",
+      "progress": "Progress: {{progress}}%",
+      "open": "Open transcript",
+      "retry": "Try again",
+      "delete": "Delete audio",
+      "deleteNamed": "Delete {{name}}",
+      "deleteTitle": "Delete audio",
+      "deleteBody": "Delete “{{name}}” from this project, with its transcript, summary and translations? This cannot be undone."
+    },
+    "delete": {
+      "button": "Delete project",
+      "title": "Delete project",
+      "body_one": "Delete the project “{{name}}” and its audio, with every transcript, summary and translation? This cannot be undone.",
+      "body_other": "Delete the project “{{name}}” and its {{count}} audios, with every transcript, summary and translation? This cannot be undone."
     }
   }
 }

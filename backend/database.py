@@ -48,6 +48,25 @@ async def ensure_admin_schema():
     logger.info("Admin panel schema ensured")
 
 
+PROJECTS_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations", "004_projects.sql"
+)
+
+
+async def ensure_projects_schema():
+    """
+    Create the projects table and jobs.project_uuid on older databases.
+
+    Unlike the admin schema this is required: the job queries filter on
+    jobs.project_uuid.
+    """
+    with open(PROJECTS_SCHEMA_PATH, encoding="utf-8") as f:
+        schema_sql = f.read()
+    async with get_db() as conn:
+        await conn.execute(schema_sql)
+    logger.info("Projects schema ensured")
+
+
 async def close_database():
     """Close database connection pool."""
     global _db_pool  # pylint: disable=global-statement,global-variable-not-assigned
@@ -135,7 +154,8 @@ async def get_job(uuid: str) -> Optional[dict]:
         row = await conn.fetchrow(
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, workflow_state, current_step_progress,
-                      transcription_data, diarization_data, model_name, language, created_at
+                      transcription_data, diarization_data, model_name, language, created_at,
+                      project_uuid
                FROM jobs WHERE uuid = $1""",
             uuid
         )
@@ -149,6 +169,7 @@ async def get_all_jobs(limit: int = 100, offset: int = 0) -> list[dict]:
             """SELECT uuid, file_name, status_code, workflow_state,
                       current_step_progress, processing_stage, error_message, created_at
                FROM jobs
+               WHERE project_uuid IS NULL
                ORDER BY created_at DESC
                LIMIT $1 OFFSET $2""",
             limit, offset
@@ -157,10 +178,20 @@ async def get_all_jobs(limit: int = 100, offset: int = 0) -> list[dict]:
 
 
 async def get_jobs_count() -> int:
-    """Get total number of jobs."""
+    """Get total number of jobs outside any project."""
     async with get_db() as conn:
-        count = await conn.fetchval("SELECT COUNT(*) FROM jobs")
+        count = await conn.fetchval("SELECT COUNT(*) FROM jobs WHERE project_uuid IS NULL")
         return count
+
+
+async def get_export_paths(uuid: str) -> list[str]:
+    """Paths of the export files generated for a job."""
+    async with get_db() as conn:
+        rows = await conn.fetch(
+            "SELECT file_path FROM export_jobs WHERE job_uuid = $1 AND file_path IS NOT NULL",
+            uuid
+        )
+        return [row['file_path'] for row in rows]
 
 
 async def delete_job(uuid: str) -> Optional[str]:
@@ -205,14 +236,23 @@ async def update_file_name(uuid: str, new_file_name: str) -> bool:
 async def cleanup_old_jobs(max_age_hours: int = 12) -> list[dict]:
     """
     Find and delete jobs older than max_age_hours.
-    Returns list of deleted jobs with their file_names.
+    Returns list of deleted jobs with their file_names and export files.
+
+    Jobs in a project are left alone: they live until their project expires.
     """
     async with get_db() as conn:
         # Find old jobs
         rows = await conn.fetch(
-            """SELECT uuid, file_name
-               FROM jobs
-               WHERE created_at < NOW() - INTERVAL '1 hour' * $1""",
+            """SELECT j.uuid, j.file_name,
+                      COALESCE(
+                          ARRAY_AGG(e.file_path) FILTER (WHERE e.file_path IS NOT NULL),
+                          '{}'
+                      ) AS export_paths
+               FROM jobs j
+               LEFT JOIN export_jobs e ON e.job_uuid = j.uuid
+               WHERE j.project_uuid IS NULL
+                 AND j.created_at < NOW() - INTERVAL '1 hour' * $1
+               GROUP BY j.uuid, j.file_name""",
             max_age_hours
         )
         old_jobs = [dict(row) for row in rows]
@@ -348,14 +388,15 @@ async def cleanup_old_export_jobs(max_age_hours: int = 24) -> list[dict]:
 async def get_job_by_hash(file_hash: str) -> Optional[dict]:
     """
     Find existing job by file hash.
-    Returns the most recent job with the given hash.
+    Returns the most recent job with the given hash outside any project
+    (a project's audios are private to it).
     """
     async with get_db() as conn:
         row = await conn.fetchrow(
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, created_at, workflow_state, current_step_progress
                FROM jobs
-               WHERE file_hash = $1
+               WHERE file_hash = $1 AND project_uuid IS NULL
                ORDER BY created_at DESC
                LIMIT 1""",
             file_hash

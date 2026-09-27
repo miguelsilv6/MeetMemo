@@ -100,8 +100,11 @@ function categorizeError(response: Response | null, error: Error): ErrorCategory
   };
 }
 
-// Helper function for API calls
-async function apiCall<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
+// Helper function for API calls (shared with the projects client)
+export async function apiCall<T = unknown>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const method = options.method || 'GET';
   let response: Response;
@@ -135,6 +138,10 @@ async function apiCall<T = unknown>(endpoint: string, options: RequestInit = {})
       throw error;
     }
 
+    if (response.status === 204) {
+      console.log(`API Response: ${method} ${endpoint} - Success (no content)`);
+      return undefined as T;
+    }
     const data = (await response.json()) as T;
     console.log(`API Response: ${method} ${endpoint} - Success`);
     return data;

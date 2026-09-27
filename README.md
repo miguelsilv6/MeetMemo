@@ -46,6 +46,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI |
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
 | **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job) |
+| **Projects** | Group several audios of the same case: upload them at once, the server processes them one at a time (the page can be closed), and the project with every file it produced is deleted automatically after its retention (7 days by default, set in the admin panel) |
 
 ## Quick Start
 
@@ -141,6 +142,14 @@ graph LR
 5. **Customize** - Click speaker names to rename them (persists across sessions)
 6. **Summarize** - Generate AI summary with key insights and action items
 7. **Export** - Download professional PDF or Markdown files
+
+For several audios of the same case, open **Projects** in the header: create a
+project, drop all the audios on it, and they are queued and processed on the
+server one after another. Duplicates within a project are skipped, a failed
+audio can be retried, and each completed audio opens in the usual transcript
+view. The project's expiry date is fixed when it is created; at expiry the
+project and all its audios, transcripts, summaries, translations and exports
+are deleted.
 
 ### Supported Audio Formats
 

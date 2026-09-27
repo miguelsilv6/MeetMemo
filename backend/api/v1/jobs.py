@@ -11,7 +11,7 @@ import uuid as uuid_lib
 import aiofiles
 import aiofiles.os as aioos
 from config import Settings, get_settings
-from database import update_status
+from database import get_export_paths, update_status
 from dependencies import (
     get_alignment_service,
     get_audio_service,
@@ -41,18 +41,27 @@ from models import (
     WorkflowActionResponse,
 )
 from repositories.job_repository import JobRepository
-from runtime_settings import resolve_language
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
+from services.job_files import remove_job_files
+from services.pipeline import resolve_transcription_options
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
-from utils.asr_audio import asr_audio_path
 from utils.file_utils import get_unique_filename
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _reject_project_job(job: dict) -> None:
+    """Project audios are processed by the server-side queue, never step by step."""
+    if job.get('project_uuid'):
+        raise HTTPException(
+            status_code=409,
+            detail="This audio belongs to a project and is processed by the project queue.",
+        )
 
 
 @router.post("/jobs", response_model=JobResponse, status_code=202)
@@ -232,35 +241,12 @@ async def delete_job(
     settings: Settings = Depends(get_settings)
 ) -> DeleteResponse:
     """Delete job and all associated files."""
+    export_paths = await get_export_paths(uuid)
     file_name = await job_repo.delete(uuid)
     if not file_name:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
 
-    # Delete associated files
-    base_name = os.path.splitext(file_name)[0]
-
-    # Audio file and its ASR derivative
-    for path in (
-        os.path.join(settings.upload_dir, file_name),
-        asr_audio_path(settings.upload_dir, uuid),
-    ):
-        if await aioos.path.exists(path):
-            await aioos.remove(path)
-
-    # Transcript files
-    transcript_path = os.path.join(settings.transcript_dir, f"{base_name}.json")
-    if await aioos.path.exists(transcript_path):
-        await aioos.remove(transcript_path)
-
-    edited_path = os.path.join(settings.transcript_edited_dir, f"{base_name}.json")
-    if await aioos.path.exists(edited_path):
-        await aioos.remove(edited_path)
-
-    # Summary file
-    summary_path = os.path.join(settings.summary_dir, f"{uuid}.txt")
-    if await aioos.path.exists(summary_path):
-        await aioos.remove(summary_path)
-
+    await remove_job_files(settings, uuid, file_name, export_paths)
     logger.info("Deleted job %s and associated files", uuid)
 
     return DeleteResponse(
@@ -289,21 +275,16 @@ async def start_transcription(  # pylint: disable=too-many-arguments,too-many-po
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    _reject_project_job(job)
 
     file_path = os.path.join(settings.upload_dir, job['file_name'])
 
     runtime_service = RuntimeSettingsService(settings)
     runtime = await runtime_service.get()
 
-    # Per-job choices first, then the request, then the admin-panel settings.
-    effective_model = job.get('model_name') or model_name or runtime.whisper_model_name
-    # Anything outside the allowlist would be fetched from Hugging Face as a
-    # repo id by faster-whisper.
-    if effective_model not in runtime_service.allowed_models():
-        raise HTTPException(status_code=400, detail=f"Unsupported model: {effective_model}")
     try:
-        effective_language = resolve_language(
-            job.get('language') or language, runtime.default_language
+        effective_model, effective_language = resolve_transcription_options(
+            job, runtime, runtime_service.allowed_models(), model_name, language
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -360,6 +341,7 @@ async def start_diarization(
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    _reject_project_job(job)
 
     file_path = os.path.join(settings.upload_dir, job['file_name'])
 
@@ -413,6 +395,7 @@ async def start_alignment(
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    _reject_project_job(job)
 
     file_name = os.path.splitext(job['file_name'])[0]
 

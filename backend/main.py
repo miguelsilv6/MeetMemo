@@ -16,7 +16,7 @@ from logging.handlers import RotatingFileHandler
 from admin_auth import hash_password, password_problem
 from api.v1 import api_router
 from config import get_settings
-from database import close_database, ensure_admin_schema, init_database
+from database import close_database, ensure_admin_schema, ensure_projects_schema, init_database
 from dependencies import close_http_client, init_http_client
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -24,8 +24,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
+from repositories.project_repository import ProjectRepository
+from services.alignment_service import AlignmentService
+from services.audio_service import AudioService
 from services.cleanup_service import CleanupService
 from services.diarization_service import DiarizationService
+from services.pipeline import JobPipeline
+from services.project_queue import ProjectQueue
+from services.project_service import ProjectService
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
 
@@ -145,7 +151,7 @@ async def bootstrap_admin_account(app_settings) -> None:
 
 
 @asynccontextmanager
-async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
+async def lifespan(fastapi_app: FastAPI):
     """
     Lifespan context manager for startup and shutdown events.
 
@@ -187,6 +193,8 @@ async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
 
         # Initialize database
         await init_database()
+        # Required: job queries filter on jobs.project_uuid.
+        await ensure_projects_schema()
         # The admin panel is optional: if its schema can't be set up, log it
         # and keep serving transcriptions with the default settings.
         try:
@@ -232,6 +240,21 @@ async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
         cleanup_service.start_scheduler()
         logger.info("Cleanup scheduler started")
 
+        # Project audios are processed on the server, one at a time, by
+        # long-lived services that keep the loaded models between audios.
+        job_repo = JobRepository()
+        pipeline = JobPipeline(
+            app_settings,
+            AudioService(app_settings, job_repo),
+            transcription_service,
+            diarization_service,
+            AlignmentService(app_settings, job_repo),
+        )
+        project_service = ProjectService(app_settings, ProjectRepository(), pipeline=pipeline)
+        project_queue = ProjectQueue(ProjectRepository(), project_service.process)
+        fastapi_app.state.project_queue = project_queue
+        project_queue.start()
+
         logger.info("MeetMemo API startup complete")
 
         yield
@@ -239,6 +262,10 @@ async def lifespan(fastapi_app: FastAPI):  # pylint: disable=unused-argument
     finally:
         # Shutdown
         logger.info("Shutting down MeetMemo API...")
+
+        # Stop the project queue (an audio being processed resumes on restart)
+        if 'project_queue' in locals():
+            await project_queue.stop()
 
         # Stop cleanup scheduler
         if 'cleanup_service' in locals():

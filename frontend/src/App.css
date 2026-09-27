@@ -1143,3 +1143,64 @@ button.kanban-add-column:hover {
   border-radius: 0.25rem;
   overflow-wrap: anywhere;
 }
+
+/* ============================================================================
+   Projects
+   ============================================================================ */
+
+.project-list-item {
+  text-align: left;
+}
+
+.project-description {
+  white-space: pre-wrap;
+}
+
+.project-upload-language {
+  min-width: 12rem;
+}
+
+.project-upload-results {
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.project-audio-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.project-audio-name {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.project-audio-name .btn-link {
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.project-audio-status {
+  flex: 0 1 12rem;
+  min-width: 9rem;
+}
+
+.project-audio-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.project-audio-progress {
+  height: 0.4rem;
+}
+
+@media (max-width: 575.98px) {
+  .header-projects-button span {
+    display: none;
+  }
+}

@@ -18,6 +18,7 @@ export interface RuntimeSettings {
   audio_loudnorm: boolean;
   default_language: string | null;
   job_retention_hours: number;
+  project_retention_days: number;
   llm_summary_system_prompt: string;
   llm_summary_request: string;
   llm_language_rule: string;

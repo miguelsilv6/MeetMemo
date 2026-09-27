@@ -94,6 +94,8 @@ class RuntimeSettings(BaseModel):
     # Language and retention
     default_language: Optional[str] = None
     job_retention_hours: int = Field(default=12, ge=1, le=8760)
+    # Applied when a project is created; its expiry date never changes after.
+    project_retention_days: int = Field(default=7, ge=1, le=365)
 
     # LLM prompts (summaries and translations)
     llm_summary_system_prompt: str = Field(

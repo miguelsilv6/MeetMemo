@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import TranscriptResponse, TranscriptUpdateRequest, TranslateRequest, TranslateResponse
 from repositories.job_repository import JobRepository
 from security import sanitize_log_data
+from services.job_files import translation_files
 from services.summary_service import SummaryService
 from utils.file_utils import get_transcript_path
 
@@ -40,12 +41,8 @@ router = APIRouter()
 
 def _invalidate_translation_cache(base_name: str, translation_dir: str) -> None:
     """Remove any cached translations for a transcript after its text changes."""
-    if not os.path.isdir(translation_dir):
-        return
-    prefix = f"{base_name}."
-    for entry in os.listdir(translation_dir):
-        if entry.startswith(prefix) and entry.endswith(".json"):
-            os.remove(os.path.join(translation_dir, entry))
+    for path in translation_files(translation_dir, base_name):
+        os.remove(path)
 
 
 @router.get("/jobs/{uuid}/transcripts", response_model=TranscriptResponse)

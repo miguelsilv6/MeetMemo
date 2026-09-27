@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Container } from '@govtechsg/sgds-react';
+import { useTranslation as useI18n } from 'react-i18next';
+import { Button, Container } from '@govtechsg/sgds-react';
+import { ArrowLeft } from 'lucide-react';
+import type { ProjectAudio, ProjectDetail } from './types/projects';
 import type { RecentJob, WorkflowStep } from './types/api';
 
 // Custom Hooks
@@ -12,7 +15,13 @@ import useTranscript from './hooks/useTranscript';
 import useSpeakerManagement from './hooks/useSpeakerManagement';
 import useSummary from './hooks/useSummary';
 import useTranslation from './hooks/useTranslation';
-import useHashRoute, { ADMIN_ROUTE } from './hooks/useHashRoute';
+import useHashRoute, {
+  ADMIN_ROUTE,
+  PROJECTS_ROUTE,
+  isProjectsRoute,
+  parseProjectRoute,
+  projectRoute,
+} from './hooks/useHashRoute';
 
 // Layout Components
 import Header from './components/Layout/Header';
@@ -29,6 +38,8 @@ import ProcessingView from './components/Processing/ProcessingView';
 import TranscriptView from './components/Transcript/TranscriptView';
 import SummaryView from './components/Summary/SummaryView';
 import AdminView from './components/Admin/AdminView';
+import ProjectsView from './components/Projects/ProjectsView';
+import ProjectView from './components/Projects/ProjectView';
 
 // Modal Components
 import EditSpeakersModal from './components/Modals/EditSpeakersModal';
@@ -40,11 +51,19 @@ import SplitSegmentModal from './components/Modals/SplitSegmentModal';
 import './App.css';
 
 function App() {
+  const { t } = useI18n();
   // Core application state
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('upload');
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The project a transcript was opened from, for the way back to it.
+  const [openedFromProject, setOpenedFromProject] = useState<{
+    uuid: string;
+    name: string;
+  } | null>(null);
   const route = useHashRoute();
+  const projectsRoute = isProjectsRoute(route);
+  const openProjectUuid = parseProjectRoute(route);
 
   // Backend health check
   const { backendReady, backendError } = useBackendHealth();
@@ -175,7 +194,20 @@ function App() {
     setJobId(null);
     setError(null);
     setProcessingProgress(0);
+    setOpenedFromProject(null);
+    if (window.location.hash) window.location.hash = '';
     fetchRecentJobs();
+  };
+
+  const openProjects = () => {
+    window.location.hash = PROJECTS_ROUTE;
+  };
+
+  // Open a processed project audio in the usual transcript view.
+  const handleOpenProjectAudio = async (project: ProjectDetail, audio: ProjectAudio) => {
+    setOpenedFromProject({ uuid: project.uuid, name: project.name });
+    window.location.hash = '';
+    await handleLoadJob({ uuid: audio.uuid, filename: audio.file_name, status_code: 200 });
   };
 
   // Show loading screen while backend is initializing
@@ -190,8 +222,12 @@ function App() {
 
   return (
     <div className="app">
-      <Header onStartNewMeeting={handleStartNewMeeting} />
-      {route !== ADMIN_ROUTE && <WorkflowSteps currentStep={currentStep} />}
+      <Header
+        onStartNewMeeting={handleStartNewMeeting}
+        onOpenProjects={openProjects}
+        projectsActive={projectsRoute}
+      />
+      {route !== ADMIN_ROUTE && !projectsRoute && <WorkflowSteps currentStep={currentStep} />}
 
       <Container className="py-5">
         {route === ADMIN_ROUTE ? (
@@ -200,9 +236,35 @@ function App() {
               window.location.hash = '';
             }}
           />
+        ) : openProjectUuid ? (
+          <ProjectView
+            key={openProjectUuid}
+            projectUuid={openProjectUuid}
+            onBack={openProjects}
+            onOpenAudio={handleOpenProjectAudio}
+          />
+        ) : projectsRoute ? (
+          <ProjectsView
+            onOpenProject={(uuid) => {
+              window.location.hash = projectRoute(uuid);
+            }}
+          />
         ) : (
           <>
             <ErrorAlert error={error} onClose={() => setError(null)} />
+
+            {openedFromProject && (currentStep === 'transcript' || currentStep === 'summary') && (
+              <Button
+                variant="link"
+                className="px-0 mb-3"
+                onClick={() => {
+                  window.location.hash = projectRoute(openedFromProject.uuid);
+                }}
+              >
+                <ArrowLeft size={16} className="me-1" />
+                {t('projects.backTo', { name: openedFromProject.name })}
+              </Button>
+            )}
 
             {/* Step 1: Upload */}
             {currentStep === 'upload' && (
@@ -220,6 +282,7 @@ function App() {
                 selectedLanguage={selectedLanguage}
                 onLanguageChange={setSelectedLanguage}
                 onDefaultLanguage={applyDefaultLanguage}
+                onOpenProjects={openProjects}
               />
             )}
 
