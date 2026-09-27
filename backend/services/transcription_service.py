@@ -14,8 +14,9 @@ from database import update_error
 from faster_whisper import WhisperModel
 from repositories.job_repository import JobRepository
 from runtime_settings import RuntimeSettings
+from utils.cpu import available_cpu_count
 from utils.hallucination_filter import filter_segments
-from utils.whisper_options import transcribe_options
+from utils.whisper_options import model_options, transcribe_options
 
 from services.runtime_settings_service import RuntimeSettingsService
 
@@ -66,22 +67,32 @@ class TranscriptionService:
             _loaded_model = None
             logger.info("Loading faster-whisper model: %s", model_name)
 
-            compute_type = self.settings.compute_type
-            if "cpu" in self.settings.device and compute_type == "float16":
-                logger.warning("compute_type 'float16' not supported on CPU. Falling back to 'int8'.")
-                compute_type = "int8"
-
-            model = WhisperModel(
-                model_name,
-                device=self.settings.device.split(':')[0],  # Extract 'cuda' or 'cpu'
-                compute_type=compute_type
+            available = available_cpu_count()
+            options = model_options(
+                self.settings.device,
+                self.settings.compute_type,
+                self.settings.whisper_cpu_threads,
+                available,
             )
+            if options["compute_type"] != self.settings.compute_type:
+                logger.warning(
+                    "compute_type '%s' not supported on CPU. Falling back to '%s'.",
+                    self.settings.compute_type,
+                    options["compute_type"],
+                )
+
+            model = WhisperModel(model_name, **options)
             _loaded_model = (model_name, model)
             logger.info(
-                "faster-whisper model %s loaded successfully on %s with %s precision",
+                "faster-whisper model %s loaded successfully on %s with %s precision%s",
                 model_name,
                 self.settings.device,
-                compute_type
+                options["compute_type"],
+                (
+                    f", {options['cpu_threads']} CPU threads ({available} CPUs available)"
+                    if "cpu_threads" in options
+                    else ""
+                ),
             )
             return model
 

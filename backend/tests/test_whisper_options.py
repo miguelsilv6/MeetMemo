@@ -39,3 +39,31 @@ def test_disabling_options_maps_to_their_off_values():
     assert options["word_timestamps"] is False
     assert options["hallucination_silence_threshold"] is None
     assert options["beam_size"] == 1
+
+
+# --- WhisperModel arguments ------------------------------------------------------
+
+from utils.whisper_options import model_options  # noqa: E402
+
+
+def test_cpu_model_uses_every_available_cpu_by_default():
+    assert model_options("cpu", "int8", 0, available_cpus=10) == {
+        "device": "cpu",
+        "compute_type": "int8",
+        "cpu_threads": 10,
+    }
+
+
+def test_cpu_threads_can_be_pinned():
+    assert model_options("cpu", "int8", 6, available_cpus=10)["cpu_threads"] == 6
+
+
+def test_float16_falls_back_to_int8_on_cpu():
+    assert model_options("cpu", "float16", 0, available_cpus=4)["compute_type"] == "int8"
+
+
+def test_gpu_model_gets_no_cpu_thread_setting():
+    assert model_options("cuda:0", "float16", 0, available_cpus=10) == {
+        "device": "cuda",
+        "compute_type": "float16",
+    }
