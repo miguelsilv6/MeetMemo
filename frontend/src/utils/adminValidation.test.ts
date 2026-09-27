@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePhrases, validateSettings } from './adminValidation';
+import { parsePhrases, validateSettings, withDefaultPrompts } from './adminValidation';
 import type { RuntimeSettings } from '../types/admin';
 
 const valid: RuntimeSettings = {
@@ -20,6 +20,11 @@ const valid: RuntimeSettings = {
   audio_loudnorm: true,
   default_language: null,
   job_retention_hours: 12,
+  llm_summary_system_prompt: 'Default system prompt.',
+  llm_summary_request: 'Default request.',
+  llm_language_rule: 'Default language rule.',
+  llm_language_reminder: 'Default reminder.',
+  llm_translation_instructions: 'Default translation instructions.',
 };
 
 describe('validateSettings', () => {
@@ -66,5 +71,26 @@ describe('parsePhrases', () => {
       'Obrigado por assistir',
       'Outra',
     ]);
+  });
+});
+
+describe('prompts', () => {
+  it('limits prompt length after trimming', () => {
+    expect(validateSettings({ ...valid, llm_language_reminder: ` ${'x'.repeat(1000)} ` })).toEqual(
+      {}
+    );
+    expect(validateSettings({ ...valid, llm_language_reminder: 'x'.repeat(1001) })).toEqual({
+      llm_language_reminder: { key: 'admin.settings.errors.promptTooLong', params: { max: 1000 } },
+    });
+  });
+
+  it('replaces blank prompts with their defaults and normalises the rest', () => {
+    const result = withDefaultPrompts(
+      { ...valid, llm_summary_request: '  \n ', llm_language_rule: ' Regra\r\nnova ' },
+      { ...valid, llm_summary_request: 'Pedido de origem.' }
+    );
+    expect(result.llm_summary_request).toBe('Pedido de origem.');
+    expect(result.llm_language_rule).toBe('Regra\nnova');
+    expect(result.llm_summary_system_prompt).toBe(valid.llm_summary_system_prompt);
   });
 });

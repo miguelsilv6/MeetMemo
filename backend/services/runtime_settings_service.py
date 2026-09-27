@@ -16,6 +16,7 @@ from runtime_settings import (
     default_runtime_settings,
     diff_settings,
     merge_stored,
+    storable_settings,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,9 @@ class RuntimeSettingsService:
             raise ValueError("Unsupported Whisper model")
         changes = diff_settings(await self.get(), new)
         if changes:
-            await self.repo.save_runtime_settings(new.model_dump(), actor, changes)
+            await self.repo.save_runtime_settings(
+                storable_settings(new, self.defaults()), actor, changes
+            )
             logger.info(
                 "Runtime settings changed by %s: %s", actor, ", ".join(k for k, _, _ in changes)
             )

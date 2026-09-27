@@ -18,6 +18,17 @@ export interface RuntimeSettings {
   audio_loudnorm: boolean;
   default_language: string | null;
   job_retention_hours: number;
+  llm_summary_system_prompt: string;
+  llm_summary_request: string;
+  llm_language_rule: string;
+  llm_language_reminder: string;
+  llm_translation_instructions: string;
+}
+
+/** Prompt parts the backend depends on; shown read-only. */
+export interface FixedPrompts {
+  translation_output_contract: string;
+  qwen3_no_think: string;
 }
 
 export interface RestartOnlyConfig {
@@ -33,6 +44,7 @@ export interface AdminSettingsResponse {
   allowed_models: string[];
   languages: string[];
   restart_only: RestartOnlyConfig;
+  fixed_prompts: FixedPrompts;
 }
 
 export interface SaveSettingsResponse {

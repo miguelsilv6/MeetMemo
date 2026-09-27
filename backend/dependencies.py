@@ -134,8 +134,9 @@ async def get_summary_service(
     settings: Settings = Depends(get_settings)
 ):
     """Get SummaryService instance."""
+    from services.runtime_settings_service import RuntimeSettingsService
     from services.summary_service import SummaryService
-    return SummaryService(http_client, settings)
+    return SummaryService(http_client, settings, RuntimeSettingsService(settings))
 
 
 def get_speaker_service(

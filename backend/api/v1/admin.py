@@ -24,6 +24,7 @@ from admin_auth import (
 )
 from config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from llm_prompts import QWEN3_NO_THINK, TRANSLATION_OUTPUT_CONTRACT
 from pydantic import BaseModel, Field
 from repositories.admin_repository import AdminRepository
 from runtime_settings import WHISPER_LANGUAGE_CODES, RuntimeSettings
@@ -189,6 +190,11 @@ async def get_runtime_settings(
             "device": system["device"],
             "compute_type": system["compute_type"],
             "diarization_model": system["pyannote_model_name"],
+        },
+        # Prompt parts the code depends on, shown read-only.
+        "fixed_prompts": {
+            "translation_output_contract": TRANSLATION_OUTPUT_CONTRACT,
+            "qwen3_no_think": QWEN3_NO_THINK,
         },
     }
 

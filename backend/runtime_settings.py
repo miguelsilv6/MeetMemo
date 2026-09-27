@@ -10,7 +10,23 @@ in the environment only.
 import logging
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from llm_prompts import (
+    DEFAULT_SUMMARY_REQUEST,
+    DEFAULT_SUMMARY_SYSTEM_PROMPT,
+    DEFAULT_TRANSLATION_INSTRUCTIONS,
+    EUROPEAN_PORTUGUESE_REMINDER,
+    EUROPEAN_PORTUGUESE_RULE,
+    LlmPrompts,
+)
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from utils.hallucination_filter import DEFAULT_HALLUCINATION_PHRASES, FilterRules
 
 logger = logging.getLogger(__name__)
@@ -33,6 +49,18 @@ WHISPER_LANGUAGE_CODES = frozenset({
 
 MAX_PHRASES = 200
 MAX_PHRASE_LENGTH = 200
+
+# Editable LLM prompts and their length limits. A blank prompt means "use the
+# default"; saved prompts equal to the default are not stored, so unedited
+# prompts follow improvements to the defaults.
+PROMPT_MAX_LENGTHS = {
+    "llm_summary_system_prompt": 8000,
+    "llm_summary_request": 4000,
+    "llm_language_rule": 4000,
+    "llm_language_reminder": 1000,
+    "llm_translation_instructions": 4000,
+}
+PROMPT_FIELDS = tuple(PROMPT_MAX_LENGTHS)
 
 
 class RuntimeSettings(BaseModel):
@@ -66,6 +94,36 @@ class RuntimeSettings(BaseModel):
     # Language and retention
     default_language: Optional[str] = None
     job_retention_hours: int = Field(default=12, ge=1, le=8760)
+
+    # LLM prompts (summaries and translations)
+    llm_summary_system_prompt: str = Field(
+        default=DEFAULT_SUMMARY_SYSTEM_PROMPT,
+        max_length=PROMPT_MAX_LENGTHS["llm_summary_system_prompt"],
+    )
+    llm_summary_request: str = Field(
+        default=DEFAULT_SUMMARY_REQUEST, max_length=PROMPT_MAX_LENGTHS["llm_summary_request"]
+    )
+    llm_language_rule: str = Field(
+        default=EUROPEAN_PORTUGUESE_RULE, max_length=PROMPT_MAX_LENGTHS["llm_language_rule"]
+    )
+    llm_language_reminder: str = Field(
+        default=EUROPEAN_PORTUGUESE_REMINDER,
+        max_length=PROMPT_MAX_LENGTHS["llm_language_reminder"],
+    )
+    llm_translation_instructions: str = Field(
+        default=DEFAULT_TRANSLATION_INSTRUCTIONS,
+        max_length=PROMPT_MAX_LENGTHS["llm_translation_instructions"],
+    )
+
+    @field_validator(*PROMPT_FIELDS, mode="before")
+    @classmethod
+    def _clean_prompt(cls, prompt: Optional[str], info: ValidationInfo) -> str:
+        if prompt is None:
+            prompt = ""
+        if not isinstance(prompt, str):
+            raise ValueError("prompt must be text")
+        prompt = prompt.replace("\r\n", "\n").replace("\r", "\n").strip()
+        return prompt or cls.model_fields[info.field_name].default
 
     @field_validator("hallucination_phrases")
     @classmethod
@@ -107,6 +165,16 @@ class RuntimeSettings(BaseModel):
             no_speech_prob=self.low_confidence_no_speech_prob,
             compression_ratio=self.low_confidence_compression_ratio,
             phrases=tuple(self.hallucination_phrases),
+        )
+
+    def llm_prompts(self) -> LlmPrompts:
+        """The LLM prompts these settings describe."""
+        return LlmPrompts(
+            summary_system_prompt=self.llm_summary_system_prompt,
+            summary_request=self.llm_summary_request,
+            language_rule=self.llm_language_rule,
+            language_reminder=self.llm_language_reminder,
+            translation_instructions=self.llm_translation_instructions,
         )
 
 
@@ -172,6 +240,21 @@ def merge_stored(defaults: RuntimeSettings, stored: Optional[dict[str, Any]]) ->
         except ValidationError:
             logger.error("Saved runtime settings unusable; using defaults")
             return defaults
+
+
+def storable_settings(settings: RuntimeSettings, defaults: RuntimeSettings) -> dict[str, Any]:
+    """
+    The values to save: everything except prompts left at their default.
+
+    Leaving unedited prompts out means an improved default in a later version
+    reaches them, instead of an old copy of the default staying frozen.
+    """
+    values = settings.model_dump()
+    return {
+        field: value
+        for field, value in values.items()
+        if not (field in PROMPT_FIELDS and value == getattr(defaults, field))
+    }
 
 
 def diff_settings(old: RuntimeSettings, new: RuntimeSettings) -> list[tuple[str, Any, Any]]:

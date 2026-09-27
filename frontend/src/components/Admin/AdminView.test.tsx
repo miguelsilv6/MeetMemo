@@ -37,6 +37,11 @@ const settings: RuntimeSettings = {
   audio_loudnorm: true,
   default_language: null,
   job_retention_hours: 12,
+  llm_summary_system_prompt: 'Default system prompt.',
+  llm_summary_request: 'Default request.',
+  llm_language_rule: 'Default language rule.',
+  llm_language_reminder: 'Default reminder.',
+  llm_translation_instructions: 'Default translation instructions.',
 };
 
 const settingsResponse: AdminSettingsResponse = {
@@ -49,6 +54,10 @@ const settingsResponse: AdminSettingsResponse = {
     device: 'cpu',
     compute_type: 'int8',
     diarization_model: 'pyannote/speaker-diarization-3.1',
+  },
+  fixed_prompts: {
+    translation_output_contract: 'Return ONLY a JSON array.',
+    qwen3_no_think: '/no_think',
   },
 };
 
@@ -203,6 +212,84 @@ describe('AdminView', () => {
     expect(within(rows[1]).getByText('5')).toBeInTheDocument();
     expect(within(rows[1]).getByText('3')).toBeInTheDocument();
     expect(within(rows[2]).getByText('Admin password changed')).toBeInTheDocument();
+  });
+
+  it('saves an edited prompt and resets a prompt to its default', async () => {
+    vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
+      settings: { ...settings, llm_summary_request: 'Resume em três pontos.' },
+      changed: ['llm_summary_request'],
+    });
+    await renderSignedIn();
+
+    const request = screen.getByLabelText(/Summary: request/);
+    fireEvent.change(request, { target: { value: '  Resume em três pontos.\r\n' } });
+    expect(
+      within(request.closest('.form-group, .mb-4') as HTMLElement).getByText('(edited)')
+    ).toBeInTheDocument();
+
+    // Reset another edited prompt back to its default.
+    const reminder = screen.getByLabelText(/Final reminder/);
+    fireEvent.change(reminder, { target: { value: 'Other reminder.' } });
+    const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' });
+    fireEvent.click(resetButtons[4]);
+    expect(reminder).toHaveValue('Default reminder.');
+
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() => expect(adminApi.saveAdminSettings).toHaveBeenCalled());
+    const saved = vi.mocked(adminApi.saveAdminSettings).mock.calls[0][0];
+    expect(saved.llm_summary_request).toBe('Resume em três pontos.');
+    expect(saved.llm_language_reminder).toBe('Default reminder.');
+  });
+
+  it('treats an emptied prompt as its default', async () => {
+    await renderSignedIn();
+
+    fireEvent.change(screen.getByLabelText(/Summary: system instructions/), {
+      target: { value: '   ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(await screen.findByText('No changes to save.')).toBeInTheDocument();
+    expect(adminApi.saveAdminSettings).not.toHaveBeenCalled();
+  });
+
+  it('blocks saving an overlong prompt', async () => {
+    await renderSignedIn();
+
+    fireEvent.change(screen.getByLabelText(/Final reminder/), {
+      target: { value: 'x'.repeat(1001) },
+    });
+
+    expect(screen.getByText('At most 1000 characters.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    expect(adminApi.saveAdminSettings).not.toHaveBeenCalled();
+  });
+
+  it('shows the fixed prompt parts read-only', async () => {
+    await renderSignedIn();
+    expect(screen.getByText('Return ONLY a JSON array.')).toBeInTheDocument();
+    expect(screen.getByText('/no_think')).toBeInTheDocument();
+  });
+
+  it('collapses long prompt changes in the history', async () => {
+    const longPrompt = 'A '.repeat(100).trim();
+    vi.mocked(adminApi.getAdminAudit).mockResolvedValue([
+      {
+        id: 3,
+        changed_at: '2026-09-25T11:00:00Z',
+        actor: 'admin',
+        setting_key: 'llm_summary_system_prompt',
+        old_value: longPrompt,
+        new_value: 'Short.',
+      },
+    ]);
+    await renderSignedIn();
+
+    const row = within(screen.getByRole('table')).getAllByRole('row')[1];
+    expect(within(row).getByText('Summary: system instructions')).toBeInTheDocument();
+    expect(within(row).getByText(longPrompt)).toBeInTheDocument(); // full text, collapsed
+    expect(row.querySelector('details summary')?.textContent?.endsWith('…')).toBe(true);
+    expect(within(row).getByText('Short.')).toBeInTheDocument();
   });
 
   it('shows restart-only configuration read-only', async () => {

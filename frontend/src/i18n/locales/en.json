@@ -339,6 +339,7 @@
         "antiHallucination": "Anti-hallucination",
         "audio": "Audio preprocessing",
         "languageRetention": "Language and retention",
+        "prompts": "LLM prompts (summaries and translation)",
         "restartOnly": "Restart-only configuration (read-only)"
       },
       "fields": {
@@ -412,6 +413,26 @@
         "job_retention_hours": {
           "label": "Retention (hours)",
           "help": "Jobs and their files are deleted automatically after this many hours."
+        },
+        "llm_summary_system_prompt": {
+          "label": "Summary: system instructions",
+          "help": "Tells the model its role and the rules of the summary (sent as the system message)."
+        },
+        "llm_summary_request": {
+          "label": "Summary: request",
+          "help": "Placed right before the transcript in the request."
+        },
+        "llm_translation_instructions": {
+          "label": "Translation: instructions",
+          "help": "What the model must do with each segment. The JSON answer format below is added automatically."
+        },
+        "llm_language_rule": {
+          "label": "Language rule",
+          "help": "Added to the end of the system message of every summary and translation."
+        },
+        "llm_language_reminder": {
+          "label": "Final reminder",
+          "help": "Placed after the transcript: small models weigh the end of the request most."
         }
       },
       "restartOnly": {
@@ -427,7 +448,33 @@
         "range": "Must be between {{min}} and {{max}}.",
         "offsetBelowOnset": "Must be lower than the speech threshold.",
         "tooManyPhrases": "At most {{max}} phrases.",
-        "phraseTooLong": "Each phrase can have at most {{max}} characters."
+        "phraseTooLong": "Each phrase can have at most {{max}} characters.",
+        "promptTooLong": "At most {{max}} characters."
+      },
+      "prompts": {
+        "intro": "Changes apply to the next summary or translation, with no restart. Leave a field empty, or use \"Reset to default\", to use the built-in text. Each change, with the old and new text, is recorded in the history.",
+        "summary": "Summary",
+        "summaryAssembly": "Sent as: system = system instructions + language rule; request = request + transcript + final reminder.",
+        "translation": "Translation",
+        "translationAssembly": "Sent as: system = instructions + JSON answer format (fixed) + language rule; request = the numbered segments as JSON.",
+        "language": "Language (summaries and translation)",
+        "languageIntro": "Keeps every answer in European Portuguese.",
+        "isDefault": "default",
+        "isCustom": "edited",
+        "resetOne": "Reset to default",
+        "count": "{{count}} / {{max}} characters",
+        "fixedTitle": "Fixed parts (read-only)",
+        "fixedIntro": "The application depends on these, so they cannot be edited.",
+        "fixed": {
+          "translation_output_contract": {
+            "label": "Translation answer format",
+            "help": "Each translated line is matched back to its segment by the \"i\" index, so the answer must keep this exact JSON shape."
+          },
+          "qwen3_no_think": {
+            "label": "Qwen3 thinking switch",
+            "help": "Appended to every request for Qwen3 models. Without it, a small Qwen3 can spend its whole output limit \"thinking\" and return an empty answer."
+          }
+        }
       }
     },
     "password": {

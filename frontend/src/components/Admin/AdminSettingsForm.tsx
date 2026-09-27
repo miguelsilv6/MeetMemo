@@ -5,8 +5,15 @@ import { RotateCcw, Save, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getLanguageName } from '../../constants/languages';
 import { AdminApiError, saveAdminSettings } from '../../services/adminApi';
-import { NUMERIC_RULES, parsePhrases, validateSettings } from '../../utils/adminValidation';
-import type { FieldError, NumericField } from '../../utils/adminValidation';
+import {
+  NUMERIC_RULES,
+  PROMPT_MAX_LENGTHS,
+  normalizePrompt,
+  parsePhrases,
+  validateSettings,
+  withDefaultPrompts,
+} from '../../utils/adminValidation';
+import type { FieldError, NumericField, PromptField } from '../../utils/adminValidation';
 import type { AdminSettingsResponse, RuntimeSettings } from '../../types/admin';
 
 interface AdminSettingsFormProps {
@@ -53,8 +60,12 @@ export default function AdminSettingsForm({
   const [message, setMessage] = useState<Message | null>(null);
 
   const candidate = useMemo<RuntimeSettings>(
-    () => ({ ...draft, hallucination_phrases: parsePhrases(phrasesText) }),
-    [draft, phrasesText]
+    () =>
+      withDefaultPrompts(
+        { ...draft, hallucination_phrases: parsePhrases(phrasesText) },
+        data.defaults
+      ),
+    [draft, phrasesText, data.defaults]
   );
   const errors = useMemo(() => validateSettings(candidate), [candidate]);
   const hasErrors = Object.keys(errors).length > 0;
@@ -111,6 +122,65 @@ export default function AdminSettingsForm({
           onChange={(e) => update(field, e.target.checked)}
           aria-describedby={`${id}-help`}
         />
+        <FieldHelp id={`${id}-help`} text={t(`admin.settings.fields.${field}.help`)} />
+      </Form.Group>
+    );
+  };
+
+  const promptField = (field: PromptField, rows: number) => {
+    const id = `admin-${field}`;
+    const error = errors[field];
+    const length = normalizePrompt(draft[field]).length;
+    const max = PROMPT_MAX_LENGTHS[field];
+    const isDefault = normalizePrompt(draft[field]) === data.defaults[field] || length === 0;
+    return (
+      <Form.Group controlId={id} className="mb-4">
+        <div className="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-1">
+          <Form.Label className="mb-0">
+            {t(`admin.settings.fields.${field}.label`)}{' '}
+            <span className={`small ${isDefault ? 'text-muted' : 'text-primary'}`}>
+              (
+              {isDefault
+                ? t('admin.settings.prompts.isDefault')
+                : t('admin.settings.prompts.isCustom')}
+              )
+            </span>
+          </Form.Label>
+          <Button
+            type="button"
+            variant="outline-secondary"
+            size="sm"
+            onClick={() => update(field, data.defaults[field])}
+            disabled={saving || draft[field] === data.defaults[field]}
+          >
+            <RotateCcw size={14} className="me-1" />
+            {t('admin.settings.prompts.resetOne')}
+          </Button>
+        </div>
+        <Form.Control
+          as="textarea"
+          rows={rows}
+          className="admin-prompt-input"
+          value={draft[field]}
+          placeholder={data.defaults[field]}
+          onChange={(e) => update(field, e.target.value)}
+          isInvalid={!!error}
+          aria-describedby={`${id}-help ${id}-count`}
+          spellCheck
+        />
+        <div className="d-flex flex-wrap justify-content-between gap-2">
+          {error ? (
+            <div className="invalid-feedback d-block w-auto">{errorText(error)}</div>
+          ) : (
+            <span />
+          )}
+          <Form.Text
+            id={`${id}-count`}
+            className={`admin-prompt-count ${length > max ? 'text-danger' : 'text-muted'}`}
+          >
+            {t('admin.settings.prompts.count', { count: length, max })}
+          </Form.Text>
+        </div>
         <FieldHelp id={`${id}-help`} text={t(`admin.settings.fields.${field}.help`)} />
       </Form.Group>
     );
@@ -271,6 +341,43 @@ export default function AdminSettingsForm({
               </Col>
               <Col md={6}>{numberField('job_retention_hours')}</Col>
             </Row>
+          </Section>
+
+          <Section title={t('admin.settings.sections.prompts')}>
+            <p className="small text-muted">{t('admin.settings.prompts.intro')}</p>
+            <h6 className="admin-subsection">{t('admin.settings.prompts.summary')}</h6>
+            <p className="small text-muted mb-3">{t('admin.settings.prompts.summaryAssembly')}</p>
+            {promptField('llm_summary_system_prompt', 6)}
+            {promptField('llm_summary_request', 4)}
+            <h6 className="admin-subsection">{t('admin.settings.prompts.translation')}</h6>
+            <p className="small text-muted mb-3">
+              {t('admin.settings.prompts.translationAssembly')}
+            </p>
+            {promptField('llm_translation_instructions', 4)}
+            <h6 className="admin-subsection">{t('admin.settings.prompts.language')}</h6>
+            <p className="small text-muted mb-3">{t('admin.settings.prompts.languageIntro')}</p>
+            {promptField('llm_language_rule', 6)}
+            {promptField('llm_language_reminder', 2)}
+            <h6 className="admin-subsection">{t('admin.settings.prompts.fixedTitle')}</h6>
+            <p className="small text-muted mb-2">{t('admin.settings.prompts.fixedIntro')}</p>
+            <dl className="admin-fixed-prompts mb-0">
+              <dt>{t('admin.settings.prompts.fixed.translation_output_contract.label')}</dt>
+              <dd>
+                <pre className="admin-prompt-fixed">
+                  {data.fixed_prompts.translation_output_contract}
+                </pre>
+                <Form.Text className="text-muted d-block">
+                  {t('admin.settings.prompts.fixed.translation_output_contract.help')}
+                </Form.Text>
+              </dd>
+              <dt>{t('admin.settings.prompts.fixed.qwen3_no_think.label')}</dt>
+              <dd className="mb-0">
+                <pre className="admin-prompt-fixed">{data.fixed_prompts.qwen3_no_think}</pre>
+                <Form.Text className="text-muted d-block">
+                  {t('admin.settings.prompts.fixed.qwen3_no_think.help')}
+                </Form.Text>
+              </dd>
+            </dl>
           </Section>
 
           <Section title={t('admin.settings.sections.restartOnly')}>

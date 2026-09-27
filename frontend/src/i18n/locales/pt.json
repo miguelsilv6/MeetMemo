@@ -339,6 +339,7 @@
         "antiHallucination": "Anti-alucinação",
         "audio": "Pré-processamento de áudio",
         "languageRetention": "Idioma e retenção",
+        "prompts": "Prompts do LLM (resumos e tradução)",
         "restartOnly": "Configuração que exige reinício (só leitura)"
       },
       "fields": {
@@ -412,6 +413,26 @@
         "job_retention_hours": {
           "label": "Retenção (horas)",
           "help": "Os trabalhos e os respetivos ficheiros são apagados automaticamente após este número de horas."
+        },
+        "llm_summary_system_prompt": {
+          "label": "Resumo: instruções de sistema",
+          "help": "Indica ao modelo o seu papel e as regras do resumo (enviado como mensagem de sistema)."
+        },
+        "llm_summary_request": {
+          "label": "Resumo: pedido",
+          "help": "Colocado imediatamente antes da transcrição no pedido."
+        },
+        "llm_translation_instructions": {
+          "label": "Tradução: instruções",
+          "help": "O que o modelo deve fazer com cada segmento. O formato de resposta JSON abaixo é acrescentado automaticamente."
+        },
+        "llm_language_rule": {
+          "label": "Regra de idioma",
+          "help": "Acrescentada ao fim da mensagem de sistema de todos os resumos e traduções."
+        },
+        "llm_language_reminder": {
+          "label": "Lembrete final",
+          "help": "Colocado depois da transcrição: os modelos pequenos dão mais peso ao fim do pedido."
         }
       },
       "restartOnly": {
@@ -427,7 +448,33 @@
         "range": "Tem de estar entre {{min}} e {{max}}.",
         "offsetBelowOnset": "Tem de ser inferior ao limiar de voz.",
         "tooManyPhrases": "No máximo {{max}} frases.",
-        "phraseTooLong": "Cada frase pode ter no máximo {{max}} caracteres."
+        "phraseTooLong": "Cada frase pode ter no máximo {{max}} caracteres.",
+        "promptTooLong": "No máximo {{max}} caracteres."
+      },
+      "prompts": {
+        "intro": "As alterações aplicam-se ao próximo resumo ou tradução, sem reiniciar. Deixa um campo vazio, ou usa \"Repor predefinição\", para usar o texto de origem. Cada alteração, com o texto anterior e o novo, fica registada no histórico.",
+        "summary": "Resumo",
+        "summaryAssembly": "Enviado assim: sistema = instruções de sistema + regra de idioma; pedido = pedido + transcrição + lembrete final.",
+        "translation": "Tradução",
+        "translationAssembly": "Enviado assim: sistema = instruções + formato de resposta JSON (fixo) + regra de idioma; pedido = os segmentos numerados em JSON.",
+        "language": "Idioma (resumos e tradução)",
+        "languageIntro": "Mantém todas as respostas em português de Portugal.",
+        "isDefault": "predefinição",
+        "isCustom": "editado",
+        "resetOne": "Repor predefinição",
+        "count": "{{count}} / {{max}} caracteres",
+        "fixedTitle": "Partes fixas (só leitura)",
+        "fixedIntro": "A aplicação depende destas partes, por isso não podem ser editadas.",
+        "fixed": {
+          "translation_output_contract": {
+            "label": "Formato da resposta da tradução",
+            "help": "Cada linha traduzida é associada ao seu segmento pelo índice \"i\", por isso a resposta tem de manter exatamente esta estrutura JSON."
+          },
+          "qwen3_no_think": {
+            "label": "Desativação do raciocínio do Qwen3",
+            "help": "Acrescentado a todos os pedidos para modelos Qwen3. Sem isto, um Qwen3 pequeno pode gastar todo o limite de resposta a \"pensar\" e devolver uma resposta vazia."
+          }
+        }
       }
     },
     "password": {

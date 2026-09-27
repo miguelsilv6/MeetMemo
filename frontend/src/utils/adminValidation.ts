@@ -25,6 +25,36 @@ export const NUMERIC_RULES = {
 
 export type NumericField = keyof typeof NUMERIC_RULES;
 
+/** Editable LLM prompts and their maximum lengths (blank = the default). */
+export const PROMPT_MAX_LENGTHS = {
+  llm_summary_system_prompt: 8000,
+  llm_summary_request: 4000,
+  llm_language_rule: 4000,
+  llm_language_reminder: 1000,
+  llm_translation_instructions: 4000,
+} satisfies Partial<Record<keyof RuntimeSettings, number>>;
+
+export type PromptField = keyof typeof PROMPT_MAX_LENGTHS;
+
+export const PROMPT_FIELDS = Object.keys(PROMPT_MAX_LENGTHS) as PromptField[];
+
+/** Normalise a prompt as the backend does: Unix line endings, trimmed. */
+export function normalizePrompt(text: string): string {
+  return text.replace(/\r\n?/g, '\n').trim();
+}
+
+/** The settings to save: blank prompts replaced by their defaults. */
+export function withDefaultPrompts(
+  settings: RuntimeSettings,
+  defaults: RuntimeSettings
+): RuntimeSettings {
+  const result = { ...settings };
+  for (const field of PROMPT_FIELDS) {
+    result[field] = normalizePrompt(settings[field]) || defaults[field];
+  }
+  return result;
+}
+
 export const MAX_PHRASES = 200;
 export const MAX_PHRASE_LENGTH = 200;
 
@@ -76,6 +106,13 @@ export function validateSettings(settings: RuntimeSettings): SettingsErrors {
       key: 'admin.settings.errors.phraseTooLong',
       params: { max: MAX_PHRASE_LENGTH },
     };
+  }
+
+  for (const field of PROMPT_FIELDS) {
+    const max = PROMPT_MAX_LENGTHS[field];
+    if (normalizePrompt(settings[field]).length > max) {
+      errors[field] = { key: 'admin.settings.errors.promptTooLong', params: { max } };
+    }
   }
 
   return errors;
