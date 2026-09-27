@@ -234,3 +234,34 @@ def test_password_change_checks_the_current_password_and_policy(client, repo):
     fresh = make_client(repo)
     assert login(fresh).status_code == 401
     assert login(fresh, password="brand new password").status_code == 200
+
+
+def test_prompts_are_editable_audited_and_reset_by_clearing(client, repo):
+    login(client)
+    body = client.get("/api/v1/admin/settings").json()
+    current = body["settings"]
+    default_prompt = body["defaults"]["llm_summary_system_prompt"]
+    assert current["llm_summary_system_prompt"] == default_prompt
+    assert body["fixed_prompts"]["qwen3_no_think"] == "/no_think"
+    assert '"i"' in body["fixed_prompts"]["translation_output_contract"]
+
+    edited = {**current, "llm_summary_system_prompt": "Resume em três tópicos."}
+    response = client.put("/api/v1/admin/settings", json=edited, headers=HEADERS)
+    assert response.json()["changed"] == ["llm_summary_system_prompt"]
+    assert repo.settings["llm_summary_system_prompt"] == "Resume em três tópicos."
+    # Prompts left at their default are not stored.
+    assert "llm_translation_instructions" not in repo.settings
+
+    too_long = {**current, "llm_language_reminder": "x" * 1001}
+    assert client.put("/api/v1/admin/settings", json=too_long, headers=HEADERS).status_code == 422
+
+    cleared = {**current, "llm_summary_system_prompt": "   "}
+    response = client.put("/api/v1/admin/settings", json=cleared, headers=HEADERS)
+    assert response.json()["settings"]["llm_summary_system_prompt"] == default_prompt
+    assert "llm_summary_system_prompt" not in repo.settings
+
+    audit = client.get("/api/v1/admin/audit").json()
+    assert [(e["setting_key"], e["old_value"], e["new_value"]) for e in audit] == [
+        ("llm_summary_system_prompt", "Resume em três tópicos.", default_prompt),
+        ("llm_summary_system_prompt", default_prompt, "Resume em três tópicos."),
+    ]

@@ -9,10 +9,24 @@ interface AdminAuditLogProps {
   onRefresh: () => void;
 }
 
+/** Values longer than this (edited prompts) are collapsed to a preview. */
+const PREVIEW_LENGTH = 80;
+
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return '—';
   if (Array.isArray(value)) return value.join(' · ');
   return String(value);
+}
+
+function AuditValue({ value }: { value: unknown }) {
+  const text = formatValue(value);
+  if (text.length <= PREVIEW_LENGTH) return <>{text}</>;
+  return (
+    <details>
+      <summary>{`${text.slice(0, PREVIEW_LENGTH).trimEnd()}…`}</summary>
+      <pre className="admin-audit-full">{text}</pre>
+    </details>
+  );
 }
 
 export default function AdminAuditLog({ entries, loading, onRefresh }: AdminAuditLogProps) {
@@ -55,8 +69,12 @@ export default function AdminAuditLog({ entries, loading, onRefresh }: AdminAudi
                     </td>
                     <td>{entry.actor}</td>
                     <td>{settingLabel(entry.setting_key)}</td>
-                    <td className="admin-audit-value">{formatValue(entry.old_value)}</td>
-                    <td className="admin-audit-value">{formatValue(entry.new_value)}</td>
+                    <td className="admin-audit-value">
+                      <AuditValue value={entry.old_value} />
+                    </td>
+                    <td className="admin-audit-value">
+                      <AuditValue value={entry.new_value} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

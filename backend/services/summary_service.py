@@ -7,35 +7,16 @@ and summary caching. It never assigns names to speakers.
 import json
 import logging
 import re
-from typing import Optional
+from typing import Any, Optional
 
 import aiofiles
 import aiofiles.os
 import httpx
 from config import Settings
 from fastapi import HTTPException
+from llm_prompts import QWEN3_NO_THINK, TRANSLATION_OUTPUT_CONTRACT, LlmPrompts
 
 logger = logging.getLogger(__name__)
-
-# Summaries and translations are always written in European Portuguese. Small
-# models drift into Brazilian Portuguese unless told otherwise explicitly, so
-# the rule names the variant and gives concrete contrasting examples. It is
-# appended to every summary/translation system prompt (custom ones included).
-EUROPEAN_PORTUGUESE_RULE = (
-    "IDIOMA OBRIGATÓRIO: escreve sempre em português europeu (português de Portugal), "
-    "seja qual for o idioma da transcrição. Nunca uses português do Brasil. "
-    "Usa o vocabulário, a gramática e a ortografia de Portugal, por exemplo: "
-    "equipa (e não time), ficheiro (e não arquivo), utilizador (e não usuário), "
-    "telemóvel (e não celular), ecrã (e não tela), contacto (e não contato), "
-    "facto (e não fato), receção (e não recepção), "
-    "\"estou a fazer\" (e não \"estou fazendo\"), \"tu fazes\" ou \"o senhor faz\" "
-    "(e não \"você faz\" como tratamento genérico)."
-)
-
-# Final reminder placed after the transcript: small models weigh the end of
-# the prompt heavily, and a long transcript can push the system prompt out of
-# their attention.
-EUROPEAN_PORTUGUESE_REMINDER = "Responde apenas em português de Portugal."
 
 
 def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
@@ -111,11 +92,6 @@ def _extract_translated_texts(content: str, count: int) -> Optional[list[str]]:
     return None
 
 
-# Qwen3's documented soft switch that turns off its "thinking" phase for one
-# request. Left on, a small Qwen3 can spend its whole token budget reasoning
-# (Ollama returns that separately, as `reasoning`) and answer with nothing.
-QWEN3_NO_THINK = "/no_think"
-
 # Reasoning some servers leave inline in the answer; an unclosed block (the
 # answer was cut off mid-thought) runs to the end.
 _THINK_BLOCK = re.compile(r"<think>.*?(?:</think>|$)", re.DOTALL | re.IGNORECASE)
@@ -176,16 +152,31 @@ def _describe_llm_error(error: Exception, timeout: float) -> str:
 class SummaryService:
     """Service for LLM-based summarization and translation."""
 
-    def __init__(self, http_client: httpx.AsyncClient, settings: Settings):
+    def __init__(
+        self,
+        http_client: httpx.AsyncClient,
+        settings: Settings,
+        runtime_settings: Optional[Any] = None,
+    ):
         """
         Initialize SummaryService.
 
         Args:
             http_client: Async HTTP client for LLM API calls
             settings: Application settings
+            runtime_settings: Source of the admin-edited prompts (anything
+                with an async ``get()`` returning ``RuntimeSettings``); the
+                default prompts are used without one.
         """
         self.http_client = http_client
         self.settings = settings
+        self.runtime_settings = runtime_settings
+
+    async def _prompts(self) -> LlmPrompts:
+        """The prompts in effect now, read per request so edits apply at once."""
+        if self.runtime_settings is None:
+            return LlmPrompts()
+        return (await self.runtime_settings.get()).llm_prompts()
 
     async def summarize(  # pylint: disable=too-many-locals
         self,
@@ -199,8 +190,8 @@ class SummaryService:
         Args:
             transcript: The transcript text to summarize
             custom_prompt: Optional custom user prompt
-            system_prompt: Optional custom system prompt (the European
-                Portuguese rule is always appended to it)
+            system_prompt: Optional custom system prompt (the language
+                rule is always appended to it)
 
         Returns:
             Summary text in markdown format
@@ -236,32 +227,15 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         model_name = self.settings.llm_model_name
 
-        default_system_prompt = (
-            "És um assistente que resume transcrições de reuniões e chamadas. "
-            "Faz um resumo conciso dos pontos principais, das decisões tomadas "
-            "e das ações a realizar, em formato Markdown. "
-            "IMPORTANTE: usa sempre os nomes exatos dos interlocutores tal como "
-            "aparecem na transcrição; nunca os alteres, substituas ou inventes. "
-            "CRÍTICO: resume apenas o que está efetivamente na transcrição. "
-            "Não inventes conteúdo, participantes, decisões nem ações."
-        )
-
-        default_user_prompt = (
-            "Analisa a transcrição seguinte e faz um resumo adequado. "
-            "Usa os nomes dos interlocutores exatamente como aparecem. "
-            "Inclui apenas as secções que tenham conteúdo real da transcrição. "
-            "Usa formato Markdown, sem blocos de código.\n\n"
-        )
-
+        prompts = await self._prompts()
         final_system_prompt = (
-            f"{system_prompt or default_system_prompt}\n\n{EUROPEAN_PORTUGUESE_RULE}"
+            f"{system_prompt or prompts.summary_system_prompt}\n\n{prompts.language_rule}"
         )
 
-        if custom_prompt:
-            final_user_prompt = custom_prompt + "\n\n" + transcript
-        else:
-            final_user_prompt = default_user_prompt + transcript
-        final_user_prompt += f"\n\n{EUROPEAN_PORTUGUESE_REMINDER}"
+        request = custom_prompt or prompts.summary_request
+        final_user_prompt = (
+            f"{request}\n\n{transcript}\n\n{prompts.language_reminder}"
+        )
         final_user_prompt = _without_thinking(model_name, final_user_prompt)
 
         payload = {
@@ -331,16 +305,10 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         model_name = self.settings.llm_model_name
 
+        prompts = await self._prompts()
         system_prompt = (
-            "You are a professional meeting transcript translator. Translate the "
-            "\"text\" field of every object in the given JSON array into European "
-            "Portuguese (Portugal). "
-            "Preserve meaning, tone, and register; do not summarize or omit content. "
-            "Keep the same number of objects, in the same order, with the same \"i\" "
-            "values. Never merge, split, add, or remove entries. "
-            "Return ONLY a JSON array of objects shaped like "
-            '{"i": <index>, "text": "<translation>"}, nothing else.\n\n'
-            f"{EUROPEAN_PORTUGUESE_RULE}"
+            f"{prompts.translation_instructions} {TRANSLATION_OUTPUT_CONTRACT}\n\n"
+            f"{prompts.language_rule}"
         )
         numbered_segments = [{"i": i, "text": text} for i, text in enumerate(texts)]
         user_prompt = _without_thinking(

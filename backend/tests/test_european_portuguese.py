@@ -16,11 +16,8 @@ import httpx
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-from services.summary_service import (
-    EUROPEAN_PORTUGUESE_REMINDER,
-    EUROPEAN_PORTUGUESE_RULE,
-    SummaryService,
-)
+from llm_prompts import EUROPEAN_PORTUGUESE_REMINDER, EUROPEAN_PORTUGUESE_RULE
+from services.summary_service import SummaryService
 
 TRANSCRIPT = (
     "SPEAKER_00: Good morning, this is Ana from customer support, how can I help?\n"
