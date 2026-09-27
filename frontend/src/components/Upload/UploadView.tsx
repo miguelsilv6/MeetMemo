@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
-import { Row, Col } from '@govtechsg/sgds-react';
+import { Row, Col, Button } from '@govtechsg/sgds-react';
+import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import FileUploadCard from './FileUploadCard';
 import RecentJobsList from './RecentJobsList';
@@ -22,6 +23,8 @@ interface UploadViewProps {
   onLanguageChange: (language: string | null) => void;
   /** Receives the admin-configured default language each time this view opens. */
   onDefaultLanguage: (language: string | null) => void;
+  /** Open the projects page, for several audios of the same case. */
+  onOpenProjects?: () => void;
 }
 
 export default function UploadView({
@@ -38,6 +41,7 @@ export default function UploadView({
   selectedLanguage,
   onLanguageChange,
   onDefaultLanguage,
+  onOpenProjects,
 }: UploadViewProps) {
   const { t } = useTranslation();
 
@@ -79,6 +83,21 @@ export default function UploadView({
             />
           </Col>
         </Row>
+
+        {onOpenProjects && (
+          <p className="text-center text-muted small mt-3 mb-0">
+            {t('projects.uploadHint')}{' '}
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 align-baseline"
+              onClick={onOpenProjects}
+            >
+              <FolderOpen size={14} className="me-1" />
+              {t('projects.uploadHintButton')}
+            </Button>
+          </p>
+        )}
 
         <RecentJobsList
           recentJobs={recentJobs}

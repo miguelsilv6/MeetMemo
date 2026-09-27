@@ -5,15 +5,15 @@ This service handles scheduled cleanup of old jobs, export files, and orphaned f
 """
 import asyncio
 import logging
-import os
 
 import aiofiles.os
 from config import Settings
 from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
-from utils.asr_audio import asr_audio_path
 
+from services.job_files import remove_job_files
+from services.project_service import ProjectService
 from services.runtime_settings_service import RuntimeSettingsService
 
 logger = logging.getLogger(__name__)
@@ -59,44 +59,24 @@ class CleanupService:
                 logger.error("Failed to query old jobs: %s", e, exc_info=True)
                 old_jobs = []
 
+            # Projects are deleted in full once they expire
+            try:
+                await ProjectService(self.settings).delete_expired()
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error("Failed to delete expired projects: %s", e, exc_info=True)
+
             try:
                 await AdminRepository().purge_expired_sessions()
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("Failed to purge expired admin sessions: %s", e)
 
             for job in old_jobs:
-                job_uuid = job.get("uuid")
-                if job_uuid:
-                    asr_path = asr_audio_path(self.settings.upload_dir, str(job_uuid))
-                    if await aiofiles.os.path.exists(asr_path):
-                        try:
-                            await aiofiles.os.remove(asr_path)
-                        except Exception as e:  # pylint: disable=broad-exception-caught
-                            logger.error("Failed to delete ASR audio %s: %s", asr_path, e)
-
-                file_name = job.get("file_name", "")
-                if file_name:
-                    # Remove audio file
-                    audio_path = os.path.join(self.settings.upload_dir, file_name)
-                    if await aiofiles.os.path.exists(audio_path):
-                        try:
-                            await aiofiles.os.remove(audio_path)
-                            logger.debug("Deleted audio file: %s", audio_path)
-                        except Exception as e:  # pylint: disable=broad-exception-caught
-                            logger.error("Failed to delete audio file %s: %s", audio_path, e)
-
-                    # Remove transcript files
-                    base_name = os.path.splitext(file_name)[0]
-                    transcript_path = os.path.join(
-                        self.settings.transcript_dir,
-                        f"{base_name}.json"
-                    )
-                    if await aiofiles.os.path.exists(transcript_path):
-                        try:
-                            await aiofiles.os.remove(transcript_path)
-                            logger.debug("Deleted transcript file: %s", transcript_path)
-                        except Exception as e:  # pylint: disable=broad-exception-caught
-                            logger.error("Failed to delete transcript %s: %s", transcript_path, e)
+                await remove_job_files(
+                    self.settings,
+                    str(job["uuid"]),
+                    job.get("file_name", ""),
+                    job.get("export_paths") or (),
+                )
 
             # Cleanup old export jobs
             try:

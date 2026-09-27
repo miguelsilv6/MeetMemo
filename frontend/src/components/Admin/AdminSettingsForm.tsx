@@ -340,6 +340,7 @@ export default function AdminSettingsForm({
                 </Form.Group>
               </Col>
               <Col md={6}>{numberField('job_retention_hours')}</Col>
+              <Col md={6}>{numberField('project_retention_days')}</Col>
             </Row>
           </Section>
 

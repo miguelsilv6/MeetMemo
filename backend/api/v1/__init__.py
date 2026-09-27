@@ -12,6 +12,7 @@ from api.v1 import (
     exports,
     health,
     jobs,
+    projects,
     speakers,
     summaries,
     system,
@@ -35,6 +36,11 @@ api_router.include_router(
 api_router.include_router(
     jobs.router,
     tags=["jobs"]
+)
+
+api_router.include_router(
+    projects.router,
+    tags=["projects"]
 )
 
 api_router.include_router(

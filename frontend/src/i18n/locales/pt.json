@@ -412,7 +412,11 @@
         },
         "job_retention_hours": {
           "label": "Retenção (horas)",
-          "help": "Os trabalhos e os respetivos ficheiros são apagados automaticamente após este número de horas."
+          "help": "As comunicações carregadas individualmente e os respetivos ficheiros são eliminados automaticamente após este número de horas. Não se aplica aos projetos."
+        },
+        "project_retention_days": {
+          "label": "Retenção dos projetos (dias)",
+          "help": "Os projetos e todos os seus ficheiros são eliminados automaticamente após este número de dias. Aplica-se aos projetos criados a partir de agora; a data de expiração de um projeto não muda depois de criado."
         },
         "llm_summary_system_prompt": {
           "label": "Resumo: instruções de sistema",
@@ -498,6 +502,84 @@
       "from": "Valor anterior",
       "to": "Novo valor",
       "passwordChanged": "Palavra-passe de administrador alterada"
+    }
+  },
+  "projects": {
+    "nav": "Projetos",
+    "title": "Projetos",
+    "subtitle": "Agrupa vários áudios do mesmo caso. São processados no servidor, um de cada vez, e eliminados automaticamente quando o projeto expira.",
+    "back": "Voltar aos projetos",
+    "backTo": "Voltar ao projeto «{{name}}»",
+    "notFound": "Este projeto não existe ou já expirou (e foi eliminado com todos os seus ficheiros).",
+    "uploadHint": "Tens vários áudios do mesmo caso?",
+    "uploadHintButton": "Cria um projeto",
+    "fields": {
+      "name": "Nome do projeto",
+      "namePlaceholder": "Ex.: Inquérito 123/26",
+      "reference": "Referência",
+      "referencePlaceholder": "Ex.: NUIPC ou n.º do processo",
+      "description": "Descrição"
+    },
+    "create": {
+      "title": "Novo projeto",
+      "submit": "Criar projeto",
+      "creating": "A criar…",
+      "retention_one": "O projeto e todos os seus ficheiros são eliminados automaticamente ao fim de {{count}} dia.",
+      "retention_other": "O projeto e todos os seus ficheiros são eliminados automaticamente ao fim de {{count}} dias."
+    },
+    "list": {
+      "title": "Projetos ativos",
+      "empty": "Ainda não há projetos.",
+      "created": "Criado em {{date}}",
+      "progress_one": "{{done}} de {{count}} áudio concluído",
+      "progress_other": "{{done}} de {{count}} áudios concluídos",
+      "errors_one": "{{count}} com erro",
+      "errors_other": "{{count}} com erro"
+    },
+    "expiry": {
+      "badge_one": "Expira em {{count}} dia",
+      "badge_other": "Expira em {{count}} dias",
+      "notice_one": "Este projeto e todos os seus ficheiros (áudios, transcrições, resumos e traduções) serão eliminados automaticamente em {{date}} (daqui a {{count}} dia).",
+      "notice_other": "Este projeto e todos os seus ficheiros (áudios, transcrições, resumos e traduções) serão eliminados automaticamente em {{date}} (daqui a {{count}} dias)."
+    },
+    "upload": {
+      "title": "Adicionar áudios",
+      "choose": "Escolhe um ou mais ficheiros",
+      "hint": "Os ficheiros já existentes neste projeto são ignorados. O idioma escolhido aplica-se aos ficheiros deste carregamento.",
+      "progress": "A carregar {{index}} de {{total}}: {{name}}",
+      "result": {
+        "queued": "em fila para processamento",
+        "duplicate": "já existe neste projeto (como {{name}}), ignorado",
+        "unsupported": "formato não suportado",
+        "rejected": "não foi carregado ({{reason}})"
+      }
+    },
+    "audios": {
+      "title_one": "{{count}} áudio",
+      "title_other": "{{count}} áudios",
+      "serverNotice": "O processamento decorre no servidor: podes fechar esta página.",
+      "empty": "Ainda não há áudios neste projeto.",
+      "statuses": {
+        "queued": "Em fila",
+        "processing": "A processar",
+        "completed": "Concluído",
+        "error": "Erro"
+      },
+      "queuedAt": "Em fila (n.º {{position}})",
+      "processingAt": "A processar · {{progress}}%",
+      "progress": "Progresso: {{progress}}%",
+      "open": "Abrir transcrição",
+      "retry": "Tentar novamente",
+      "delete": "Eliminar áudio",
+      "deleteNamed": "Eliminar {{name}}",
+      "deleteTitle": "Eliminar áudio",
+      "deleteBody": "Eliminar «{{name}}» deste projeto, com a transcrição, o resumo e as traduções? Esta ação não pode ser desfeita."
+    },
+    "delete": {
+      "button": "Eliminar projeto",
+      "title": "Eliminar projeto",
+      "body_one": "Eliminar o projeto «{{name}}» e o seu áudio, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita.",
+      "body_other": "Eliminar o projeto «{{name}}» e os seus {{count}} áudios, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita."
     }
   }
 }
