@@ -24,6 +24,9 @@ interface ProjectViewProps {
   projectUuid: string;
   /** False for the administrator, who sees the project but uploads nothing. */
   canUpload?: boolean;
+  /** The user's tokens left, and a way to refresh it after uploads and retries. */
+  tokenBalance?: number | null;
+  onBalanceChange?: () => void;
   onBack: () => void;
   onOpenAudio: (project: ProjectDetail, audio: ProjectAudio) => void;
 }
@@ -34,6 +37,8 @@ type PendingDelete = { kind: 'project' } | { kind: 'audio'; audio: ProjectAudio 
 export default function ProjectView({
   projectUuid,
   canUpload = true,
+  tokenBalance = null,
+  onBalanceChange,
   onBack,
   onOpenAudio,
 }: ProjectViewProps) {
@@ -47,9 +52,23 @@ export default function ProjectView({
   const [busy, setBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Audios seen failed so far: a new failure means its token came back.
+  const failedRef = useRef<Set<string> | null>(null);
+  const onBalanceChangeRef = useRef(onBalanceChange);
+  useEffect(() => {
+    onBalanceChangeRef.current = onBalanceChange;
+  }, [onBalanceChange]);
+
   const load = useCallback(async () => {
     try {
-      setProject(await getProject(projectUuid));
+      const next = await getProject(projectUuid);
+      const failed = new Set(next.audios.filter((a) => a.status === 'error').map((a) => a.uuid));
+      const previous = failedRef.current;
+      if (previous && [...failed].some((uuid) => !previous.has(uuid))) {
+        onBalanceChangeRef.current?.();
+      }
+      failedRef.current = failed;
+      setProject(next);
     } catch (err) {
       if ((err as ApiError).status === 404) setNotFound(true);
       else setError((err as Error).message);
@@ -100,6 +119,7 @@ export default function ProjectView({
   const retry = async (audio: ProjectAudio) => {
     try {
       await retryProjectAudio(projectUuid, audio.uuid);
+      onBalanceChange?.();
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -116,6 +136,7 @@ export default function ProjectView({
         return;
       }
       await deleteProjectAudio(projectUuid, pendingDelete.audio.uuid);
+      onBalanceChange?.();
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -262,7 +283,16 @@ export default function ProjectView({
           </Card.Body>
         </Card>
 
-        {canUpload && <ProjectUploadCard projectUuid={projectUuid} onUploaded={load} />}
+        {canUpload && (
+          <ProjectUploadCard
+            projectUuid={projectUuid}
+            tokenBalance={tokenBalance}
+            onUploaded={() => {
+              load();
+              onBalanceChange?.();
+            }}
+          />
+        )}
 
         <Card>
           <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2">

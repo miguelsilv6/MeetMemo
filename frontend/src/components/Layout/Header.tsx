@@ -1,4 +1,4 @@
-import { Button, Container } from '@govtechsg/sgds-react';
+import { Badge, Button, Container } from '@govtechsg/sgds-react';
 import { FileText, FolderOpen, KeyRound, LogOut, Shield, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../LanguageSwitcher';
@@ -62,6 +62,15 @@ export default function Header({
                   <UserRound size={16} className="me-1" aria-hidden="true" />
                   {me.display_name || me.username}
                 </span>
+                {me.token_balance !== null && (
+                  <Badge
+                    bg={me.token_balance > 0 ? 'secondary' : 'danger'}
+                    className="header-tokens"
+                    title={t('auth.tokensHint')}
+                  >
+                    {t('auth.tokens', { count: me.token_balance })}
+                  </Badge>
+                )}
                 {onChangePassword && (
                   <Button
                     variant="outline-secondary"

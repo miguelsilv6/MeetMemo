@@ -115,6 +115,72 @@ async def require_owners() -> None:
             await conn.execute("ALTER TABLE projects ALTER COLUMN user_uuid SET NOT NULL")
 
 
+TOKENS_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations", "006_tokens.sql"
+)
+
+
+async def ensure_tokens_schema():
+    """Create the token balance, ledger and refund trigger on older databases."""
+    with open(TOKENS_SCHEMA_PATH, encoding="utf-8") as f:
+        schema_sql = f.read()
+    async with get_db() as conn:
+        await conn.execute(schema_sql)
+    logger.info("Tokens schema ensured")
+
+
+class InsufficientTokensError(Exception):
+    """The user has no token left for another transcription."""
+
+
+async def charge_token(conn, user_uuid: str, job_uuid: str) -> int:
+    """
+    Take one token from the user for a job, inside the caller's transaction.
+
+    The balance check and the debit are one statement, so concurrent uploads
+    can never spend more tokens than the user has.
+
+    Returns:
+        The balance after the charge.
+
+    Raises:
+        InsufficientTokensError: If the balance is zero.
+    """
+    balance = await conn.fetchval(
+        """UPDATE users SET token_balance = token_balance - 1
+           WHERE uuid = $1 AND token_balance >= 1
+           RETURNING token_balance""",
+        user_uuid,
+    )
+    if balance is None:
+        raise InsufficientTokensError(user_uuid)
+    await conn.execute(
+        """INSERT INTO token_transactions (user_uuid, delta, balance_after, reason, job_uuid, actor)
+           VALUES ($1, -1, $2, 'charge', $3, (SELECT username FROM users WHERE uuid = $1))""",
+        user_uuid, balance, job_uuid,
+    )
+    return balance
+
+
+async def refund_queued(conn, where_sql: str, *args) -> int:
+    """
+    Refund the tokens of audios still waiting (never processed) that are about
+    to be deleted, inside the caller's transaction. ``where_sql`` selects the
+    jobs, with ``args`` as its parameters.
+
+    Returns:
+        How many tokens were refunded.
+    """
+    return await conn.fetchval(
+        f"""SELECT COUNT(*) FILTER (WHERE refunded)
+            FROM (SELECT refund_job_charge(uuid, 'system', 'Deleted before processing')
+                         AS refunded
+                  FROM jobs
+                  WHERE workflow_state = 'uploaded' AND ({where_sql})) r""",
+        *args,
+    )
+
+
 async def close_database():
     """Close database connection pool."""
     global _db_pool  # pylint: disable=global-statement,global-variable-not-assigned
@@ -146,16 +212,25 @@ async def add_job(
     model_name: Optional[str] = None,
     language: Optional[str] = None,
     user_uuid: Optional[str] = None,
+    charge: bool = False,
 ) -> None:
-    """Add new job to database with workflow state."""
+    """
+    Add new job to database with workflow state.
+
+    With ``charge``, one of the owner's tokens pays for it in the same
+    transaction: no token, no job (InsufficientTokensError).
+    """
     async with get_db() as conn:
-        await conn.execute(
-            """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
-                                 model_name, language, user_uuid)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
-            uuid, file_name, status_code, file_hash, workflow_state, model_name, language,
-            user_uuid
-        )
+        async with conn.transaction():
+            if charge:
+                await charge_token(conn, user_uuid, uuid)
+            await conn.execute(
+                """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
+                                     model_name, language, user_uuid)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
+                uuid, file_name, status_code, file_hash, workflow_state, model_name, language,
+                user_uuid
+            )
     hash_preview = file_hash[:16] if file_hash else 'None'
     logger.info(
         "Added job %s with file %s (hash: %s...) state: %s, model: %s, language: %s",
@@ -267,8 +342,11 @@ async def delete_job(uuid: str) -> Optional[str]:
 
         file_name = row['file_name']
 
-        # Delete the job (CASCADE will delete export_jobs)
-        await conn.execute("DELETE FROM jobs WHERE uuid = $1", uuid)
+        # Delete the job (CASCADE will delete export_jobs); a job never
+        # processed gets its token back.
+        async with conn.transaction():
+            await refund_queued(conn, "uuid = $1", uuid)
+            await conn.execute("DELETE FROM jobs WHERE uuid = $1", uuid)
 
         logger.info("Deleted job %s with file %s", uuid, file_name)
         return file_name
@@ -319,10 +397,12 @@ async def cleanup_old_jobs(max_age_hours: int = 12) -> list[dict]:
         if old_jobs:
             # Delete old jobs
             uuids = [job['uuid'] for job in old_jobs]
-            await conn.execute(
-                "DELETE FROM jobs WHERE uuid = ANY($1::uuid[])",
-                uuids
-            )
+            async with conn.transaction():
+                await refund_queued(conn, "uuid = ANY($1::uuid[])", uuids)
+                await conn.execute(
+                    "DELETE FROM jobs WHERE uuid = ANY($1::uuid[])",
+                    uuids
+                )
 
             logger.info("Cleaned up %s jobs older than %s hours", len(old_jobs), max_age_hours)
 

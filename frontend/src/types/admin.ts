@@ -74,6 +74,21 @@ export interface AdminUser {
   last_login_at: string | null;
   project_count: number;
   audio_count: number;
+  token_balance: number;
+}
+
+/** One movement in a user's token ledger. */
+export interface TokenTransaction {
+  id: number;
+  created_at: string;
+  delta: number;
+  balance_after: number;
+  reason: 'grant' | 'revoke' | 'charge' | 'refund';
+  job_uuid: string | null;
+  /** The audio's name, while it still exists. */
+  file_name: string | null;
+  actor: string | null;
+  note: string | null;
 }
 
 /** What one account owns, for the administrator to open. */

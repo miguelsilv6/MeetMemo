@@ -8,7 +8,7 @@ import asyncpg
 from database import get_db
 
 _USER_COLUMNS = """u.uuid, u.username, u.display_name, u.is_active, u.must_change_password,
-                   u.created_at, u.last_login_at"""
+                   u.created_at, u.last_login_at, u.token_balance"""
 
 
 class UsernameTakenError(Exception):

@@ -47,6 +47,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
 | **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job) |
 | **User Accounts** | Sign-in required; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |
+| **Tokens** | Each transcription costs one token from the user's balance, charged when the audio is accepted and refunded automatically if processing fails; the administrator grants or removes tokens and sees each user's history |
 | **Projects** | Group several audios of the same case: upload them at once, the server processes them one at a time (the page can be closed), and the project with every file it produced is deleted automatically after its retention (7 days by default, set in the admin panel) |
 
 ## Quick Start
@@ -151,6 +152,13 @@ of its audios, projects and files). Upgrading an installation from before
 accounts existed deletes the audios and projects it had, with their files,
 since they have no owner.
 
+Each transcription costs one **token**. The balance is shown in the header;
+a token is charged when an audio is accepted and given back if its processing
+fails or if it is deleted while still queued. Duplicates, summaries,
+translations and exports cost nothing. With no tokens left, uploading is
+disabled until the administrator adds more (**Users** → tokens, where every
+charge, refund and adjustment is listed).
+
 For several audios of the same case, open **Projects** in the header: create a
 project, drop all the audios on it, and they are queued and processed on the
 server one after another. Duplicates within a project are skipped, a failed
@@ -243,7 +251,7 @@ See [Deployment Guide](docs/DEPLOYMENT.md) for detailed instructions.
 - **Data Privacy**: Audio never leaves your infrastructure (except LLM summarization)
 - **HTTPS**: SSL/TLS enabled by default
 - **Database**: PostgreSQL not exposed outside Docker network
-- **No Authentication**: Add auth layer for multi-user deployments
+- **Accounts**: Sign-in required; sessions in HttpOnly, SameSite=Strict cookies, and each user can only reach their own audios and projects
 
 ## Performance
 

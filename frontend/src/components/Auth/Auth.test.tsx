@@ -19,6 +19,7 @@ const ana: Me = {
   display_name: 'Ana Silva',
   is_admin: false,
   must_change_password: false,
+  token_balance: 3,
 };
 
 const apiError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });

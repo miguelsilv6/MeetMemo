@@ -119,9 +119,11 @@ def test_user_accounts_against_real_postgres(monkeypatch, tmp_path):
         await database.init_database()
         await database.ensure_projects_schema()
         await database.ensure_users_schema()
+        await database.ensure_tokens_schema()
         assert await purge_ownerless(settings) == 1
         await database.ensure_users_schema()  # idempotent once owners are required
         assert await purge_ownerless(settings) == 0
+        await database.ensure_tokens_schema()  # idempotent too
         await database.ensure_admin_schema()
         await AdminRepository().create_credentials_if_missing(
             "admin", hash_password(ADMIN_PASSWORD)
@@ -176,7 +178,8 @@ def test_user_accounts_against_real_postgres(monkeypatch, tmp_path):
         for username, name in (("ana", "Ana Silva"), ("bruno", "Bruno Costa")):
             created = client.post(
                 "/api/v1/admin/users",
-                json={"username": username, "display_name": name, "password": TEMPORARY},
+                json={"username": username, "display_name": name, "password": TEMPORARY,
+                      "initial_tokens": 5},
                 headers=admin_headers,
             )
             assert created.status_code == 201, created.text
@@ -226,7 +229,7 @@ def test_user_accounts_against_real_postgres(monkeypatch, tmp_path):
         }).status_code == 204
         me = client.get("/api/v1/auth/me", headers=ana).json()
         assert me == {"username": "ana", "display_name": "Ana Silva", "is_admin": False,
-                      "must_change_password": False}
+                      "must_change_password": False, "token_balance": 5}
 
         bruno_login = login("bruno", TEMPORARY)
         bruno = cookie_of(bruno_login, "meetmemo_session")

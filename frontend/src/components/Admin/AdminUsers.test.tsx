@@ -10,6 +10,8 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
     ...actual,
     listUsers: vi.fn(),
     createUser: vi.fn(),
+    changeUserTokens: vi.fn(),
+    getUserTokens: vi.fn(),
     updateUser: vi.fn(),
     resetUserPassword: vi.fn(),
     deleteUser: vi.fn(),
@@ -27,6 +29,7 @@ const ana: AdminUser = {
   last_login_at: null,
   project_count: 2,
   audio_count: 5,
+  token_balance: 3,
 };
 
 function renderUsers() {
@@ -71,7 +74,12 @@ describe('AdminUsers', () => {
     fireEvent.click(submit);
 
     await waitFor(() =>
-      expect(adminApi.createUser).toHaveBeenCalledWith('bruno', 'Bruno Costa', 'long enough pass')
+      expect(adminApi.createUser).toHaveBeenCalledWith(
+        'bruno',
+        'Bruno Costa',
+        'long enough pass',
+        0
+      )
     );
     expect(await screen.findByText('User bruno created.')).toBeInTheDocument();
     expect(props.onChanged).toHaveBeenCalled();
@@ -147,5 +155,57 @@ describe('AdminUsers', () => {
       '/#/projects/p1'
     );
     expect(screen.getByRole('link', { name: 'call.wav' })).toHaveAttribute('href', '/#/jobs/j1');
+  });
+
+  it('gives and takes tokens and shows their history', async () => {
+    vi.mocked(adminApi.getUserTokens).mockResolvedValue({
+      token_balance: 3,
+      transactions: [
+        {
+          id: 2,
+          created_at: '2026-09-28T11:00:00Z',
+          delta: -1,
+          balance_after: 3,
+          reason: 'charge',
+          job_uuid: 'j1',
+          file_name: 'call.wav',
+          actor: 'ana',
+          note: null,
+        },
+        {
+          id: 1,
+          created_at: '2026-09-28T10:00:00Z',
+          delta: 4,
+          balance_after: 4,
+          reason: 'grant',
+          job_uuid: null,
+          file_name: null,
+          actor: 'admin',
+          note: 'Initial tokens',
+        },
+      ],
+    });
+    vi.mocked(adminApi.changeUserTokens).mockResolvedValue({ token_balance: 8 });
+    renderUsers();
+    await screen.findByText('Ana Silva');
+
+    fireEvent.click(screen.getByRole('button', { name: "Manage ana's tokens" }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Current balance: 3 tokens.')).toBeInTheDocument();
+    expect(within(dialog).getByText('call.wav · ana')).toBeInTheDocument();
+    expect(within(dialog).getByText('+4')).toBeInTheDocument();
+
+    const remove = within(dialog).getByRole('button', { name: 'Remove' });
+    fireEvent.change(within(dialog).getByLabelText('Amount'), { target: { value: '5' } });
+    expect(remove).toBeDisabled(); // more than the balance
+    fireEvent.change(within(dialog).getByLabelText('Reason (optional)'), {
+      target: { value: 'Monthly top-up' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add' }));
+
+    await waitFor(() =>
+      expect(adminApi.changeUserTokens).toHaveBeenCalledWith('u-ana', 5, 'Monthly top-up')
+    );
+    expect(await screen.findByText('5 tokens added to ana.')).toBeInTheDocument();
   });
 });

@@ -7,4 +7,6 @@ export interface Me {
   is_admin: boolean;
   /** A temporary password set by the administrator must be replaced first. */
   must_change_password: boolean;
+  /** Transcriptions the user can still start (null for the administrator). */
+  token_balance: number | null;
 }

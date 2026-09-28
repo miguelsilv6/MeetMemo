@@ -26,6 +26,9 @@ ADMIN_COOKIE = "meetmemo_admin"
 # admin's view of users' content need them outside /auth and /admin.
 COOKIE_PATH = "/api/v1"
 
+# 402 detail when an upload finds no token left.
+NO_TOKENS_DETAIL = "No tokens left. Ask the administrator for more."
+
 REQUEST_HEADER = "x-meetmemo-request"
 ADMIN_HEADER = "x-meetmemo-admin"
 _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})

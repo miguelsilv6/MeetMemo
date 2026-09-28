@@ -236,6 +236,13 @@ function App() {
     await session.signOut();
   };
 
+  // The token balance changes with each upload (and comes back if processing
+  // fails): refresh it as the workflow moves on or reports an error.
+  useEffect(() => {
+    if (signedIn && !me?.is_admin) refreshSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on workflow changes only
+  }, [jobId, currentStep, error]);
+
   // #/jobs/<uuid> opens one audio's transcript (links from the admin panel).
   const openJobUuid = parseJobRoute(route);
   useEffect(() => {
@@ -344,6 +351,8 @@ function App() {
             key={openProjectUuid}
             projectUuid={openProjectUuid}
             canUpload={!me?.is_admin}
+            tokenBalance={me?.token_balance ?? null}
+            onBalanceChange={refreshSession}
             onBack={openProjects}
             onOpenAudio={handleOpenProjectAudio}
           />
@@ -391,6 +400,7 @@ function App() {
                 onUploadLimit={applyUploadLimit}
                 onOpenProjects={openProjects}
                 canUpload={!me?.is_admin}
+                tokenBalance={me?.token_balance ?? null}
               />
             )}
 

@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Alert, Badge, Button, Card, Col, Form, Modal, Row, Table } from '@govtechsg/sgds-react';
-import { ExternalLink, KeyRound, Trash2, UserPlus, Users } from 'lucide-react';
+import { Coins, ExternalLink, KeyRound, Trash2, UserPlus, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   AdminApiError,
+  changeUserTokens,
   createUser,
   deleteUser,
   getUserContent,
+  getUserTokens,
   listUsers,
   resetUserPassword,
   updateUser,
 } from '../../services/adminApi';
 import { jobRoute, projectRoute } from '../../hooks/useHashRoute';
 import { formatDateTime } from '../../utils/projectDates';
-import type { AdminUser, UserContent } from '../../types/admin';
+import type { AdminUser, TokenTransaction, UserContent } from '../../types/admin';
 
 export const MIN_PASSWORD_LENGTH = 12;
+/** Most tokens given or taken at once (mirrors the backend). */
+export const MAX_TOKEN_CHANGE = 10000;
 
 interface AdminUsersProps {
   /** After any change, so the audit trail can refresh. */
@@ -27,7 +31,8 @@ interface AdminUsersProps {
 type Dialog =
   | { kind: 'password'; user: AdminUser }
   | { kind: 'delete'; user: AdminUser }
-  | { kind: 'content'; user: AdminUser; content: UserContent | null };
+  | { kind: 'content'; user: AdminUser; content: UserContent | null }
+  | { kind: 'tokens'; user: AdminUser; history: TokenTransaction[] | null };
 
 /** User accounts: create, (de)activate, reset password, delete, open their content. */
 export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProps) {
@@ -35,7 +40,13 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [draft, setDraft] = useState({ username: '', displayName: '', password: '' });
+  const [draft, setDraft] = useState({
+    username: '',
+    displayName: '',
+    password: '',
+    tokens: '0',
+  });
+  const [tokenChange, setTokenChange] = useState({ amount: '', note: '' });
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [dialogInput, setDialogInput] = useState('');
@@ -72,11 +83,15 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
     onChanged();
   };
 
+  const initialTokens = Number(draft.tokens);
+  const validTokens = (value: number, min: number) =>
+    Number.isInteger(value) && value >= min && value <= MAX_TOKEN_CHANGE;
   const passwordTooShort = draft.password.length > 0 && draft.password.length < MIN_PASSWORD_LENGTH;
   const canCreate =
     /^[A-Za-z0-9._@-]{3,100}$/.test(draft.username) &&
     draft.displayName.trim().length > 0 &&
     draft.password.length >= MIN_PASSWORD_LENGTH &&
+    validTokens(initialTokens, 0) &&
     !creating;
 
   const handleCreate = async (e: FormEvent) => {
@@ -84,8 +99,13 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
     if (!canCreate) return;
     setCreating(true);
     try {
-      const user = await createUser(draft.username, draft.displayName.trim(), draft.password);
-      setDraft({ username: '', displayName: '', password: '' });
+      const user = await createUser(
+        draft.username,
+        draft.displayName.trim(),
+        draft.password,
+        initialTokens
+      );
+      setDraft({ username: '', displayName: '', password: '', tokens: '0' });
       await afterChange(t('admin.users.created', { username: user.username }));
     } catch (err) {
       fail(err);
@@ -107,9 +127,50 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
     }
   };
 
+  const loadTokens = async (user: AdminUser) => {
+    try {
+      const { token_balance: balance, transactions } = await getUserTokens(user.uuid);
+      setDialog({
+        kind: 'tokens',
+        user: { ...user, token_balance: balance },
+        history: transactions,
+      });
+    } catch (err) {
+      setDialog(null);
+      fail(err);
+    }
+  };
+
+  const applyTokens = async (sign: 1 | -1) => {
+    if (dialog?.kind !== 'tokens') return;
+    const amount = Number(tokenChange.amount);
+    if (!validTokens(amount, 1)) return;
+    setBusy(true);
+    try {
+      await changeUserTokens(dialog.user.uuid, sign * amount, tokenChange.note.trim() || null);
+      setTokenChange({ amount: '', note: '' });
+      await afterChange(
+        t(sign > 0 ? 'admin.tokens.added' : 'admin.tokens.removed', {
+          count: amount,
+          username: dialog.user.username,
+        })
+      );
+      await loadTokens(dialog.user);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openDialog = async (next: Dialog) => {
     setDialog(next);
     setDialogInput('');
+    setTokenChange({ amount: '', note: '' });
+    if (next.kind === 'tokens') {
+      await loadTokens(next.user);
+      return;
+    }
     if (next.kind === 'content') {
       try {
         const content = await getUserContent(next.user.uuid);
@@ -122,7 +183,7 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
   };
 
   const confirmDialog = async () => {
-    if (!dialog || dialog.kind === 'content') return;
+    if (!dialog || dialog.kind === 'content' || dialog.kind === 'tokens') return;
     setBusy(true);
     try {
       if (dialog.kind === 'password') {
@@ -173,7 +234,7 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
         <Form onSubmit={handleCreate} noValidate className="mb-4">
           <h6>{t('admin.users.createTitle')}</h6>
           <Row>
-            <Col md={4}>
+            <Col md={4} lg={3}>
               <Form.Group controlId="new-user-username" className="mb-2">
                 <Form.Label>{t('admin.users.username')}</Form.Label>
                 <Form.Control
@@ -184,7 +245,7 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                 <Form.Text className="text-muted">{t('admin.users.usernameHelp')}</Form.Text>
               </Form.Group>
             </Col>
-            <Col md={4}>
+            <Col md={4} lg={3}>
               <Form.Group controlId="new-user-name" className="mb-2">
                 <Form.Label>{t('admin.users.displayName')}</Form.Label>
                 <Form.Control
@@ -193,7 +254,7 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                 />
               </Form.Group>
             </Col>
-            <Col md={4}>
+            <Col md={4} lg={3}>
               <Form.Group controlId="new-user-password" className="mb-2">
                 <Form.Label>{t('admin.users.temporaryPassword')}</Form.Label>
                 <Form.Control
@@ -208,6 +269,20 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                     {t('admin.password.tooShort', { min: MIN_PASSWORD_LENGTH })}
                   </div>
                 )}
+              </Form.Group>
+            </Col>
+            <Col md={3} lg={2}>
+              <Form.Group controlId="new-user-tokens" className="mb-2">
+                <Form.Label>{t('admin.tokens.initial')}</Form.Label>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  max={MAX_TOKEN_CHANGE}
+                  step={1}
+                  value={draft.tokens}
+                  isInvalid={!validTokens(initialTokens, 0)}
+                  onChange={(e) => setDraft({ ...draft, tokens: e.target.value })}
+                />
               </Form.Group>
             </Col>
           </Row>
@@ -232,6 +307,7 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                   <th scope="col">{t('admin.users.user')}</th>
                   <th scope="col">{t('admin.users.state')}</th>
                   <th scope="col">{t('admin.users.owned')}</th>
+                  <th scope="col">{t('admin.tokens.column')}</th>
                   <th scope="col">{t('admin.users.lastLogin')}</th>
                   <th scope="col">
                     <span className="visually-hidden">{t('admin.users.actions')}</span>
@@ -258,6 +334,17 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                     <td className="text-nowrap">
                       {t('admin.users.ownedProjects', { count: user.project_count })},{' '}
                       {t('admin.users.ownedAudios', { count: user.audio_count })}
+                    </td>
+                    <td>
+                      <Button
+                        variant={user.token_balance > 0 ? 'outline-secondary' : 'outline-danger'}
+                        size="sm"
+                        onClick={() => openDialog({ kind: 'tokens', user, history: null })}
+                        aria-label={t('admin.tokens.manageFor', { username: user.username })}
+                      >
+                        <Coins size={14} className="me-1" />
+                        {user.token_balance}
+                      </Button>
                     </td>
                     <td className="text-nowrap small">{date(user.last_login_at)}</td>
                     <td className="text-end text-nowrap">
@@ -306,7 +393,7 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
       <Modal
         show={!!dialog}
         onHide={() => !busy && setDialog(null)}
-        size={dialog?.kind === 'content' ? 'lg' : undefined}
+        size={dialog?.kind === 'content' || dialog?.kind === 'tokens' ? 'lg' : undefined}
       >
         <Modal.Header closeButton>
           <Modal.Title>
@@ -314,6 +401,8 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
             {dialog?.kind === 'delete' && t('admin.users.delete')}
             {dialog?.kind === 'content' &&
               t('admin.users.contentOf', { name: dialog.user.display_name })}
+            {dialog?.kind === 'tokens' &&
+              t('admin.tokens.title', { name: dialog.user.display_name })}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -395,8 +484,108 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                 )}
               </>
             ))}
+          {dialog?.kind === 'tokens' && (
+            <>
+              <p className="mb-3">
+                {t('admin.tokens.balance', { count: dialog.user.token_balance })}
+              </p>
+              <Row className="align-items-end g-2 mb-3">
+                <Col sm={3}>
+                  <Form.Group controlId="token-amount">
+                    <Form.Label>{t('admin.tokens.amount')}</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={1}
+                      max={MAX_TOKEN_CHANGE}
+                      step={1}
+                      value={tokenChange.amount}
+                      onChange={(e) => setTokenChange({ ...tokenChange, amount: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col sm={5}>
+                  <Form.Group controlId="token-note">
+                    <Form.Label>{t('admin.tokens.note')}</Form.Label>
+                    <Form.Control
+                      value={tokenChange.note}
+                      maxLength={500}
+                      onChange={(e) => setTokenChange({ ...tokenChange, note: e.target.value })}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col sm={4} className="d-flex gap-2">
+                  <Button
+                    variant="primary"
+                    disabled={busy || !validTokens(Number(tokenChange.amount), 1)}
+                    onClick={() => applyTokens(1)}
+                  >
+                    {t('admin.tokens.add')}
+                  </Button>
+                  <Button
+                    variant="outline-danger"
+                    disabled={
+                      busy ||
+                      !validTokens(Number(tokenChange.amount), 1) ||
+                      Number(tokenChange.amount) > dialog.user.token_balance
+                    }
+                    onClick={() => applyTokens(-1)}
+                  >
+                    {t('admin.tokens.remove')}
+                  </Button>
+                </Col>
+              </Row>
+              <h6>{t('admin.tokens.history')}</h6>
+              {dialog.history === null ? (
+                <p className="text-muted mb-0">{t('common.loading')}</p>
+              ) : dialog.history.length === 0 ? (
+                <p className="text-muted mb-0">{t('admin.tokens.noHistory')}</p>
+              ) : (
+                <div className="table-responsive admin-token-history">
+                  <Table size="sm" className="mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('admin.audit.when')}</th>
+                        <th scope="col">{t('admin.tokens.reasonColumn')}</th>
+                        <th scope="col" className="text-end">
+                          {t('admin.tokens.change')}
+                        </th>
+                        <th scope="col" className="text-end">
+                          {t('admin.tokens.after')}
+                        </th>
+                        <th scope="col">{t('admin.tokens.details')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dialog.history.map((entry) => (
+                        <tr key={entry.id}>
+                          <td className="text-nowrap small">{date(entry.created_at)}</td>
+                          <td>{t(`admin.tokens.reasons.${entry.reason}`)}</td>
+                          <td
+                            className={`text-end ${entry.delta > 0 ? 'text-success' : 'text-danger'}`}
+                          >
+                            {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
+                          </td>
+                          <td className="text-end">{entry.balance_after}</td>
+                          <td className="small">
+                            {[
+                              entry.file_name ??
+                                (entry.job_uuid ? t('admin.tokens.deletedAudio') : null),
+                              entry.note,
+                              entry.actor,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              )}
+            </>
+          )}
         </Modal.Body>
-        {dialog && dialog.kind !== 'content' && (
+        {dialog && (dialog.kind === 'password' || dialog.kind === 'delete') && (
           <Modal.Footer>
             <Button variant="outline-secondary" onClick={() => setDialog(null)} disabled={busy}>
               {t('common.cancel')}

@@ -108,6 +108,7 @@
     "silenceGap": "{{duration}} de silêncio"
   },
   "bulkActions": {
+    "selectedCount_zero": "{{count}} segmentos selecionados",
     "selectedCount_one": "{{count}} segmento selecionado",
     "selectedCount_other": "{{count}} segmentos selecionados",
     "moveTo": "Mover para interlocutor...",
@@ -115,6 +116,7 @@
     "delete": "Eliminar",
     "cancel": "Cancelar",
     "deleteConfirmTitle": "Eliminar segmentos selecionados",
+    "deleteConfirmBody_zero": "Eliminar estes {{count}} segmentos? Podes desfazer esta ação a seguir com o botão Desfazer.",
     "deleteConfirmBody_one": "Eliminar este segmento? Podes desfazer esta ação a seguir com o botão Desfazer.",
     "deleteConfirmBody_other": "Eliminar estes {{count}} segmentos? Podes desfazer esta ação a seguir com o botão Desfazer."
   },
@@ -178,9 +180,11 @@
     },
     "removeSpeaker": {
       "title": "Remover Interlocutor",
+      "description_zero": "<strong>{{speaker}}</strong> tem {{count}} segmentos. O que deve acontecer a eles?",
       "description_one": "<strong>{{speaker}}</strong> tem {{count}} segmento. O que deve acontecer a ele?",
       "description_other": "<strong>{{speaker}}</strong> tem {{count}} segmentos. O que deve acontecer a eles?",
       "moveToAnother": "Mover para outro interlocutor",
+      "deleteLabel_zero": "Eliminar estes segmentos permanentemente",
       "deleteLabel_one": "Eliminar este segmento permanentemente",
       "deleteLabel_other": "Eliminar estes segmentos permanentemente",
       "deleteButton": "Eliminar Segmentos",
@@ -299,7 +303,8 @@
     "loadTranscript": "Falha ao carregar a transcrição. Atualiza a página e tenta novamente.",
     "processingFailed": "O processamento falhou. Tenta novamente.",
     "processingGeneric": "Ocorreu um erro durante o processamento. Tenta novamente.",
-    "fileTooLarge": "O ficheiro «{{name}}» tem {{size}} MB e excede o limite de {{max}} MB por ficheiro."
+    "fileTooLarge": "O ficheiro «{{name}}» tem {{size}} MB e excede o limite de {{max}} MB por ficheiro.",
+    "noTokens": "Não tens tokens disponíveis. Pede mais ao administrador."
   },
   "admin": {
     "title": "Administração",
@@ -322,6 +327,7 @@
       "intro": "As alterações aplicam-se aos trabalhos iniciados depois de guardar; os que já estão em curso mantêm as definições com que começaram. Cada alteração fica registada no histórico.",
       "save": "Guardar alterações",
       "saving": "A guardar…",
+      "saved_zero": "{{count}} definições guardadas.",
       "saved_one": "{{count}} definição guardada.",
       "saved_other": "{{count}} definições guardadas.",
       "noChanges": "Não há alterações para guardar.",
@@ -510,7 +516,8 @@
         "user_activated": "Utilizador ativado",
         "user_deactivated": "Utilizador desativado",
         "user_password_reset": "Palavra-passe de utilizador reposta",
-        "user_deleted": "Utilizador eliminado"
+        "user_deleted": "Utilizador eliminado",
+        "user_tokens": "Tokens de utilizador alterados"
       }
     },
     "users": {
@@ -531,8 +538,10 @@
       "active": "Ativo",
       "inactive": "Inativo",
       "temporary": "Palavra-passe temporária",
+      "ownedProjects_zero": "{{count}} projetos",
       "ownedProjects_one": "{{count}} projeto",
       "ownedProjects_other": "{{count}} projetos",
+      "ownedAudios_zero": "{{count}} áudios",
       "ownedAudios_one": "{{count}} áudio",
       "ownedAudios_other": "{{count}} áudios",
       "content": "Ver conteúdo",
@@ -554,6 +563,38 @@
       "activated": "{{username}} ativado.",
       "passwordReset": "Palavra-passe de {{username}} reposta.",
       "deleted": "Utilizador {{username}} e todo o seu conteúdo eliminados."
+    },
+    "tokens": {
+      "initial": "Tokens iniciais",
+      "column": "Tokens",
+      "manageFor": "Gerir os tokens de {{username}}",
+      "title": "Tokens de {{name}}",
+      "balance_zero": "Saldo atual: {{count}} tokens.",
+      "balance_one": "Saldo atual: {{count}} token.",
+      "balance_other": "Saldo atual: {{count}} tokens.",
+      "amount": "Quantidade",
+      "note": "Motivo (opcional)",
+      "add": "Adicionar",
+      "remove": "Retirar",
+      "history": "Histórico",
+      "noHistory": "Ainda sem movimentos.",
+      "reasonColumn": "Movimento",
+      "change": "Variação",
+      "after": "Saldo",
+      "details": "Detalhes",
+      "deletedAudio": "áudio eliminado",
+      "reasons": {
+        "grant": "Atribuição",
+        "revoke": "Remoção",
+        "charge": "Transcrição",
+        "refund": "Devolução"
+      },
+      "added_zero": "{{count}} tokens adicionados a {{username}}.",
+      "added_one": "{{count}} token adicionado a {{username}}.",
+      "added_other": "{{count}} tokens adicionados a {{username}}.",
+      "removed_zero": "{{count}} tokens retirados a {{username}}.",
+      "removed_one": "{{count}} token retirado a {{username}}.",
+      "removed_other": "{{count}} tokens retirados a {{username}}."
     }
   },
   "projects": {
@@ -576,6 +617,7 @@
       "title": "Novo projeto",
       "submit": "Criar projeto",
       "creating": "A criar…",
+      "retention_zero": "O projeto e todos os seus ficheiros são eliminados automaticamente ao fim de {{count}} dias.",
       "retention_one": "O projeto e todos os seus ficheiros são eliminados automaticamente ao fim de {{count}} dia.",
       "retention_other": "O projeto e todos os seus ficheiros são eliminados automaticamente ao fim de {{count}} dias."
     },
@@ -583,14 +625,18 @@
       "title": "Projetos ativos",
       "empty": "Ainda não há projetos.",
       "created": "Criado em {{date}}",
+      "progress_zero": "{{done}} de {{count}} áudios concluídos",
       "progress_one": "{{done}} de {{count}} áudio concluído",
       "progress_other": "{{done}} de {{count}} áudios concluídos",
+      "errors_zero": "{{count}} com erro",
       "errors_one": "{{count}} com erro",
       "errors_other": "{{count}} com erro"
     },
     "expiry": {
+      "badge_zero": "Expira em {{count}} dias",
       "badge_one": "Expira em {{count}} dia",
       "badge_other": "Expira em {{count}} dias",
+      "notice_zero": "Este projeto e todos os seus ficheiros (áudios, transcrições, resumos e traduções) serão eliminados automaticamente em {{date}} (daqui a {{count}} dias).",
       "notice_one": "Este projeto e todos os seus ficheiros (áudios, transcrições, resumos e traduções) serão eliminados automaticamente em {{date}} (daqui a {{count}} dia).",
       "notice_other": "Este projeto e todos os seus ficheiros (áudios, transcrições, resumos e traduções) serão eliminados automaticamente em {{date}} (daqui a {{count}} dias)."
     },
@@ -604,10 +650,12 @@
         "duplicate": "já existe neste projeto (como {{name}}), ignorado",
         "unsupported": "formato não suportado",
         "rejected": "não foi carregado ({{reason}})",
-        "tooLarge": "excede o limite de {{max}} MB por ficheiro"
+        "tooLarge": "excede o limite de {{max}} MB por ficheiro",
+        "noTokens": "não foi carregado: não tens tokens disponíveis"
       }
     },
     "audios": {
+      "title_zero": "{{count}} áudios",
       "title_one": "{{count}} áudio",
       "title_other": "{{count}} áudios",
       "serverNotice": "O processamento decorre no servidor: podes fechar esta página.",
@@ -631,6 +679,7 @@
     "delete": {
       "button": "Eliminar projeto",
       "title": "Eliminar projeto",
+      "body_zero": "Eliminar o projeto «{{name}}» e os seus {{count}} áudios, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita.",
       "body_one": "Eliminar o projeto «{{name}}» e o seu áudio, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita.",
       "body_other": "Eliminar o projeto «{{name}}» e os seus {{count}} áudios, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita."
     }
@@ -656,6 +705,11 @@
       "adminPanel": "Painel de administração"
     },
     "adminBanner": "Estás a ver a aplicação como administrador ({{username}}): tens acesso aos projetos e áudios de todos os utilizadores. Para carregar áudios, entra com uma conta de utilizador.",
-    "owner": "de {{username}}"
+    "owner": "de {{username}}",
+    "tokens_zero": "{{count}} tokens",
+    "tokens_one": "{{count}} token",
+    "tokens_other": "{{count}} tokens",
+    "tokensHint": "Cada transcrição gasta 1 token. Se o processamento falhar, o token é devolvido.",
+    "noTokens": "Não tens tokens disponíveis (1 token = 1 transcrição). Pede mais ao administrador para carregares novos áudios."
   }
 }

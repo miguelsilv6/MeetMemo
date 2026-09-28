@@ -74,7 +74,13 @@ function categorizeError(response: Response | null, error: Error): ErrorCategory
 
   const status = response.status;
 
-  if (status === 404) {
+  if (status === 402) {
+    return {
+      type: 'NO_TOKENS',
+      message: 'No tokens left',
+      userMessage: i18n.t('errors.noTokens'),
+    };
+  } else if (status === 404) {
     return {
       type: 'NOT_FOUND',
       message: 'Resource not found',
@@ -142,7 +148,12 @@ export async function apiCall<T = unknown>(
       }
 
       const errorCategory = categorizeError(response, new Error());
-      const error: ApiError = new Error(errorData?.detail || errorCategory.userMessage);
+      // No tokens: always the translated explanation, not the server's English.
+      const error: ApiError = new Error(
+        response.status === 402
+          ? errorCategory.userMessage
+          : errorData?.detail || errorCategory.userMessage
+      );
       error.status = response.status;
       error.category = errorCategory.type;
       error.responseData = errorData;

@@ -11,6 +11,7 @@ import uuid as uuid_lib
 import aiofiles
 import aiofiles.os as aioos
 from access import (
+    NO_TOKENS_DETAIL,
     Principal,
     authorize_path,
     get_principal,
@@ -18,13 +19,14 @@ from access import (
     require_user,
 )
 from config import Settings, get_settings
-from database import get_export_paths, update_status
+from database import InsufficientTokensError, get_export_paths, update_status
 from dependencies import (
     get_alignment_service,
     get_audio_service,
     get_diarization_service,
     get_job_repository,
     get_transcription_service,
+    get_user_repository,
 )
 from fastapi import (
     APIRouter,
@@ -48,6 +50,7 @@ from models import (
     WorkflowActionResponse,
 )
 from repositories.job_repository import JobRepository
+from repositories.user_repository import UserRepository
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
@@ -79,6 +82,7 @@ async def create_job(
     principal: Principal = Depends(require_user),
     audio_service: AudioService = Depends(get_audio_service),
     job_repo: JobRepository = Depends(get_job_repository),
+    users: UserRepository = Depends(get_user_repository),
     settings: Settings = Depends(get_settings)
 ) -> JobResponse:
     """
@@ -88,6 +92,12 @@ async def create_job(
     Returns immediately with job UUID.
     """
     job_uuid = str(uuid_lib.uuid4())
+
+    # Refuse early rather than after receiving the whole file; the charge
+    # below is what actually guarantees the balance.
+    account = await users.get(principal.user_uuid)
+    if not account or account["token_balance"] < 1:
+        raise HTTPException(status_code=402, detail=NO_TOKENS_DETAIL)
 
     try:
         # Upload and validate file
@@ -128,9 +138,17 @@ async def create_job(
                 ) from e
 
         # Create job record
-        await job_repo.create(
-            job_uuid, file_name, file_hash, 'uploaded', model, language, principal.user_uuid
-        )
+        # Create job record, paid with one of the user's tokens
+        try:
+            await job_repo.create(
+                job_uuid, file_name, file_hash, 'uploaded', model, language,
+                principal.user_uuid, charge=True,
+            )
+        except InsufficientTokensError as e:
+            stored = os.path.join(settings.upload_dir, file_name)
+            if await aiofiles.os.path.exists(stored):
+                await aiofiles.os.remove(stored)
+            raise HTTPException(status_code=402, detail=NO_TOKENS_DETAIL) from e
         logger.info("Job %s created successfully with model=%s, language=%s", job_uuid, model, language)
 
         return JobResponse(

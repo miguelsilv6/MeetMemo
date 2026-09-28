@@ -27,11 +27,12 @@ from admin_auth import (
     verify_password,
 )
 from config import Settings, get_settings
-from dependencies import get_admin_repository, get_user_repository
+from dependencies import get_admin_repository, get_token_repository, get_user_repository
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from llm_prompts import QWEN3_NO_THINK, TRANSLATION_OUTPUT_CONTRACT
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from repositories.admin_repository import AdminRepository
+from repositories.token_repository import NegativeBalanceError, TokenRepository
 from repositories.user_repository import UsernameTakenError, UserRepository
 from runtime_settings import WHISPER_LANGUAGE_CODES, RuntimeSettings
 from services.runtime_settings_service import RuntimeSettingsService
@@ -263,11 +264,35 @@ async def change_password(
 USERNAME_PATTERN = r"^[A-Za-z0-9._@-]{3,100}$"
 
 
+MAX_TOKEN_CHANGE = 10000
+
+
 class UserCreateRequest(BaseModel):
-    """A new user account, with a temporary password."""
+    """A new user account, with a temporary password and a starting balance."""
     username: str = Field(pattern=USERNAME_PATTERN)
     display_name: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
+    initial_tokens: int = Field(default=0, ge=0, le=MAX_TOKEN_CHANGE)
+
+
+class TokenChangeRequest(BaseModel):
+    """Tokens to give (positive) or take (negative), with an optional reason."""
+    delta: int = Field(ge=-MAX_TOKEN_CHANGE, le=MAX_TOKEN_CHANGE)
+    note: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("delta")
+    @classmethod
+    def _not_zero(cls, delta: int) -> int:
+        if delta == 0:
+            raise ValueError("delta must not be zero")
+        return delta
+
+    @field_validator("note", mode="before")
+    @classmethod
+    def _strip(cls, note):
+        if isinstance(note, str):
+            return note.strip() or None
+        return note
 
 
 class UserUpdateRequest(BaseModel):
@@ -308,6 +333,7 @@ async def create_user(
     admin: dict = Depends(require_admin),
     repo: AdminRepository = Depends(get_admin_repository),
     service: UserService = Depends(get_user_service),
+    tokens: TokenRepository = Depends(get_token_repository),
 ) -> dict:
     """Create an account; the user must choose a new password at first login."""
     problem = password_problem(body.password)
@@ -318,6 +344,13 @@ async def create_user(
     except UsernameTakenError as e:
         raise HTTPException(status_code=409, detail="This username is already taken.") from e
     await repo.record_audit(admin["username"], "user_created", None, user["username"])
+    if body.initial_tokens:
+        user["token_balance"] = await tokens.adjust(
+            str(user["uuid"]), body.initial_tokens, admin["username"], "Initial tokens"
+        )
+        await repo.record_audit(
+            admin["username"], "user_tokens", 0, user["token_balance"]
+        )
     logger.info("Admin %s created user %s", admin["username"], user["username"])
     return user
 
@@ -389,3 +422,49 @@ async def user_content(
     """The account's projects and audios (outside projects), to open in the app."""
     await _user_or_404(users, user_uuid)
     return await users.content(str(user_uuid))
+
+
+@router.post("/users/{user_uuid}/tokens", dependencies=[Depends(require_admin_header)])
+async def change_user_tokens(
+    user_uuid: UUID,
+    body: TokenChangeRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
+    tokens: TokenRepository = Depends(get_token_repository),
+) -> dict:
+    """Give or take tokens; the balance never drops below zero."""
+    user = await _user_or_404(users, user_uuid)
+    try:
+        balance = await tokens.adjust(str(user_uuid), body.delta, admin["username"], body.note)
+    except NegativeBalanceError as e:
+        raise HTTPException(
+            status_code=409,
+            detail=f"The user has only {e.args[0]} token(s); the balance cannot go below zero.",
+        ) from e
+    if balance is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    await repo.record_audit(
+        admin["username"], "user_tokens", user["token_balance"], balance
+    )
+    logger.info(
+        "Admin %s changed %s's tokens by %+d to %d",
+        admin["username"], user["username"], body.delta, balance,
+    )
+    return {"token_balance": balance}
+
+
+@router.get("/users/{user_uuid}/tokens")
+async def user_token_history(
+    user_uuid: UUID,
+    limit: int = Query(default=200, ge=1, le=1000),
+    _admin: dict = Depends(require_admin),
+    users: UserRepository = Depends(get_user_repository),
+    tokens: TokenRepository = Depends(get_token_repository),
+) -> dict:
+    """The balance and every token movement, newest first."""
+    user = await _user_or_404(users, user_uuid)
+    return {
+        "token_balance": user["token_balance"],
+        "transactions": await tokens.history(str(user_uuid), limit),
+    }
