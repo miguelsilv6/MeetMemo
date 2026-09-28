@@ -11,6 +11,8 @@ export interface Project {
 }
 
 export interface ProjectSummary extends Project {
+  /** Username of the owner (only in the administrator's view). */
+  owner?: string | null;
   audio_count: number;
   completed_count: number;
   error_count: number;

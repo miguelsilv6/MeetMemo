@@ -10,6 +10,13 @@ import uuid as uuid_lib
 
 import aiofiles
 import aiofiles.os as aioos
+from access import (
+    Principal,
+    authorize_path,
+    get_principal,
+    require_request_header,
+    require_user,
+)
 from config import Settings, get_settings
 from database import get_export_paths, update_status
 from dependencies import (
@@ -52,7 +59,7 @@ from utils.file_utils import get_unique_filename
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 
 def _reject_project_job(job: dict) -> None:
@@ -69,6 +76,7 @@ async def create_job(
     file: UploadFile = File(...),
     model: str = Form(None),
     language: str = Form(None),
+    principal: Principal = Depends(require_user),
     audio_service: AudioService = Depends(get_audio_service),
     job_repo: JobRepository = Depends(get_job_repository),
     settings: Settings = Depends(get_settings)
@@ -86,7 +94,7 @@ async def create_job(
         file_name, file_hash = await audio_service.upload_audio(job_uuid, file)
 
         # Check for duplicate
-        existing_job = await audio_service.check_duplicate(file_hash)
+        existing_job = await audio_service.check_duplicate(file_hash, principal.user_uuid)
         if existing_job:
             # Remove duplicate upload
             file_path = os.path.join(settings.upload_dir, file_name)
@@ -120,7 +128,9 @@ async def create_job(
                 ) from e
 
         # Create job record
-        await job_repo.create(job_uuid, file_name, file_hash, 'uploaded', model, language)
+        await job_repo.create(
+            job_uuid, file_name, file_hash, 'uploaded', model, language, principal.user_uuid
+        )
         logger.info("Job %s created successfully with model=%s, language=%s", job_uuid, model, language)
 
         return JobResponse(
@@ -144,12 +154,15 @@ async def create_job(
 async def list_jobs(
     limit: int = Query(default=100, le=1000),
     offset: int = Query(default=0, ge=0),
+    principal: Principal = Depends(get_principal),
     job_repo: JobRepository = Depends(get_job_repository),
     settings: Settings = Depends(get_settings)
 ) -> JobListResponse:
-    """List all jobs with pagination."""
+    """The caller's jobs (everyone's for the administrator), newest first."""
     try:
-        jobs, total = await job_repo.get_all(limit, offset)
+        jobs, total = await job_repo.get_all(
+            limit, offset, None if principal.is_admin else principal.user_uuid
+        )
 
         jobs_dict = {}
         for job in jobs:

@@ -70,11 +70,15 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
 
     import database
+    from access import Principal
     from repositories.job_repository import JobRepository
     from repositories.project_repository import ProjectRepository
+    from repositories.user_repository import UserRepository
     from services.audio_service import AudioService
     from services.project_queue import ProjectQueue
     from services.project_service import ProjectService
+
+    from tests.auth_helpers import REQUEST_HEADERS, sign_in
 
     spec = importlib.util.spec_from_file_location(
         "projects_api_integration",
@@ -102,12 +106,20 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
     repo = ProjectRepository()
     queue = ProjectQueue(repo, ProjectService(settings, repo, pipeline=pipeline).process)
 
+    owner = {}
+
     @asynccontextmanager
     async def lifespan(_app):
         await database.init_database()
         await database.ensure_projects_schema()
         await database.ensure_projects_schema()  # idempotent on an existing schema
+        await database.ensure_users_schema()
+        await database.require_owners()
         await database.ensure_admin_schema()
+        user = await UserRepository().create(
+            "11111111-aaaa-bbbb-cccc-111111111111", "ana", "Ana", "hash"
+        )
+        owner["uuid"] = str(user["uuid"])
         yield
         await database.close_database()
 
@@ -119,7 +131,8 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         lambda: AudioService(settings, JobRepository())
     )
 
-    with TestClient(app) as client:
+    with TestClient(app, headers=REQUEST_HEADERS) as client:
+        sign_in(app, Principal(username="ana", user_uuid=owner["uuid"]))
 
         def run(coro):
             """Run a coroutine on the app's event loop, where the pool lives."""
@@ -178,7 +191,8 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         assert run(database.get_jobs_count()) == 0
         job = run(database.get_job(first))
         assert str(job["project_uuid"]) == pid
-        assert run(database.get_job_by_hash(job["file_hash"])) is None
+        assert run(database.get_job_by_hash(job["file_hash"], owner["uuid"])) is None
+        assert str(job["user_uuid"]) == owner["uuid"]
 
         # --- The queue processes them in order -------------------------------------
         pipeline.fail.add(run(database.get_job(second))["file_name"])
@@ -253,7 +267,8 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         other = client.post("/api/v1/projects", json={"name": "Caso 13"}).json()["uuid"]
         client.post(f"/api/v1/projects/{other}/audios",
                     files=[("files", ("x.wav", b"RIFF-x", "audio/wav"))])
-        run(database.add_job("22222222-2222-2222-2222-222222222222", "solo.wav", 200, "h"))
+        run(database.add_job("22222222-2222-2222-2222-222222222222", "solo.wav", 200, "h",
+                             user_uuid=owner["uuid"]))
         run(database.add_export_job("33333333-3333-3333-3333-333333333333",
                                     "22222222-2222-2222-2222-222222222222", "markdown", 200))
         run(database.update_export_file_path("33333333-3333-3333-3333-333333333333",
@@ -273,5 +288,5 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         # --- Deleting a project ----------------------------------------------------
         assert client.delete(f"/api/v1/projects/{other}").status_code == 204
         assert client.delete(f"/api/v1/projects/{other}").status_code == 404
-        assert client.get("/api/v1/projects/not-a-uuid").status_code == 422
+        assert client.get("/api/v1/projects/not-a-uuid").status_code == 404
         assert os.listdir(settings.upload_dir) == []

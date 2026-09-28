@@ -137,10 +137,14 @@ def test_successful_login_sets_a_hardened_cookie_and_stores_only_its_hash(client
     assert response.status_code == 200
     assert response.json() == {"username": "admin"}
 
-    set_cookie = response.headers["set-cookie"].lower()
-    assert "httponly" in set_cookie
-    assert "samesite=strict" in set_cookie
-    assert "path=/api/v1/admin" in set_cookie
+    cookies = [c.lower() for c in response.headers.get_list("set-cookie")]
+    session_cookie = next(c for c in cookies if "max-age=0" not in c and '=""' not in c)
+    assert "httponly" in session_cookie
+    assert "samesite=strict" in session_cookie
+    # The whole API, so the admin can open users' content in the app.
+    assert "path=/api/v1;" in session_cookie or session_cookie.endswith("path=/api/v1")
+    # The copy an older version set at /api/v1/admin is removed.
+    assert any("path=/api/v1/admin" in c and "max-age=0" in c for c in cookies)
 
     token = response.cookies.get(admin_api.SESSION_COOKIE)
     assert token and token not in repo.sessions

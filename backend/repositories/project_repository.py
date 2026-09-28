@@ -14,6 +14,8 @@ RESUMABLE_STATES = ("uploaded", "transcribed", "diarized")
 # the server stopped mid-step, and the audio goes back to where it was.
 INTERRUPTED_STATES = {"transcribing": "uploaded", "diarizing": "transcribed", "aligning": "diarized"}
 
+_PROJECT_COLUMNS = "uuid, name, reference, description, created_at, expires_at, user_uuid"
+
 _JOB_COLUMNS = """j.uuid, j.file_name, j.status_code, j.workflow_state, j.current_step_progress,
                   j.error_message, j.language, j.model_name, j.created_at, j.updated_at"""
 
@@ -25,29 +27,35 @@ class ProjectRepository:
     # Projects
     # ------------------------------------------------------------------
 
-    async def create(
+    async def create(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         uuid: str,
         name: str,
         reference: Optional[str],
         description: Optional[str],
         retention_days: int,
+        user_uuid: str,
     ) -> dict:
         """Create a project that expires `retention_days` from now."""
         async with get_db() as conn:
             row = await conn.fetchrow(
-                """INSERT INTO projects (uuid, name, reference, description, expires_at)
-                   VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day' * $5)
-                   RETURNING uuid, name, reference, description, created_at, expires_at""",
-                uuid, name, reference, description, retention_days,
+                f"""INSERT INTO projects (uuid, name, reference, description, expires_at,
+                                          user_uuid)
+                    VALUES ($1, $2, $3, $4, NOW() + INTERVAL '1 day' * $5, $6)
+                    RETURNING {_PROJECT_COLUMNS}""",
+                uuid, name, reference, description, retention_days, user_uuid,
             )
         return dict(row)
 
-    async def list_active(self) -> list[dict]:
-        """Every unexpired project, newest first, with a count of its audios by state."""
+    async def list_active(self, user_uuid: Optional[str] = None) -> list[dict]:
+        """
+        Unexpired projects, newest first, with a count of their audios by state:
+        one user's, or everyone's for None.
+        """
         async with get_db() as conn:
             rows = await conn.fetch(
                 """SELECT p.uuid, p.name, p.reference, p.description, p.created_at, p.expires_at,
+                          p.user_uuid, u.username AS owner,
                           COUNT(j.uuid) AS audio_count,
                           COUNT(j.uuid) FILTER (WHERE j.workflow_state = 'completed')
                               AS completed_count,
@@ -55,9 +63,12 @@ class ProjectRepository:
                               AS error_count
                    FROM projects p
                    LEFT JOIN jobs j ON j.project_uuid = p.uuid
+                   LEFT JOIN users u ON u.uuid = p.user_uuid
                    WHERE p.expires_at > NOW()
-                   GROUP BY p.uuid
-                   ORDER BY p.created_at DESC"""
+                     AND ($1::uuid IS NULL OR p.user_uuid = $1::uuid)
+                   GROUP BY p.uuid, u.username
+                   ORDER BY p.created_at DESC""",
+                user_uuid,
             )
         return [dict(row) for row in rows]
 
@@ -65,8 +76,8 @@ class ProjectRepository:
         """One project, or None once it has expired (its deletion may be pending)."""
         async with get_db() as conn:
             row = await conn.fetchrow(
-                """SELECT uuid, name, reference, description, created_at, expires_at
-                   FROM projects WHERE uuid = $1 AND expires_at > NOW()""",
+                f"""SELECT {_PROJECT_COLUMNS}
+                    FROM projects WHERE uuid = $1 AND expires_at > NOW()""",
                 uuid,
             )
         return dict(row) if row else None
@@ -77,9 +88,9 @@ class ProjectRepository:
         """Change a project's details (never its expiry date)."""
         async with get_db() as conn:
             row = await conn.fetchrow(
-                """UPDATE projects SET name = $2, reference = $3, description = $4
-                   WHERE uuid = $1 AND expires_at > NOW()
-                   RETURNING uuid, name, reference, description, created_at, expires_at""",
+                f"""UPDATE projects SET name = $2, reference = $3, description = $4
+                    WHERE uuid = $1 AND expires_at > NOW()
+                    RETURNING {_PROJECT_COLUMNS}""",
                 uuid, name, reference, description,
             )
         return dict(row) if row else None
@@ -139,12 +150,13 @@ class ProjectRepository:
         file_hash: str,
         language: Optional[str],
     ) -> None:
-        """Add an uploaded audio to the project; it waits in the queue."""
+        """Add an uploaded audio to the project (and its owner); it waits in the queue."""
         async with get_db() as conn:
             await conn.execute(
                 """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
-                                     language, project_uuid)
-                   VALUES ($1, $2, 202, $3, 'uploaded', $4, $5)""",
+                                     language, project_uuid, user_uuid)
+                   SELECT $1, $2, 202, $3, 'uploaded', $4, $5, p.user_uuid
+                   FROM projects p WHERE p.uuid = $5""",
                 uuid, file_name, file_hash, language, project_uuid,
             )
 

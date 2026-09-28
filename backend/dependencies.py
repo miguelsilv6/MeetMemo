@@ -88,6 +88,24 @@ def get_export_repository():
     return ExportRepository()
 
 
+def get_admin_repository():
+    """Get AdminRepository instance."""
+    from repositories.admin_repository import AdminRepository
+    return AdminRepository()
+
+
+def get_project_repository():
+    """Get ProjectRepository instance."""
+    from repositories.project_repository import ProjectRepository
+    return ProjectRepository()
+
+
+def get_user_repository():
+    """Get UserRepository instance."""
+    from repositories.user_repository import UserRepository
+    return UserRepository()
+
+
 # ============================================================================
 # Service Factories
 # ============================================================================

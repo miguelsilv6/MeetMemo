@@ -35,7 +35,8 @@ class JobRepository:
         file_hash: Optional[str] = None,
         workflow_state: str = 'uploaded',
         model_name: Optional[str] = None,
-        language: Optional[str] = None
+        language: Optional[str] = None,
+        user_uuid: Optional[str] = None,
     ) -> None:
         """
         Create a new job.
@@ -47,8 +48,11 @@ class JobRepository:
             workflow_state: Initial workflow state (default: 'uploaded')
             model_name: Optional Whisper model name
             language: Optional language code for transcription
+            user_uuid: The owner
         """
-        await add_job(uuid, file_name, 200, file_hash, workflow_state, model_name, language)
+        await add_job(
+            uuid, file_name, 200, file_hash, workflow_state, model_name, language, user_uuid
+        )
 
     async def get(self, uuid: str) -> Optional[dict]:
         """
@@ -65,7 +69,8 @@ class JobRepository:
     async def get_all(
         self,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
+        user_uuid: Optional[str] = None,
     ) -> tuple[list[dict], int]:
         """
         Get all jobs with pagination.
@@ -73,12 +78,13 @@ class JobRepository:
         Args:
             limit: Maximum number of jobs to return
             offset: Number of jobs to skip
+            user_uuid: Only this user's jobs; None for everyone's
 
         Returns:
             Tuple of (jobs list, total count)
         """
-        jobs = await get_all_jobs(limit, offset)
-        total = await get_jobs_count()
+        jobs = await get_all_jobs(limit, offset, user_uuid)
+        total = await get_jobs_count(user_uuid)
         return jobs, total
 
     async def update_workflow_state(
@@ -183,17 +189,18 @@ class JobRepository:
         """
         return await delete_job(uuid)
 
-    async def find_by_hash(self, file_hash: str) -> Optional[dict]:
+    async def find_by_hash(self, file_hash: str, user_uuid: str) -> Optional[dict]:
         """
-        Find job by file hash (for duplicate detection).
+        Find the user's job with this file hash (for duplicate detection).
 
         Args:
             file_hash: SHA256 file hash
+            user_uuid: The owner
 
         Returns:
             Job data dict or None if not found
         """
-        return await get_job_by_hash(file_hash)
+        return await get_job_by_hash(file_hash, user_uuid)
 
     async def cleanup_old(self, max_age_hours: int) -> list[dict]:
         """

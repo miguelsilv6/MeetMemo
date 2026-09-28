@@ -75,7 +75,15 @@ export default function RecentJobsList({
                   onClick={() => handleLoadJob(job)}
                 >
                   <div className="flex-grow-1">
-                    <div className="fw-medium">{job.filename || t('recentJobs.untitled')}</div>
+                    <div className="fw-medium">
+                      {job.filename || t('recentJobs.untitled')}
+                      {job.owner && (
+                        <span className="text-muted fw-normal small">
+                          {' '}
+                          · {t('auth.owner', { username: job.owner })}
+                        </span>
+                      )}
+                    </div>
                     <small className="text-muted">
                       {job.created_at
                         ? new Date(job.created_at).toLocaleString('en-GB', DATE_TIME_FORMAT_OPTIONS)

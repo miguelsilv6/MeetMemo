@@ -503,7 +503,57 @@
       "setting": "Setting",
       "from": "Old value",
       "to": "New value",
-      "passwordChanged": "Admin password changed"
+      "passwordChanged": "Admin password changed",
+      "events": {
+        "user_created": "User created",
+        "user_renamed": "User renamed",
+        "user_activated": "User activated",
+        "user_deactivated": "User deactivated",
+        "user_password_reset": "User password reset",
+        "user_deleted": "User deleted"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "createTitle": "New user",
+      "username": "Username",
+      "usernameHelp": "Letters, digits and . _ @ - (3 to 100).",
+      "displayName": "Name",
+      "temporaryPassword": "Temporary password",
+      "create": "Create user",
+      "createHint": "The user must choose a new password when they first sign in.",
+      "empty": "No users yet.",
+      "user": "User",
+      "state": "State",
+      "owned": "Content",
+      "lastLogin": "Last sign-in",
+      "actions": "Actions",
+      "active": "Active",
+      "inactive": "Inactive",
+      "temporary": "Temporary password",
+      "ownedProjects_one": "{{count}} project",
+      "ownedProjects_other": "{{count}} projects",
+      "ownedAudios_one": "{{count}} audio",
+      "ownedAudios_other": "{{count}} audios",
+      "content": "View content",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "resetPassword": "Reset password",
+      "resetPasswordFor": "Reset {{username}}'s password",
+      "delete": "Delete user",
+      "deleteFor": "Delete {{username}}",
+      "contentOf": "{{name}}'s content",
+      "resetPasswordBody": "Set a temporary password for {{username}}. Their open sessions end, and they must choose a new one when they next sign in.",
+      "deleteBody": "Delete the account {{username}} and all its content ({{projects}} projects, {{audios}} audios), including transcripts, summaries, translations and files? This cannot be undone.",
+      "deleteConfirm": "To confirm, type {{username}}",
+      "noProjects": "No projects.",
+      "singleAudios": "Audios outside projects",
+      "noAudios": "No audios outside projects.",
+      "created": "User {{username}} created.",
+      "deactivated": "{{username}} deactivated; their sessions were ended.",
+      "activated": "{{username}} activated.",
+      "passwordReset": "{{username}}'s password was reset.",
+      "deleted": "User {{username}} and all their content deleted."
     }
   },
   "projects": {
@@ -584,5 +634,28 @@
       "body_one": "Delete the project “{{name}}” and its audio, with every transcript, summary and translation? This cannot be undone.",
       "body_other": "Delete the project “{{name}}” and its {{count}} audios, with every transcript, summary and translation? This cannot be undone."
     }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in to MeetMemo",
+      "intro": "Accounts are created by the administrator. If you do not have one yet, ask them for access.",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "invalid": "Invalid username or password.",
+      "tooMany": "Too many failed attempts. Try again in a few minutes."
+    },
+    "forcedChange": {
+      "title": "Choose a new password",
+      "intro": "Your password was set by the administrator. Choose a new one (at least 12 characters) before continuing."
+    },
+    "menu": {
+      "changePassword": "Change password",
+      "logout": "Sign out",
+      "adminPanel": "Admin panel"
+    },
+    "adminBanner": "You are viewing the application as the administrator ({{username}}): you can see every user's projects and audios. To upload audios, sign in with a user account.",
+    "owner": "by {{username}}"
   }
 }

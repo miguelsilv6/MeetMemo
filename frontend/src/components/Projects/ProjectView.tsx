@@ -22,6 +22,8 @@ export const PROJECT_POLL_MS = 3000;
 
 interface ProjectViewProps {
   projectUuid: string;
+  /** False for the administrator, who sees the project but uploads nothing. */
+  canUpload?: boolean;
   onBack: () => void;
   onOpenAudio: (project: ProjectDetail, audio: ProjectAudio) => void;
 }
@@ -29,7 +31,12 @@ interface ProjectViewProps {
 type PendingDelete = { kind: 'project' } | { kind: 'audio'; audio: ProjectAudio };
 
 /** One project: its details, expiry, uploads and the status of each audio. */
-export default function ProjectView({ projectUuid, onBack, onOpenAudio }: ProjectViewProps) {
+export default function ProjectView({
+  projectUuid,
+  canUpload = true,
+  onBack,
+  onOpenAudio,
+}: ProjectViewProps) {
   const { t, i18n } = useTranslation();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -255,7 +262,7 @@ export default function ProjectView({ projectUuid, onBack, onOpenAudio }: Projec
           </Card.Body>
         </Card>
 
-        <ProjectUploadCard projectUuid={projectUuid} onUploaded={load} />
+        {canUpload && <ProjectUploadCard projectUuid={projectUuid} onUploaded={load} />}
 
         <Card>
           <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2">

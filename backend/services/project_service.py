@@ -95,12 +95,13 @@ class ProjectService:
                 logger.info("Removed files left by deleted audio %s", job["uuid"])
 
     async def create(
-        self, name: str, reference: Optional[str], description: Optional[str]
+        self, name: str, reference: Optional[str], description: Optional[str], user_uuid: str
     ) -> dict:
-        """Create a project; its expiry date is fixed now, from the admin setting."""
+        """Create a user's project; its expiry date is fixed now, from the admin setting."""
         runtime = await self.runtime_settings.get()
         project = await self.repo.create(
-            str(uuid_lib.uuid4()), name, reference, description, runtime.project_retention_days
+            str(uuid_lib.uuid4()), name, reference, description,
+            runtime.project_retention_days, user_uuid,
         )
         logger.info(
             "Created project %s, expiring %s", project["uuid"], project["expires_at"].isoformat()

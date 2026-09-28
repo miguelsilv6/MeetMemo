@@ -159,6 +159,8 @@ def test_waveform_endpoint_returns_channel_envelopes_on_request(tmp_path):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
+    from tests.auth_helpers import sign_in
+
     spec = importlib.util.spec_from_file_location(
         "audio_api_under_test", Path(__file__).resolve().parents[1] / "api" / "v1" / "audio.py"
     )
@@ -177,8 +179,9 @@ def test_waveform_endpoint_returns_channel_envelopes_on_request(tmp_path):
     app.dependency_overrides[audio_api.get_settings] = lambda: SimpleNamespace(
         upload_dir=str(tmp_path)
     )
+    sign_in(app)
     client = TestClient(app)
-    url = "/api/v1/jobs/job1/waveform?start=0&end=1&buckets=4"
+    url = "/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/waveform?start=0&end=1&buckets=4"
 
     mixed = client.get(url).json()
     split = client.get(url + "&split_channels=true").json()

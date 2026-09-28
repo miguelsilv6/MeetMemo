@@ -62,3 +62,29 @@ export interface AuditEntry {
   old_value: unknown;
   new_value: unknown;
 }
+
+/** A user account as the admin panel lists it. */
+export interface AdminUser {
+  uuid: string;
+  username: string;
+  display_name: string;
+  is_active: boolean;
+  must_change_password: boolean;
+  created_at: string;
+  last_login_at: string | null;
+  project_count: number;
+  audio_count: number;
+}
+
+/** What one account owns, for the administrator to open. */
+export interface UserContent {
+  projects: {
+    uuid: string;
+    name: string;
+    reference: string | null;
+    created_at: string;
+    expires_at: string;
+    audio_count: number;
+  }[];
+  audios: { uuid: string; file_name: string; workflow_state: string; created_at: string }[];
+}

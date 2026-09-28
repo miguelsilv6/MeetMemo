@@ -19,6 +19,8 @@ from fastapi.testclient import TestClient
 from llm_prompts import EUROPEAN_PORTUGUESE_REMINDER, EUROPEAN_PORTUGUESE_RULE
 from services.summary_service import SummaryService
 
+from tests.auth_helpers import REQUEST_HEADERS, sign_in
+
 TRANSCRIPT = (
     "SPEAKER_00: Good morning, this is Ana from customer support, how can I help?\n"
     "SPEAKER_01: My order has not arrived yet although tracking says it was delivered."
@@ -194,13 +196,14 @@ def _client(tmp_path, language, segments=None, translator=None):
     )
     app.dependency_overrides[transcripts_api.get_summary_service] = lambda: translator
     app.dependency_overrides[transcripts_api.get_settings] = lambda: settings
-    return TestClient(app), translator, tmp_path / "translations"
+    sign_in(app)
+    return TestClient(app, headers=REQUEST_HEADERS), translator, tmp_path / "translations"
 
 
 def test_portuguese_transcript_is_returned_unchanged(tmp_path):
     client, translator, translation_dir = _client(tmp_path, "pt")
 
-    response = client.post("/api/v1/jobs/job1/transcripts/translate")
+    response = client.post("/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/transcripts/translate")
 
     assert response.status_code == 200
     body = response.json()
@@ -213,8 +216,8 @@ def test_portuguese_transcript_is_returned_unchanged(tmp_path):
 def test_other_languages_are_translated_and_cached_as_european_portuguese(tmp_path):
     client, translator, translation_dir = _client(tmp_path, "en")
 
-    first = client.post("/api/v1/jobs/job1/transcripts/translate", json={"target_language": "pt"})
-    second = client.post("/api/v1/jobs/job1/transcripts/translate")
+    first = client.post("/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/transcripts/translate", json={"target_language": "pt"})
+    second = client.post("/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/transcripts/translate")
 
     assert first.json()["status"] == "generated"
     assert first.json()["target_language"] == "pt-PT"
@@ -231,7 +234,7 @@ def test_translation_ignores_a_cache_from_before_european_portuguese(tmp_path):
         json.dumps([{**SEGMENTS[0], "text": "Bom dia (Brasil)"}]), encoding="utf-8"
     )
 
-    response = client.post("/api/v1/jobs/job1/transcripts/translate")
+    response = client.post("/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/transcripts/translate")
 
     assert response.json()["status"] == "generated"
     assert translator.calls == 1
@@ -241,7 +244,7 @@ def test_translation_to_another_language_is_rejected(tmp_path):
     client, translator, _ = _client(tmp_path, "en")
 
     response = client.post(
-        "/api/v1/jobs/job1/transcripts/translate", json={"target_language": "en"}
+        "/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/transcripts/translate", json={"target_language": "en"}
     )
 
     assert response.status_code == 422
@@ -250,7 +253,7 @@ def test_translation_to_another_language_is_rejected(tmp_path):
 
 # --- Translation in blocks ---------------------------------------------------
 
-TRANSLATE_URL = "/api/v1/jobs/job1/transcripts/translate"
+TRANSLATE_URL = "/api/v1/jobs/1b4e28ba-2fa1-11d2-883f-0016d3cca427/transcripts/translate"
 
 
 def test_whole_transcript_is_sent_to_the_llm_in_small_blocks(tmp_path):
@@ -324,7 +327,8 @@ def _client_reusing(tmp_path, translator):
     app.dependency_overrides[transcripts_api.get_job_repository] = lambda: _FakeJobRepository("en")
     app.dependency_overrides[transcripts_api.get_summary_service] = lambda: translator
     app.dependency_overrides[transcripts_api.get_settings] = lambda: settings
-    return TestClient(app), translator, tmp_path / "translations"
+    sign_in(app)
+    return TestClient(app, headers=REQUEST_HEADERS), translator, tmp_path / "translations"
 
 
 def test_translation_timeout_explains_what_to_change():

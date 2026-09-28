@@ -161,17 +161,18 @@ class AudioService:
             )
             return source_path
 
-    async def check_duplicate(self, file_hash: str) -> Optional[dict]:
+    async def check_duplicate(self, file_hash: str, user_uuid: str) -> Optional[dict]:
         """
-        Check if file with same hash already exists.
+        Check if the user already uploaded a file with the same hash.
 
         Args:
             file_hash: SHA256 file hash
+            user_uuid: The uploader
 
         Returns:
             Existing job data if duplicate found, None otherwise
         """
-        return await self.job_repo.find_by_hash(file_hash)
+        return await self.job_repo.find_by_hash(file_hash, user_uuid)
 
     def validate_audio_type(self, content_type: str) -> bool:
         """

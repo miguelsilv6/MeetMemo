@@ -1,7 +1,8 @@
 import { Button, Container } from '@govtechsg/sgds-react';
-import { FileText, FolderOpen } from 'lucide-react';
+import { FileText, FolderOpen, KeyRound, LogOut, Shield, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../LanguageSwitcher';
+import type { Me } from '../../types/auth';
 
 interface HeaderProps {
   onStartNewMeeting: () => void;
@@ -9,9 +10,20 @@ interface HeaderProps {
   onOpenProjects?: () => void;
   /** Whether the projects pages are showing (marks the button as current). */
   projectsActive?: boolean;
+  /** The signed-in user or administrator; no account controls without it. */
+  me?: Me | null;
+  onChangePassword?: () => void;
+  onLogout?: () => void;
 }
 
-export default function Header({ onStartNewMeeting, onOpenProjects, projectsActive }: HeaderProps) {
+export default function Header({
+  onStartNewMeeting,
+  onOpenProjects,
+  projectsActive,
+  me = null,
+  onChangePassword,
+  onLogout,
+}: HeaderProps) {
   const { t } = useTranslation();
 
   return (
@@ -44,6 +56,42 @@ export default function Header({ onStartNewMeeting, onOpenProjects, projectsActi
               </Button>
             )}
             <LanguageSwitcher />
+            {me && !me.is_admin && (
+              <div className="header-account d-flex align-items-center gap-1">
+                <span className="header-account-name" title={me.username}>
+                  <UserRound size={16} className="me-1" aria-hidden="true" />
+                  {me.display_name || me.username}
+                </span>
+                {onChangePassword && (
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={onChangePassword}
+                    aria-label={t('auth.menu.changePassword')}
+                    title={t('auth.menu.changePassword')}
+                  >
+                    <KeyRound size={16} />
+                  </Button>
+                )}
+                {onLogout && (
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={onLogout}
+                    aria-label={t('auth.menu.logout')}
+                    title={t('auth.menu.logout')}
+                  >
+                    <LogOut size={16} />
+                  </Button>
+                )}
+              </div>
+            )}
+            {me?.is_admin && (
+              <a className="btn btn-sm btn-outline-secondary" href="#/admin">
+                <Shield size={16} className="me-1" aria-hidden="true" />
+                <span>{t('auth.menu.adminPanel')}</span>
+              </a>
+            )}
           </div>
         </div>
       </Container>

@@ -16,6 +16,20 @@ export function parseProjectRoute(hash: string): string | null {
   return uuid || null;
 }
 
+export const JOB_ROUTE_PREFIX = '#/jobs/';
+
+/** Hash that opens one audio's transcript directly. */
+export function jobRoute(uuid: string): string {
+  return `${JOB_ROUTE_PREFIX}${uuid}`;
+}
+
+/** The job UUID in a job hash, or null. */
+export function parseJobRoute(hash: string): string | null {
+  if (!hash.startsWith(JOB_ROUTE_PREFIX)) return null;
+  const uuid = decodeURIComponent(hash.slice(JOB_ROUTE_PREFIX.length)).trim();
+  return uuid || null;
+}
+
 /** Whether the hash shows the projects list or a project page. */
 export function isProjectsRoute(hash: string): boolean {
   return hash === PROJECTS_ROUTE || parseProjectRoute(hash) !== null;

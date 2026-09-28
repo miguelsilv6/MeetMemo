@@ -6,6 +6,7 @@ import AdminLogin from './AdminLogin';
 import AdminSettingsForm from './AdminSettingsForm';
 import AdminPasswordForm from './AdminPasswordForm';
 import AdminAuditLog from './AdminAuditLog';
+import AdminUsers from './AdminUsers';
 import {
   AdminApiError,
   adminLogout,
@@ -170,6 +171,7 @@ export default function AdminView({ onExit }: AdminViewProps) {
               <AdminPasswordForm onChanged={refreshAudit} onUnauthorized={showLogin} />
             </Col>
           </Row>
+          <AdminUsers onChanged={refreshAudit} onUnauthorized={showLogin} />
           <AdminAuditLog entries={audit} loading={auditLoading} onRefresh={refreshAudit} />
         </>
       )}

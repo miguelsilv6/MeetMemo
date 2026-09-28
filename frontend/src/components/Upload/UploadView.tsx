@@ -29,6 +29,8 @@ interface UploadViewProps {
   onUploadLimit?: (maxUploadMb: number) => void;
   /** Open the projects page, for several audios of the same case. */
   onOpenProjects?: () => void;
+  /** False for the administrator, who browses users' audios but uploads none. */
+  canUpload?: boolean;
 }
 
 export default function UploadView({
@@ -48,6 +50,7 @@ export default function UploadView({
   maxUploadMb = null,
   onUploadLimit,
   onOpenProjects,
+  canUpload = true,
 }: UploadViewProps) {
   const { t } = useTranslation();
 
@@ -78,22 +81,24 @@ export default function UploadView({
           <p className="text-muted">{t('upload.subtitle')}</p>
         </div>
 
-        <Row className="g-4 justify-content-center">
-          <Col md={8} lg={6}>
-            <FileUploadCard
-              uploading={uploading}
-              fileInputRef={fileInputRef}
-              handleFileSelect={handleFileSelect}
-              handleDragOver={handleDragOver}
-              handleDrop={handleDrop}
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={onLanguageChange}
-              maxUploadMb={maxUploadMb}
-            />
-          </Col>
-        </Row>
+        {canUpload && (
+          <Row className="g-4 justify-content-center">
+            <Col md={8} lg={6}>
+              <FileUploadCard
+                uploading={uploading}
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                handleDragOver={handleDragOver}
+                handleDrop={handleDrop}
+                selectedLanguage={selectedLanguage}
+                onLanguageChange={onLanguageChange}
+                maxUploadMb={maxUploadMb}
+              />
+            </Col>
+          </Row>
+        )}
 
-        {onOpenProjects && (
+        {canUpload && onOpenProjects && (
           <p className="text-center text-muted small mt-3 mb-0">
             {t('projects.uploadHint')}{' '}
             <Button

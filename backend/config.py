@@ -85,6 +85,7 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str | None = None
     admin_session_hours: int = 8
+    user_session_hours: int = 12
 
     # Cleanup & Maintenance
     cleanup_interval_hours: int = 1

@@ -11,6 +11,7 @@ from config import Settings
 from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
+from repositories.user_repository import UserRepository
 
 from services.job_files import remove_job_files
 from services.project_service import ProjectService
@@ -67,8 +68,9 @@ class CleanupService:
 
             try:
                 await AdminRepository().purge_expired_sessions()
+                await UserRepository().purge_expired_sessions()
             except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("Failed to purge expired admin sessions: %s", e)
+                logger.error("Failed to purge expired sessions: %s", e)
 
             for job in old_jobs:
                 await remove_job_files(

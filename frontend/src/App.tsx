@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation as useI18n } from 'react-i18next';
-import { Button, Container } from '@govtechsg/sgds-react';
-import { ArrowLeft } from 'lucide-react';
+import { Alert, Button, Card, Container, Modal } from '@govtechsg/sgds-react';
+import { ArrowLeft, Shield } from 'lucide-react';
 import type { ProjectAudio, ProjectDetail } from './types/projects';
 import type { RecentJob, WorkflowStep } from './types/api';
 
@@ -19,9 +19,12 @@ import useHashRoute, {
   ADMIN_ROUTE,
   PROJECTS_ROUTE,
   isProjectsRoute,
+  parseJobRoute,
   parseProjectRoute,
   projectRoute,
 } from './hooks/useHashRoute';
+import useSession from './hooks/useSession';
+import * as api from './services/api';
 
 // Layout Components
 import Header from './components/Layout/Header';
@@ -38,6 +41,8 @@ import ProcessingView from './components/Processing/ProcessingView';
 import TranscriptView from './components/Transcript/TranscriptView';
 import SummaryView from './components/Summary/SummaryView';
 import AdminView from './components/Admin/AdminView';
+import LoginView from './components/Auth/LoginView';
+import ChangePasswordForm from './components/Auth/ChangePasswordForm';
 import ProjectsView from './components/Projects/ProjectsView';
 import ProjectView from './components/Projects/ProjectView';
 
@@ -62,6 +67,20 @@ function App() {
     name: string;
   } | null>(null);
   const route = useHashRoute();
+  const session = useSession();
+  const me = session.state.status === 'signedIn' ? session.state.me : null;
+  // Signed in with a usable account (a temporary password must be replaced first).
+  const signedIn = !!me && !me.must_change_password;
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
+  // Leaving the admin panel (by its button, a link or the address bar): the
+  // administrator may have signed in or out there, so check the session again.
+  const lastRouteRef = useRef(route);
+  const refreshSession = session.refresh;
+  useEffect(() => {
+    if (lastRouteRef.current === ADMIN_ROUTE && route !== ADMIN_ROUTE) refreshSession();
+    lastRouteRef.current = route;
+  }, [route, refreshSession]);
   const projectsRoute = isProjectsRoute(route);
   const openProjectUuid = parseProjectRoute(route);
 
@@ -156,7 +175,7 @@ function App() {
   // Job history
   const { recentJobs, loadingJobs, fetchRecentJobs, handleLoadJob, handleDeleteJob } =
     useJobHistory(
-      backendReady,
+      backendReady && signedIn,
       setTranscriptWithColors,
       setCurrentStep,
       setJobId,
@@ -212,6 +231,38 @@ function App() {
     await handleLoadJob({ uuid: audio.uuid, filename: audio.file_name, status_code: 200 });
   };
 
+  const handleLogout = async () => {
+    handleStartNewMeeting();
+    await session.signOut();
+  };
+
+  // #/jobs/<uuid> opens one audio's transcript (links from the admin panel).
+  const openJobUuid = parseJobRoute(route);
+  useEffect(() => {
+    if (!openJobUuid || !signedIn) return undefined;
+    let cancelled = false;
+    api
+      .getJobStatus(openJobUuid)
+      .then((status) => {
+        if (cancelled) return;
+        window.location.hash = '';
+        handleLoadJob({
+          uuid: openJobUuid,
+          filename: status.file_name,
+          status_code: status.status_code,
+        });
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        window.location.hash = '';
+        setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the route or session changes
+  }, [openJobUuid, signedIn]);
+
   // Show loading screen while backend is initializing
   if (!backendReady && !backendError) {
     return <LoadingScreen backendError={backendError} />;
@@ -222,16 +273,66 @@ function App() {
     return <LoadingScreen backendError={backendError} />;
   }
 
+  // Everything but the admin panel needs a signed-in account.
+  if (route !== ADMIN_ROUTE && !signedIn) {
+    return (
+      <div className="app">
+        <Header onStartNewMeeting={() => {}} />
+        <Container className="py-5">
+          {session.state.status === 'loading' ? (
+            <p className="text-center text-muted py-5">{t('common.loading')}</p>
+          ) : me?.must_change_password ? (
+            <Card className="auth-card mx-auto">
+              <Card.Header>
+                <h1 className="h5 mb-0">{t('auth.forcedChange.title')}</h1>
+              </Card.Header>
+              <Card.Body>
+                <p className="text-muted small">{t('auth.forcedChange.intro')}</p>
+                <ChangePasswordForm
+                  onChanged={() => session.refresh()}
+                  secondaryAction={
+                    <Button variant="outline-secondary" onClick={() => session.signOut()}>
+                      {t('auth.menu.logout')}
+                    </Button>
+                  }
+                />
+              </Card.Body>
+            </Card>
+          ) : (
+            <>
+              {session.state.status === 'error' && (
+                <Alert show variant="danger" className="auth-card mx-auto">
+                  {session.state.message}
+                </Alert>
+              )}
+              <LoginView onSignedIn={session.signedIn} />
+            </>
+          )}
+        </Container>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <Header
         onStartNewMeeting={handleStartNewMeeting}
-        onOpenProjects={openProjects}
+        onOpenProjects={route === ADMIN_ROUTE ? undefined : openProjects}
         projectsActive={projectsRoute}
+        me={route === ADMIN_ROUTE ? null : me}
+        onChangePassword={() => setShowPasswordModal(true)}
+        onLogout={handleLogout}
       />
       {route !== ADMIN_ROUTE && !projectsRoute && <WorkflowSteps currentStep={currentStep} />}
 
       <Container className="py-5">
+        {me?.is_admin && route !== ADMIN_ROUTE && (
+          <Alert show variant="info" className="d-flex align-items-start gap-2 admin-browse-banner">
+            <Shield size={18} className="flex-shrink-0 mt-1" aria-hidden="true" />
+            <div>{t('auth.adminBanner', { username: me.username })}</div>
+          </Alert>
+        )}
         {route === ADMIN_ROUTE ? (
           <AdminView
             onExit={() => {
@@ -242,11 +343,13 @@ function App() {
           <ProjectView
             key={openProjectUuid}
             projectUuid={openProjectUuid}
+            canUpload={!me?.is_admin}
             onBack={openProjects}
             onOpenAudio={handleOpenProjectAudio}
           />
         ) : projectsRoute ? (
           <ProjectsView
+            canCreate={!me?.is_admin}
             onOpenProject={(uuid) => {
               window.location.hash = projectRoute(uuid);
             }}
@@ -287,6 +390,7 @@ function App() {
                 maxUploadMb={maxUploadMb}
                 onUploadLimit={applyUploadLimit}
                 onOpenProjects={openProjects}
+                canUpload={!me?.is_admin}
               />
             )}
 
@@ -338,6 +442,22 @@ function App() {
       </Container>
 
       <Footer />
+
+      <Modal show={showPasswordModal} onHide={() => setShowPasswordModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{t('auth.menu.changePassword')}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ChangePasswordForm
+            onChanged={() => setShowPasswordModal(false)}
+            secondaryAction={
+              <Button variant="outline-secondary" onClick={() => setShowPasswordModal(false)}>
+                {t('common.cancel')}
+              </Button>
+            }
+          />
+        </Modal.Body>
+      </Modal>
 
       {/* Modals */}
       <EditSpeakersModal

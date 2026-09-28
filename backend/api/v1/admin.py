@@ -11,7 +11,11 @@ import asyncio
 import hmac
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+from uuid import UUID
 
+from access import ADMIN_COOKIE, client_key, cookie_values, is_https
+from access import COOKIE_PATH as ACCESS_COOKIE_PATH
 from admin_auth import (
     DUMMY_PASSWORD_HASH,
     MAX_PASSWORD_LENGTH,
@@ -23,19 +27,26 @@ from admin_auth import (
     verify_password,
 )
 from config import Settings, get_settings
+from dependencies import get_admin_repository, get_user_repository
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from llm_prompts import QWEN3_NO_THINK, TRANSLATION_OUTPUT_CONTRACT
 from pydantic import BaseModel, Field
 from repositories.admin_repository import AdminRepository
+from repositories.user_repository import UsernameTakenError, UserRepository
 from runtime_settings import WHISPER_LANGUAGE_CODES, RuntimeSettings
 from services.runtime_settings_service import RuntimeSettingsService
+from services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin")
 
-SESSION_COOKIE = "meetmemo_admin"
-COOKIE_PATH = "/api/v1/admin"
+SESSION_COOKIE = ADMIN_COOKIE
+# The whole API, so the administrator can open users' audios and projects in
+# the app. Sessions from before lived at /api/v1/admin; that copy is removed
+# at login and logout.
+COOKIE_PATH = ACCESS_COOKIE_PATH
+LEGACY_COOKIE_PATH = "/api/v1/admin"
 CSRF_HEADER = "x-meetmemo-admin"
 
 _rate_limiter = LoginRateLimiter()
@@ -53,19 +64,12 @@ class PasswordChangeRequest(BaseModel):
     new_password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
 
 
-def get_admin_repository() -> AdminRepository:
-    """AdminRepository dependency."""
-    return AdminRepository()
-
-
 def _client_key(request: Request) -> str:
-    # The backend is only reachable through nginx, which sets X-Real-IP.
-    return request.headers.get("x-real-ip") or (request.client.host if request.client else "unknown")
+    return client_key(request)
 
 
 def _is_https(request: Request) -> bool:
-    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
-    return proto.split(",")[0].strip().lower() == "https"
+    return is_https(request)
 
 
 async def _verify_password(password: str, stored_hash: str) -> bool:
@@ -83,8 +87,7 @@ async def require_admin(
     request: Request, repo: AdminRepository = Depends(get_admin_repository)
 ) -> dict:
     """Resolve the logged-in admin from the session cookie, or 401."""
-    token = request.cookies.get(SESSION_COOKIE)
-    if token:
+    for token in cookie_values(request, SESSION_COOKIE):
         token_hash = hash_session_token(token)
         session = await repo.get_session(token_hash)
         if session:
@@ -139,6 +142,7 @@ async def login(
         credentials["username"],
         datetime.now(timezone.utc) + timedelta(seconds=max_age),
     )
+    response.delete_cookie(SESSION_COOKIE, path=LEGACY_COOKIE_PATH)
     response.set_cookie(
         SESSION_COOKIE,
         token,
@@ -157,11 +161,11 @@ async def logout(
     request: Request, repo: AdminRepository = Depends(get_admin_repository)
 ) -> Response:
     """End the current admin session (idempotent)."""
-    token = request.cookies.get(SESSION_COOKIE)
-    if token:
+    for token in cookie_values(request, SESSION_COOKIE):
         await repo.delete_session(hash_session_token(token))
     response = Response(status_code=204)
     response.delete_cookie(SESSION_COOKIE, path=COOKIE_PATH)
+    response.delete_cookie(SESSION_COOKIE, path=LEGACY_COOKIE_PATH)
     return response
 
 
@@ -250,3 +254,138 @@ async def change_password(
     await repo.update_password(admin["username"], new_hash, admin["token_hash"])
     logger.info("Admin %s changed the password", admin["username"])
     return Response(status_code=204)
+
+
+# ============================================================================
+# User accounts
+# ============================================================================
+
+USERNAME_PATTERN = r"^[A-Za-z0-9._@-]{3,100}$"
+
+
+class UserCreateRequest(BaseModel):
+    """A new user account, with a temporary password."""
+    username: str = Field(pattern=USERNAME_PATTERN)
+    display_name: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
+
+
+class UserUpdateRequest(BaseModel):
+    """Changes to an account; omitted fields stay as they are."""
+    display_name: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    is_active: Optional[bool] = None
+
+
+class PasswordResetRequest(BaseModel):
+    """A temporary password the user must replace at next login."""
+    password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
+
+
+def get_user_service(settings: Settings = Depends(get_settings)) -> UserService:
+    """UserService dependency."""
+    return UserService(settings)
+
+
+async def _user_or_404(users: UserRepository, user_uuid: UUID) -> dict:
+    user = await users.get(str(user_uuid))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.get("/users")
+async def list_users(
+    _admin: dict = Depends(require_admin),
+    users: UserRepository = Depends(get_user_repository),
+) -> list[dict]:
+    """Every account, with how many projects and audios it owns."""
+    return await users.list_with_counts()
+
+
+@router.post("/users", status_code=201, dependencies=[Depends(require_admin_header)])
+async def create_user(
+    body: UserCreateRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    service: UserService = Depends(get_user_service),
+) -> dict:
+    """Create an account; the user must choose a new password at first login."""
+    problem = password_problem(body.password)
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
+    try:
+        user = await service.create(body.username, body.display_name.strip(), body.password)
+    except UsernameTakenError as e:
+        raise HTTPException(status_code=409, detail="This username is already taken.") from e
+    await repo.record_audit(admin["username"], "user_created", None, user["username"])
+    logger.info("Admin %s created user %s", admin["username"], user["username"])
+    return user
+
+
+@router.patch("/users/{user_uuid}", dependencies=[Depends(require_admin_header)])
+async def update_user(
+    user_uuid: UUID,
+    body: UserUpdateRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
+) -> dict:
+    """Rename an account or (de)activate it; deactivating signs the user out."""
+    before = await _user_or_404(users, user_uuid)
+    user = await users.update(str(user_uuid), body.display_name, body.is_active)
+    if body.display_name is not None and body.display_name != before["display_name"]:
+        await repo.record_audit(
+            admin["username"], "user_renamed", before["display_name"], user["display_name"]
+        )
+    if body.is_active is not None and body.is_active != before["is_active"]:
+        key = "user_activated" if body.is_active else "user_deactivated"
+        await repo.record_audit(admin["username"], key, None, user["username"])
+    return user
+
+
+@router.post(
+    "/users/{user_uuid}/password", status_code=204, dependencies=[Depends(require_admin_header)]
+)
+async def reset_user_password(
+    user_uuid: UUID,
+    body: PasswordResetRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
+    service: UserService = Depends(get_user_service),
+) -> Response:
+    """Set a temporary password and sign the user out everywhere."""
+    user = await _user_or_404(users, user_uuid)
+    problem = password_problem(body.password)
+    if problem:
+        raise HTTPException(status_code=422, detail=problem)
+    await service.reset_password(str(user_uuid), body.password)
+    await repo.record_audit(admin["username"], "user_password_reset", None, user["username"])
+    return Response(status_code=204)
+
+
+@router.delete("/users/{user_uuid}", status_code=204, dependencies=[Depends(require_admin_header)])
+async def delete_user(
+    user_uuid: UUID,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
+    service: UserService = Depends(get_user_service),
+) -> Response:
+    """Delete the account and every audio, project and file it owns."""
+    user = await _user_or_404(users, user_uuid)
+    await service.delete(str(user_uuid))
+    await repo.record_audit(admin["username"], "user_deleted", user["username"], None)
+    logger.info("Admin %s deleted user %s", admin["username"], user["username"])
+    return Response(status_code=204)
+
+
+@router.get("/users/{user_uuid}/content")
+async def user_content(
+    user_uuid: UUID,
+    _admin: dict = Depends(require_admin),
+    users: UserRepository = Depends(get_user_repository),
+) -> dict:
+    """The account's projects and audios (outside projects), to open in the app."""
+    await _user_or_404(users, user_uuid)
+    return await users.content(str(user_uuid))
