@@ -23,6 +23,12 @@ import type {
 
 const API_BASE_URL = '/api/v1';
 
+/** Sent with every request: state-changing ones are refused without it (anti-CSRF). */
+export const REQUEST_HEADER = { 'X-MeetMemo-Request': '1' };
+
+/** Dispatched on window when the session has ended (any 401 from the API). */
+export const UNAUTHORIZED_EVENT = 'meetmemo:unauthorized';
+
 interface ErrorCategory {
   type: string;
   message: string;
@@ -115,10 +121,16 @@ export async function apiCall<T = unknown>(
 
     response = await fetch(url, {
       ...options,
+      credentials: 'same-origin',
       headers: {
+        ...REQUEST_HEADER,
         ...options.headers,
       },
     });
+
+    if (response.status === 401) {
+      window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    }
 
     if (!response.ok) {
       // Try to get error details from response body
@@ -310,6 +322,7 @@ export async function downloadMarkdown(
     const response = await fetch(url, {
       method: 'POST',
       headers: {
+        ...REQUEST_HEADER,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({}),
@@ -339,6 +352,7 @@ export async function downloadTranscriptMarkdown(
     const response = await fetch(url, {
       method: 'POST',
       headers: {
+        ...REQUEST_HEADER,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({}),
@@ -368,6 +382,7 @@ export async function downloadTranscriptDocx(
     const response = await fetch(url, {
       method: 'POST',
       headers: {
+        ...REQUEST_HEADER,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({}),

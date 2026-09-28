@@ -4,6 +4,8 @@
 
 import type {
   AdminSettingsResponse,
+  AdminUser,
+  UserContent,
   AuditEntry,
   RuntimeSettings,
   SaveSettingsResponse,
@@ -105,4 +107,38 @@ export function changeAdminPassword(currentPassword: string, newPassword: string
     method: 'POST',
     body: { current_password: currentPassword, new_password: newPassword },
   });
+}
+
+export function listUsers(): Promise<AdminUser[]> {
+  return adminRequest('/users');
+}
+
+export function createUser(
+  username: string,
+  displayName: string,
+  password: string
+): Promise<AdminUser> {
+  return adminRequest('/users', {
+    method: 'POST',
+    body: { username, display_name: displayName, password },
+  });
+}
+
+export function updateUser(
+  uuid: string,
+  changes: { display_name?: string; is_active?: boolean }
+): Promise<AdminUser> {
+  return adminRequest(`/users/${uuid}`, { method: 'PATCH', body: changes });
+}
+
+export function resetUserPassword(uuid: string, password: string): Promise<void> {
+  return adminRequest(`/users/${uuid}/password`, { method: 'POST', body: { password } });
+}
+
+export function deleteUser(uuid: string): Promise<void> {
+  return adminRequest(`/users/${uuid}`, { method: 'DELETE' });
+}
+
+export function getUserContent(uuid: string): Promise<UserContent> {
+  return adminRequest(`/users/${uuid}/content`);
 }

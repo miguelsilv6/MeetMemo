@@ -73,6 +73,8 @@ export interface UploadResponse {
 export interface RecentJob {
   uuid: string;
   filename?: string;
+  /** Username of the owner (only in the administrator's view). */
+  owner?: string | null;
   status_code?: number | string;
   created_at?: string;
   has_summary?: boolean;
@@ -81,6 +83,7 @@ export interface RecentJob {
 /** A job entry as returned by the backend `/jobs` listing. */
 export interface JobsResponseEntry {
   file_name?: string;
+  owner?: string | null;
   status_code?: number | string;
   created_at?: string;
   has_summary?: boolean;
@@ -92,6 +95,7 @@ export interface JobsResponse {
 
 /** Job status / workflow polling response. */
 export interface JobStatus {
+  file_name?: string;
   workflow_state?: string;
   current_step_progress?: number;
   available_actions?: unknown;

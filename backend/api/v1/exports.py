@@ -7,6 +7,7 @@ import logging
 import os
 
 import aiofiles
+from access import authorize_path, require_request_header
 from config import Settings, get_settings
 from dependencies import get_export_service, get_job_repository, get_summary_service
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,7 +20,7 @@ from utils.formatters import format_transcript_for_llm
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 
 async def _get_transcript_json(

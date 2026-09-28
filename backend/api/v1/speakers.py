@@ -7,6 +7,7 @@ the user; nothing assigns names automatically.
 import logging
 import os
 
+from access import authorize_path, require_request_header
 from config import Settings, get_settings
 from dependencies import get_job_repository, get_speaker_service, get_summary_service
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,7 +18,7 @@ from services.summary_service import SummaryService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 
 @router.patch("/jobs/{uuid}/speakers", response_model=SpeakerUpdateResponse)

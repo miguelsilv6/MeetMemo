@@ -6,8 +6,15 @@ import logging
 from typing import Optional
 from uuid import UUID
 
+from access import (
+    Principal,
+    authorize_path,
+    get_principal,
+    require_request_header,
+    require_user,
+)
 from config import Settings, get_settings
-from dependencies import get_audio_service
+from dependencies import get_audio_service, get_project_repository
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field, field_validator
 from repositories.project_repository import ProjectRepository
@@ -17,7 +24,7 @@ from services.runtime_settings_service import RuntimeSettingsService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 
 class ProjectRequest(BaseModel):
@@ -34,11 +41,6 @@ class ProjectRequest(BaseModel):
             value = value.strip()
             return value or None
         return value
-
-
-def get_project_repository() -> ProjectRepository:
-    """ProjectRepository dependency."""
-    return ProjectRepository()
 
 
 def get_project_service(
@@ -64,20 +66,29 @@ async def _project_or_404(repo: ProjectRepository, project_uuid: UUID) -> dict:
 
 @router.get("/projects")
 async def list_projects(
+    principal: Principal = Depends(get_principal),
     repo: ProjectRepository = Depends(get_project_repository),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    """Every project that has not expired, newest first."""
+    """The caller's unexpired projects (everyone's for the administrator), newest first."""
     runtime = await RuntimeSettingsService(settings).get()
-    return {"projects": await repo.list_active(), "retention_days": runtime.project_retention_days}
+    owner = None if principal.is_admin else principal.user_uuid
+    return {
+        "projects": await repo.list_active(owner),
+        "retention_days": runtime.project_retention_days,
+    }
 
 
 @router.post("/projects", status_code=201)
 async def create_project(
-    body: ProjectRequest, service: ProjectService = Depends(get_project_service)
+    body: ProjectRequest,
+    principal: Principal = Depends(require_user),
+    service: ProjectService = Depends(get_project_service),
 ) -> dict:
     """Create a project; it expires after the retention set in the admin panel."""
-    return await service.create(body.name, body.reference, body.description)
+    return await service.create(
+        body.name, body.reference, body.description, principal.user_uuid
+    )
 
 
 @router.get("/projects/{project_uuid}")
@@ -126,6 +137,7 @@ async def add_audios(  # pylint: disable=too-many-arguments,too-many-positional-
     request: Request,
     files: list[UploadFile] = File(...),
     language: Optional[str] = Form(default=None),
+    _user: Principal = Depends(require_user),
     repo: ProjectRepository = Depends(get_project_repository),
     service: ProjectService = Depends(get_project_service),
 ) -> dict:

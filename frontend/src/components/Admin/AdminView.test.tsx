@@ -15,6 +15,7 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
     getAdminSettings: vi.fn(),
     saveAdminSettings: vi.fn(),
     getAdminAudit: vi.fn(),
+    listUsers: vi.fn(),
     changeAdminPassword: vi.fn(),
   };
 });
@@ -71,6 +72,7 @@ beforeEach(() => {
   vi.mocked(adminApi.getAdminSession).mockResolvedValue({ username: 'admin' });
   vi.mocked(adminApi.getAdminSettings).mockResolvedValue(settingsResponse);
   vi.mocked(adminApi.getAdminAudit).mockResolvedValue([]);
+  vi.mocked(adminApi.listUsers).mockResolvedValue([]);
 });
 
 async function renderSignedIn() {

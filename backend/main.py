@@ -16,7 +16,13 @@ from logging.handlers import RotatingFileHandler
 from admin_auth import hash_password, password_problem
 from api.v1 import api_router
 from config import get_settings
-from database import close_database, ensure_admin_schema, ensure_projects_schema, init_database
+from database import (
+    close_database,
+    ensure_admin_schema,
+    ensure_projects_schema,
+    ensure_users_schema,
+    init_database,
+)
 from dependencies import close_http_client, init_http_client
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -34,6 +40,7 @@ from services.project_queue import ProjectQueue
 from services.project_service import ProjectService
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
+from services.user_service import purge_ownerless
 
 # Load environment variables
 load_dotenv('.env')
@@ -193,8 +200,12 @@ async def lifespan(fastapi_app: FastAPI):
 
         # Initialize database
         await init_database()
-        # Required: job queries filter on jobs.project_uuid.
+        # Required: job queries filter on jobs.project_uuid and jobs.user_uuid.
         await ensure_projects_schema()
+        await ensure_users_schema()
+        # Audios and projects from before user accounts have no owner: they are
+        # deleted with their files, once.
+        await purge_ownerless(app_settings)
         # The admin panel is optional: if its schema can't be set up, log it
         # and keep serving transcriptions with the default settings.
         try:

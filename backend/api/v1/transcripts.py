@@ -8,6 +8,7 @@ import logging
 import os
 
 import aiofiles
+from access import authorize_path, require_request_header
 from config import Settings, get_settings
 from dependencies import get_job_repository, get_summary_service
 from fastapi import APIRouter, Depends, HTTPException
@@ -36,7 +37,7 @@ async def _write_json(path: str, data) -> None:
     async with aiofiles.open(path, "w", encoding="utf-8") as f:
         await f.write(json.dumps(data, indent=4, ensure_ascii=False))
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 
 def _invalidate_translation_cache(base_name: str, translation_dir: str) -> None:

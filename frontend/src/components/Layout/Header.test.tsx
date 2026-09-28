@@ -32,4 +32,39 @@ describe('Header', () => {
       'page'
     );
   });
+
+  it('shows the signed-in user with password change and sign-out', () => {
+    const onChangePassword = vi.fn();
+    const onLogout = vi.fn();
+    render(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{
+          username: 'ana',
+          display_name: 'Ana Silva',
+          is_admin: false,
+          must_change_password: false,
+        }}
+        onChangePassword={onChangePassword}
+        onLogout={onLogout}
+      />
+    );
+
+    expect(screen.getByText('Ana Silva')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(onChangePassword).toHaveBeenCalled();
+    expect(onLogout).toHaveBeenCalled();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('links the signed-in administrator back to the admin panel', () => {
+    render(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{ username: 'admin', display_name: null, is_admin: true, must_change_password: false }}
+      />
+    );
+    expect(screen.getByRole('link', { name: /admin panel/i })).toHaveAttribute('href', '#/admin');
+  });
 });

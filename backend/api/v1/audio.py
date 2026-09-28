@@ -11,6 +11,7 @@ from pathlib import Path
 
 import aiofiles
 import aiofiles.os
+from access import authorize_path, require_request_header
 from config import Settings, get_settings
 from dependencies import get_job_repository
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -20,7 +21,7 @@ from utils.waveform import compute_waveform
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 # Content type mapping for audio files
 AUDIO_CONTENT_TYPES = {

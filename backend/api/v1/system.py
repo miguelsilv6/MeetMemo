@@ -6,6 +6,7 @@ frontend (and operators) can see which hardware profile is active.
 """
 import logging
 
+from access import get_principal
 from config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException
 from services.runtime_settings_service import RuntimeSettingsService
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/system")
+@router.get("/system", dependencies=[Depends(get_principal)])
 async def system_info(settings: Settings = Depends(get_settings)):
     """
     Report detected hardware and the resolved ML configuration.

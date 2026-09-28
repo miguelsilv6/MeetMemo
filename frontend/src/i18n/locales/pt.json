@@ -503,7 +503,57 @@
       "setting": "Definição",
       "from": "Valor anterior",
       "to": "Novo valor",
-      "passwordChanged": "Palavra-passe de administrador alterada"
+      "passwordChanged": "Palavra-passe de administrador alterada",
+      "events": {
+        "user_created": "Utilizador criado",
+        "user_renamed": "Nome de utilizador alterado",
+        "user_activated": "Utilizador ativado",
+        "user_deactivated": "Utilizador desativado",
+        "user_password_reset": "Palavra-passe de utilizador reposta",
+        "user_deleted": "Utilizador eliminado"
+      }
+    },
+    "users": {
+      "title": "Utilizadores",
+      "createTitle": "Novo utilizador",
+      "username": "Utilizador",
+      "usernameHelp": "Letras, números e . _ @ - (3 a 100).",
+      "displayName": "Nome",
+      "temporaryPassword": "Palavra-passe temporária",
+      "create": "Criar utilizador",
+      "createHint": "O utilizador terá de escolher uma nova palavra-passe na primeira entrada.",
+      "empty": "Ainda não há utilizadores.",
+      "user": "Utilizador",
+      "state": "Estado",
+      "owned": "Conteúdo",
+      "lastLogin": "Última entrada",
+      "actions": "Ações",
+      "active": "Ativo",
+      "inactive": "Inativo",
+      "temporary": "Palavra-passe temporária",
+      "ownedProjects_one": "{{count}} projeto",
+      "ownedProjects_other": "{{count}} projetos",
+      "ownedAudios_one": "{{count}} áudio",
+      "ownedAudios_other": "{{count}} áudios",
+      "content": "Ver conteúdo",
+      "deactivate": "Desativar",
+      "activate": "Ativar",
+      "resetPassword": "Repor palavra-passe",
+      "resetPasswordFor": "Repor a palavra-passe de {{username}}",
+      "delete": "Eliminar utilizador",
+      "deleteFor": "Eliminar {{username}}",
+      "contentOf": "Conteúdo de {{name}}",
+      "resetPasswordBody": "Define uma palavra-passe temporária para {{username}}. As sessões abertas terminam e, na próxima entrada, terá de escolher uma nova.",
+      "deleteBody": "Eliminar a conta {{username}} e todo o seu conteúdo ({{projects}} projetos, {{audios}} áudios), incluindo transcrições, resumos, traduções e ficheiros? Esta ação não pode ser desfeita.",
+      "deleteConfirm": "Para confirmar, escreve {{username}}",
+      "noProjects": "Sem projetos.",
+      "singleAudios": "Áudios fora de projetos",
+      "noAudios": "Sem áudios fora de projetos.",
+      "created": "Utilizador {{username}} criado.",
+      "deactivated": "{{username}} desativado; as sessões foram terminadas.",
+      "activated": "{{username}} ativado.",
+      "passwordReset": "Palavra-passe de {{username}} reposta.",
+      "deleted": "Utilizador {{username}} e todo o seu conteúdo eliminados."
     }
   },
   "projects": {
@@ -584,5 +634,28 @@
       "body_one": "Eliminar o projeto «{{name}}» e o seu áudio, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita.",
       "body_other": "Eliminar o projeto «{{name}}» e os seus {{count}} áudios, com todas as transcrições, resumos e traduções? Esta ação não pode ser desfeita."
     }
+  },
+  "auth": {
+    "login": {
+      "title": "Entrar no MeetMemo",
+      "intro": "As contas são criadas pelo administrador. Se ainda não tens uma, pede-lhe acesso.",
+      "username": "Utilizador",
+      "password": "Palavra-passe",
+      "submit": "Entrar",
+      "submitting": "A entrar…",
+      "invalid": "Utilizador ou palavra-passe inválidos.",
+      "tooMany": "Demasiadas tentativas falhadas. Tenta novamente daqui a alguns minutos."
+    },
+    "forcedChange": {
+      "title": "Escolhe uma nova palavra-passe",
+      "intro": "A tua palavra-passe foi definida pelo administrador. Escolhe uma nova (pelo menos 12 caracteres) antes de continuar."
+    },
+    "menu": {
+      "changePassword": "Mudar palavra-passe",
+      "logout": "Sair",
+      "adminPanel": "Painel de administração"
+    },
+    "adminBanner": "Estás a ver a aplicação como administrador ({{username}}): tens acesso aos projetos e áudios de todos os utilizadores. Para carregar áudios, entra com uma conta de utilizador.",
+    "owner": "de {{username}}"
   }
 }

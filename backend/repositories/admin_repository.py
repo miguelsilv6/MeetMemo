@@ -129,6 +129,15 @@ class AdminRepository:
                     ],
                 )
 
+    async def record_audit(self, actor: str, key: str, old: Any, new: Any) -> None:
+        """Add one entry to the audit trail (e.g. an account change)."""
+        async with get_db() as conn:
+            await conn.execute(
+                """INSERT INTO settings_audit (actor, setting_key, old_value, new_value)
+                   VALUES ($1, $2, $3::jsonb, $4::jsonb)""",
+                actor, key, json.dumps(old), json.dumps(new),
+            )
+
     async def list_audit(self, limit: int = 100) -> list[dict]:
         """Most recent audit entries first."""
         async with get_db() as conn:

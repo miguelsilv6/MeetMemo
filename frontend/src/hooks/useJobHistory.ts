@@ -39,6 +39,7 @@ export default function useJobHistory(
       const jobsArray: RecentJob[] = Object.entries(response.jobs || {}).map(([uuid, job]) => ({
         uuid,
         filename: job.file_name,
+        ...(job.owner ? { owner: job.owner } : {}),
         status_code: job.status_code,
         created_at: job.created_at,
         has_summary: job.has_summary ?? false,

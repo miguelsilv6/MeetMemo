@@ -8,6 +8,7 @@ from fastapi import APIRouter
 from api.v1 import (
     admin,
     audio,
+    auth,
     export_jobs,
     exports,
     health,
@@ -36,6 +37,11 @@ api_router.include_router(
 api_router.include_router(
     jobs.router,
     tags=["jobs"]
+)
+
+api_router.include_router(
+    auth.router,
+    tags=["auth"]
 )
 
 api_router.include_router(

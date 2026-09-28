@@ -10,6 +10,8 @@ import type { ProjectSummary } from '../../types/projects';
 
 interface ProjectsViewProps {
   onOpenProject: (uuid: string) => void;
+  /** False for the administrator, who sees every project but creates none. */
+  canCreate?: boolean;
 }
 
 const MAX_NAME = 200;
@@ -17,7 +19,7 @@ const MAX_REFERENCE = 100;
 const MAX_DESCRIPTION = 2000;
 
 /** Every project, and a form to create one. */
-export default function ProjectsView({ onOpenProject }: ProjectsViewProps) {
+export default function ProjectsView({ onOpenProject, canCreate = true }: ProjectsViewProps) {
   const { t, i18n } = useTranslation();
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [retentionDays, setRetentionDays] = useState<number | null>(null);
@@ -71,65 +73,67 @@ export default function ProjectsView({ onOpenProject }: ProjectsViewProps) {
 
         <ErrorAlert error={error} onClose={() => setError(null)} />
 
-        <Card className="mb-4">
-          <Card.Header>
-            <h5 className="mb-0">
-              <FolderPlus size={20} className="me-2" />
-              {t('projects.create.title')}
-            </h5>
-          </Card.Header>
-          <Card.Body>
-            <Form onSubmit={handleCreate}>
-              <Row>
-                <Col md={7}>
-                  <Form.Group controlId="project-name" className="mb-3">
-                    <Form.Label>{t('projects.fields.name')}</Form.Label>
-                    <Form.Control
-                      value={name}
-                      maxLength={MAX_NAME}
-                      required
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder={t('projects.fields.namePlaceholder')}
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={5}>
-                  <Form.Group controlId="project-reference" className="mb-3">
-                    <Form.Label>{t('projects.fields.reference')}</Form.Label>
-                    <Form.Control
-                      value={reference}
-                      maxLength={MAX_REFERENCE}
-                      onChange={(e) => setReference(e.target.value)}
-                      placeholder={t('projects.fields.referencePlaceholder')}
-                    />
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Form.Group controlId="project-description" className="mb-3">
-                <Form.Label>{t('projects.fields.description')}</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={2}
-                  value={description}
-                  maxLength={MAX_DESCRIPTION}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </Form.Group>
-              <div className="d-flex flex-wrap align-items-center gap-3">
-                <Button type="submit" variant="primary" disabled={creating || !name.trim()}>
-                  <FolderPlus size={16} className="me-2" />
-                  {creating ? t('projects.create.creating') : t('projects.create.submit')}
-                </Button>
-                {retentionDays !== null && (
-                  <small className="text-muted">
-                    <Clock size={14} className="me-1" />
-                    {t('projects.create.retention', { count: retentionDays })}
-                  </small>
-                )}
-              </div>
-            </Form>
-          </Card.Body>
-        </Card>
+        {canCreate && (
+          <Card className="mb-4">
+            <Card.Header>
+              <h5 className="mb-0">
+                <FolderPlus size={20} className="me-2" />
+                {t('projects.create.title')}
+              </h5>
+            </Card.Header>
+            <Card.Body>
+              <Form onSubmit={handleCreate}>
+                <Row>
+                  <Col md={7}>
+                    <Form.Group controlId="project-name" className="mb-3">
+                      <Form.Label>{t('projects.fields.name')}</Form.Label>
+                      <Form.Control
+                        value={name}
+                        maxLength={MAX_NAME}
+                        required
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder={t('projects.fields.namePlaceholder')}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={5}>
+                    <Form.Group controlId="project-reference" className="mb-3">
+                      <Form.Label>{t('projects.fields.reference')}</Form.Label>
+                      <Form.Control
+                        value={reference}
+                        maxLength={MAX_REFERENCE}
+                        onChange={(e) => setReference(e.target.value)}
+                        placeholder={t('projects.fields.referencePlaceholder')}
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <Form.Group controlId="project-description" className="mb-3">
+                  <Form.Label>{t('projects.fields.description')}</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={description}
+                    maxLength={MAX_DESCRIPTION}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </Form.Group>
+                <div className="d-flex flex-wrap align-items-center gap-3">
+                  <Button type="submit" variant="primary" disabled={creating || !name.trim()}>
+                    <FolderPlus size={16} className="me-2" />
+                    {creating ? t('projects.create.creating') : t('projects.create.submit')}
+                  </Button>
+                  {retentionDays !== null && (
+                    <small className="text-muted">
+                      <Clock size={14} className="me-1" />
+                      {t('projects.create.retention', { count: retentionDays })}
+                    </small>
+                  )}
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        )}
 
         <Card>
           <Card.Header>
@@ -160,6 +164,11 @@ export default function ProjectsView({ onOpenProject }: ProjectsViewProps) {
                             <span className="text-muted fw-normal"> · {project.reference}</span>
                           )}
                         </div>
+                        {project.owner && (
+                          <small className="d-block text-muted">
+                            {t('auth.owner', { username: project.owner })}
+                          </small>
+                        )}
                         <small className="text-muted">
                           {t('projects.list.created', {
                             date: formatDateTime(project.created_at, i18n.language),

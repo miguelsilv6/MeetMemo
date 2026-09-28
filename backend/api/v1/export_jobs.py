@@ -9,6 +9,7 @@ import uuid as uuid_lib
 from io import BytesIO
 
 import aiofiles
+from access import authorize_path, require_request_header
 from config import Settings, get_settings
 from dependencies import (
     get_export_repository,
@@ -28,7 +29,7 @@ from utils.formatters import format_transcript_for_llm
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
 
 async def _process_export_job_task(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-statements
@@ -213,7 +214,8 @@ async def get_export_job_status(
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
 
     export_job = await export_repo.get(export_uuid)
-    if not export_job:
+    # An export is only reachable through the job it was made for.
+    if not export_job or str(export_job.get('job_uuid')) != str(job['uuid']):
         raise HTTPException(status_code=404, detail=f"Export job {export_uuid} not found")
 
     # Determine status text
@@ -259,7 +261,8 @@ async def download_export(
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
 
     export_job = await export_repo.get(export_uuid)
-    if not export_job:
+    # An export is only reachable through the job it was made for.
+    if not export_job or str(export_job.get('job_uuid')) != str(job['uuid']):
         raise HTTPException(status_code=404, detail=f"Export job {export_uuid} not found")
 
     # Check if export is complete

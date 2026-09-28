@@ -67,6 +67,54 @@ async def ensure_projects_schema():
     logger.info("Projects schema ensured")
 
 
+USERS_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations", "005_users.sql"
+)
+
+
+async def ensure_users_schema():
+    """
+    Create the users and sessions tables and the owner columns on older databases.
+
+    Required, like the projects schema: every job query filters by owner.
+    The owner columns stay nullable until `require_owners` runs, after the rows
+    from before users existed have been deleted with their files.
+    """
+    with open(USERS_SCHEMA_PATH, encoding="utf-8") as f:
+        schema_sql = f.read()
+    async with get_db() as conn:
+        await conn.execute(schema_sql)
+    logger.info("Users schema ensured")
+
+
+async def ownerless_rows() -> tuple[list[dict], list[str]]:
+    """Jobs (with export files) and project UUIDs from before users existed."""
+    async with get_db() as conn:
+        jobs = await conn.fetch(
+            """SELECT j.uuid, j.file_name,
+                      COALESCE(
+                          ARRAY_AGG(e.file_path) FILTER (WHERE e.file_path IS NOT NULL),
+                          '{}'
+                      ) AS export_paths
+               FROM jobs j
+               LEFT JOIN export_jobs e ON e.job_uuid = j.uuid
+               WHERE j.user_uuid IS NULL
+               GROUP BY j.uuid, j.file_name"""
+        )
+        projects = await conn.fetch("SELECT uuid FROM projects WHERE user_uuid IS NULL")
+    return [dict(row) for row in jobs], [str(row["uuid"]) for row in projects]
+
+
+async def require_owners() -> None:
+    """Delete any remaining ownerless rows and make the owner columns mandatory."""
+    async with get_db() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM jobs WHERE user_uuid IS NULL")
+            await conn.execute("DELETE FROM projects WHERE user_uuid IS NULL")
+            await conn.execute("ALTER TABLE jobs ALTER COLUMN user_uuid SET NOT NULL")
+            await conn.execute("ALTER TABLE projects ALTER COLUMN user_uuid SET NOT NULL")
+
+
 async def close_database():
     """Close database connection pool."""
     global _db_pool  # pylint: disable=global-statement,global-variable-not-assigned
@@ -96,14 +144,17 @@ async def add_job(
     file_hash: Optional[str] = None,
     workflow_state: str = 'uploaded',
     model_name: Optional[str] = None,
-    language: Optional[str] = None
+    language: Optional[str] = None,
+    user_uuid: Optional[str] = None,
 ) -> None:
     """Add new job to database with workflow state."""
     async with get_db() as conn:
         await conn.execute(
-            """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state, model_name, language)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)""",
-            uuid, file_name, status_code, file_hash, workflow_state, model_name, language
+            """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
+                                 model_name, language, user_uuid)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
+            uuid, file_name, status_code, file_hash, workflow_state, model_name, language,
+            user_uuid
         )
     hash_preview = file_hash[:16] if file_hash else 'None'
     logger.info(
@@ -155,32 +206,40 @@ async def get_job(uuid: str) -> Optional[dict]:
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, workflow_state, current_step_progress,
                       transcription_data, diarization_data, model_name, language, created_at,
-                      project_uuid
+                      project_uuid, user_uuid
                FROM jobs WHERE uuid = $1""",
             uuid
         )
         return dict(row) if row else None
 
 
-async def get_all_jobs(limit: int = 100, offset: int = 0) -> list[dict]:
-    """Get all jobs with pagination."""
+async def get_all_jobs(
+    limit: int = 100, offset: int = 0, user_uuid: Optional[str] = None
+) -> list[dict]:
+    """Jobs outside projects, newest first: one user's, or everyone's for None."""
     async with get_db() as conn:
         rows = await conn.fetch(
-            """SELECT uuid, file_name, status_code, workflow_state,
-                      current_step_progress, processing_stage, error_message, created_at
-               FROM jobs
-               WHERE project_uuid IS NULL
-               ORDER BY created_at DESC
+            """SELECT j.uuid, j.file_name, j.status_code, j.workflow_state,
+                      j.current_step_progress, j.processing_stage, j.error_message,
+                      j.created_at, j.user_uuid, u.username AS owner
+               FROM jobs j LEFT JOIN users u ON u.uuid = j.user_uuid
+               WHERE j.project_uuid IS NULL
+                 AND ($3::uuid IS NULL OR j.user_uuid = $3::uuid)
+               ORDER BY j.created_at DESC
                LIMIT $1 OFFSET $2""",
-            limit, offset
+            limit, offset, user_uuid
         )
         return [dict(row) for row in rows]
 
 
-async def get_jobs_count() -> int:
-    """Get total number of jobs outside any project."""
+async def get_jobs_count(user_uuid: Optional[str] = None) -> int:
+    """Number of jobs outside any project: one user's, or everyone's for None."""
     async with get_db() as conn:
-        count = await conn.fetchval("SELECT COUNT(*) FROM jobs WHERE project_uuid IS NULL")
+        count = await conn.fetchval(
+            """SELECT COUNT(*) FROM jobs
+               WHERE project_uuid IS NULL AND ($1::uuid IS NULL OR user_uuid = $1::uuid)""",
+            user_uuid,
+        )
         return count
 
 
@@ -385,21 +444,21 @@ async def cleanup_old_export_jobs(max_age_hours: int = 24) -> list[dict]:
 # File hash functions for duplicate detection
 # ============================================================================
 
-async def get_job_by_hash(file_hash: str) -> Optional[dict]:
+async def get_job_by_hash(file_hash: str, user_uuid: str) -> Optional[dict]:
     """
     Find existing job by file hash.
-    Returns the most recent job with the given hash outside any project
-    (a project's audios are private to it).
+    Returns the user's most recent job with the given hash outside any project
+    (a project's audios are private to it, and each user's to them).
     """
     async with get_db() as conn:
         row = await conn.fetchrow(
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, created_at, workflow_state, current_step_progress
                FROM jobs
-               WHERE file_hash = $1 AND project_uuid IS NULL
+               WHERE file_hash = $1 AND project_uuid IS NULL AND user_uuid = $2
                ORDER BY created_at DESC
                LIMIT 1""",
-            file_hash
+            file_hash, user_uuid
         )
         return dict(row) if row else None
 
