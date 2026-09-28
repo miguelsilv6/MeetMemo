@@ -37,6 +37,7 @@ class JobRepository:
         model_name: Optional[str] = None,
         language: Optional[str] = None,
         user_uuid: Optional[str] = None,
+        charge: bool = False,
     ) -> None:
         """
         Create a new job.
@@ -49,9 +50,14 @@ class JobRepository:
             model_name: Optional Whisper model name
             language: Optional language code for transcription
             user_uuid: The owner
+            charge: Pay with one of the owner's tokens, atomically with the insert
+
+        Raises:
+            InsufficientTokensError: If ``charge`` and the owner has no token left.
         """
         await add_job(
-            uuid, file_name, 200, file_hash, workflow_state, model_name, language, user_uuid
+            uuid, file_name, 200, file_hash, workflow_state, model_name, language, user_uuid,
+            charge,
         )
 
     async def get(self, uuid: str) -> Optional[dict]:

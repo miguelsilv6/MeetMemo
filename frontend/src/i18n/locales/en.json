@@ -108,6 +108,7 @@
     "silenceGap": "{{duration}} of silence"
   },
   "bulkActions": {
+    "selectedCount_zero": "{{count}} segments selected",
     "selectedCount_one": "{{count}} segment selected",
     "selectedCount_other": "{{count}} segments selected",
     "moveTo": "Move to speaker...",
@@ -115,6 +116,7 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "deleteConfirmTitle": "Delete selected segments",
+    "deleteConfirmBody_zero": "Delete these {{count}} segments? You can undo this afterwards with the Undo button.",
     "deleteConfirmBody_one": "Delete this segment? You can undo this afterwards with the Undo button.",
     "deleteConfirmBody_other": "Delete these {{count}} segments? You can undo this afterwards with the Undo button."
   },
@@ -178,9 +180,11 @@
     },
     "removeSpeaker": {
       "title": "Remove Speaker",
+      "description_zero": "<strong>{{speaker}}</strong> has {{count}} segments. What should happen to them?",
       "description_one": "<strong>{{speaker}}</strong> has {{count}} segment. What should happen to it?",
       "description_other": "<strong>{{speaker}}</strong> has {{count}} segments. What should happen to them?",
       "moveToAnother": "Move to another speaker",
+      "deleteLabel_zero": "Delete these segments permanently",
       "deleteLabel_one": "Delete this segment permanently",
       "deleteLabel_other": "Delete these segments permanently",
       "deleteButton": "Delete Segments",
@@ -299,7 +303,8 @@
     "loadTranscript": "Failed to load transcript. Please refresh and try again.",
     "processingFailed": "Processing failed. Please try again.",
     "processingGeneric": "An error occurred while processing. Please try again.",
-    "fileTooLarge": "The file “{{name}}” is {{size}} MB, over the {{max}} MB limit per file."
+    "fileTooLarge": "The file “{{name}}” is {{size}} MB, over the {{max}} MB limit per file.",
+    "noTokens": "You have no tokens left. Ask the administrator for more."
   },
   "admin": {
     "title": "Administration",
@@ -322,6 +327,7 @@
       "intro": "Changes apply to jobs started after saving; jobs already in progress keep the settings they started with. Every change is recorded in the change history.",
       "save": "Save changes",
       "saving": "Saving…",
+      "saved_zero": "{{count}} settings saved.",
       "saved_one": "{{count}} setting saved.",
       "saved_other": "{{count}} settings saved.",
       "noChanges": "No changes to save.",
@@ -510,7 +516,8 @@
         "user_activated": "User activated",
         "user_deactivated": "User deactivated",
         "user_password_reset": "User password reset",
-        "user_deleted": "User deleted"
+        "user_deleted": "User deleted",
+        "user_tokens": "User tokens changed"
       }
     },
     "users": {
@@ -531,8 +538,10 @@
       "active": "Active",
       "inactive": "Inactive",
       "temporary": "Temporary password",
+      "ownedProjects_zero": "{{count}} projects",
       "ownedProjects_one": "{{count}} project",
       "ownedProjects_other": "{{count}} projects",
+      "ownedAudios_zero": "{{count}} audios",
       "ownedAudios_one": "{{count}} audio",
       "ownedAudios_other": "{{count}} audios",
       "content": "View content",
@@ -554,6 +563,38 @@
       "activated": "{{username}} activated.",
       "passwordReset": "{{username}}'s password was reset.",
       "deleted": "User {{username}} and all their content deleted."
+    },
+    "tokens": {
+      "initial": "Initial tokens",
+      "column": "Tokens",
+      "manageFor": "Manage {{username}}'s tokens",
+      "title": "{{name}}'s tokens",
+      "balance_zero": "Current balance: {{count}} tokens.",
+      "balance_one": "Current balance: {{count}} token.",
+      "balance_other": "Current balance: {{count}} tokens.",
+      "amount": "Amount",
+      "note": "Reason (optional)",
+      "add": "Add",
+      "remove": "Remove",
+      "history": "History",
+      "noHistory": "No movements yet.",
+      "reasonColumn": "Movement",
+      "change": "Change",
+      "after": "Balance",
+      "details": "Details",
+      "deletedAudio": "deleted audio",
+      "reasons": {
+        "grant": "Granted",
+        "revoke": "Removed",
+        "charge": "Transcription",
+        "refund": "Refund"
+      },
+      "added_zero": "{{count}} tokens added to {{username}}.",
+      "added_one": "{{count}} token added to {{username}}.",
+      "added_other": "{{count}} tokens added to {{username}}.",
+      "removed_zero": "{{count}} tokens removed from {{username}}.",
+      "removed_one": "{{count}} token removed from {{username}}.",
+      "removed_other": "{{count}} tokens removed from {{username}}."
     }
   },
   "projects": {
@@ -576,6 +617,7 @@
       "title": "New project",
       "submit": "Create project",
       "creating": "Creating…",
+      "retention_zero": "The project and all its files are deleted automatically after {{count}} days.",
       "retention_one": "The project and all its files are deleted automatically after {{count}} day.",
       "retention_other": "The project and all its files are deleted automatically after {{count}} days."
     },
@@ -583,14 +625,18 @@
       "title": "Active projects",
       "empty": "No projects yet.",
       "created": "Created {{date}}",
+      "progress_zero": "{{done}} of {{count}} audios completed",
       "progress_one": "{{done}} of {{count}} audio completed",
       "progress_other": "{{done}} of {{count}} audios completed",
+      "errors_zero": "{{count}} failed",
       "errors_one": "{{count}} failed",
       "errors_other": "{{count}} failed"
     },
     "expiry": {
+      "badge_zero": "Expires in {{count}} days",
       "badge_one": "Expires in {{count}} day",
       "badge_other": "Expires in {{count}} days",
+      "notice_zero": "This project and all its files (audios, transcripts, summaries and translations) will be deleted automatically on {{date}} (in {{count}} days).",
       "notice_one": "This project and all its files (audios, transcripts, summaries and translations) will be deleted automatically on {{date}} (in {{count}} day).",
       "notice_other": "This project and all its files (audios, transcripts, summaries and translations) will be deleted automatically on {{date}} (in {{count}} days)."
     },
@@ -604,10 +650,12 @@
         "duplicate": "already in this project (as {{name}}), skipped",
         "unsupported": "unsupported format",
         "rejected": "not uploaded ({{reason}})",
-        "tooLarge": "over the {{max}} MB limit per file"
+        "tooLarge": "over the {{max}} MB limit per file",
+        "noTokens": "not uploaded: you have no tokens left"
       }
     },
     "audios": {
+      "title_zero": "{{count}} audios",
       "title_one": "{{count}} audio",
       "title_other": "{{count}} audios",
       "serverNotice": "Processing runs on the server: you can close this page.",
@@ -631,6 +679,7 @@
     "delete": {
       "button": "Delete project",
       "title": "Delete project",
+      "body_zero": "Delete the project “{{name}}” and its {{count}} audios, with every transcript, summary and translation? This cannot be undone.",
       "body_one": "Delete the project “{{name}}” and its audio, with every transcript, summary and translation? This cannot be undone.",
       "body_other": "Delete the project “{{name}}” and its {{count}} audios, with every transcript, summary and translation? This cannot be undone."
     }
@@ -656,6 +705,11 @@
       "adminPanel": "Admin panel"
     },
     "adminBanner": "You are viewing the application as the administrator ({{username}}): you can see every user's projects and audios. To upload audios, sign in with a user account.",
-    "owner": "by {{username}}"
+    "owner": "by {{username}}",
+    "tokens_zero": "{{count}} tokens",
+    "tokens_one": "{{count}} token",
+    "tokens_other": "{{count}} tokens",
+    "tokensHint": "Each transcription uses 1 token. If processing fails, the token is given back.",
+    "noTokens": "You have no tokens left (1 token = 1 transcription). Ask the administrator for more to upload new audios."
   }
 }

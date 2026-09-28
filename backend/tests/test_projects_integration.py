@@ -73,6 +73,7 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
     from access import Principal
     from repositories.job_repository import JobRepository
     from repositories.project_repository import ProjectRepository
+    from repositories.token_repository import TokenRepository
     from repositories.user_repository import UserRepository
     from services.audio_service import AudioService
     from services.project_queue import ProjectQueue
@@ -115,11 +116,13 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         await database.ensure_projects_schema()  # idempotent on an existing schema
         await database.ensure_users_schema()
         await database.require_owners()
+        await database.ensure_tokens_schema()
         await database.ensure_admin_schema()
         user = await UserRepository().create(
             "11111111-aaaa-bbbb-cccc-111111111111", "ana", "Ana", "hash"
         )
         owner["uuid"] = str(user["uuid"])
+        await TokenRepository().adjust(owner["uuid"], 100, "admin", "test")
         yield
         await database.close_database()
 

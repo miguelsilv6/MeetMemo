@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
-import { Row, Col, Button } from '@govtechsg/sgds-react';
+import { Alert, Row, Col, Button } from '@govtechsg/sgds-react';
 import { FolderOpen } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import FileUploadCard from './FileUploadCard';
@@ -31,6 +31,8 @@ interface UploadViewProps {
   onOpenProjects?: () => void;
   /** False for the administrator, who browses users' audios but uploads none. */
   canUpload?: boolean;
+  /** Tokens left (1 token = 1 transcription); null when unknown. */
+  tokenBalance?: number | null;
 }
 
 export default function UploadView({
@@ -51,6 +53,7 @@ export default function UploadView({
   onUploadLimit,
   onOpenProjects,
   canUpload = true,
+  tokenBalance = null,
 }: UploadViewProps) {
   const { t } = useTranslation();
 
@@ -81,7 +84,13 @@ export default function UploadView({
           <p className="text-muted">{t('upload.subtitle')}</p>
         </div>
 
-        {canUpload && (
+        {canUpload && tokenBalance === 0 && (
+          <Alert show variant="warning" className="text-center">
+            {t('auth.noTokens')}
+          </Alert>
+        )}
+
+        {canUpload && tokenBalance !== 0 && (
           <Row className="g-4 justify-content-center">
             <Col md={8} lg={6}>
               <FileUploadCard

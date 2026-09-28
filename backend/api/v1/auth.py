@@ -59,12 +59,14 @@ async def _verify(password: str, stored_hash: str) -> bool:
     return await loop.run_in_executor(None, verify_password, password, stored_hash)
 
 
-def _me(principal: Principal) -> dict:
+def _me(principal: Principal, token_balance=None) -> dict:
     return {
         "username": principal.username,
         "display_name": principal.display_name,
         "is_admin": principal.is_admin,
         "must_change_password": principal.must_change_password,
+        # None for the administrator, who has no account and uploads nothing.
+        "token_balance": token_balance,
     }
 
 
@@ -116,6 +118,7 @@ async def login(
         "display_name": user["display_name"],
         "is_admin": False,
         "must_change_password": user["must_change_password"],
+        "token_balance": user["token_balance"],
     }
 
 
@@ -132,9 +135,16 @@ async def logout(
 
 
 @router.get("/me")
-async def me(principal: Principal = Depends(get_session_principal)) -> dict:
-    """The signed-in user (or administrator)."""
-    return _me(principal)
+async def me(
+    principal: Principal = Depends(get_session_principal),
+    users: UserRepository = Depends(get_user_repository),
+) -> dict:
+    """The signed-in user (or administrator), with the user's token balance."""
+    balance = None
+    if principal.user_uuid:
+        account = await users.get(principal.user_uuid)
+        balance = account["token_balance"] if account else 0
+    return _me(principal, balance)
 
 
 @router.post("/password", status_code=204)

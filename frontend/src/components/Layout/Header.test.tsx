@@ -44,6 +44,7 @@ describe('Header', () => {
           display_name: 'Ana Silva',
           is_admin: false,
           must_change_password: false,
+          token_balance: 3,
         }}
         onChangePassword={onChangePassword}
         onLogout={onLogout}
@@ -62,9 +63,31 @@ describe('Header', () => {
     render(
       <Header
         onStartNewMeeting={vi.fn()}
-        me={{ username: 'admin', display_name: null, is_admin: true, must_change_password: false }}
+        me={{
+          username: 'admin',
+          display_name: null,
+          is_admin: true,
+          must_change_password: false,
+          token_balance: 3,
+        }}
       />
     );
     expect(screen.getByRole('link', { name: /admin panel/i })).toHaveAttribute('href', '#/admin');
+  });
+
+  it("shows the user's token balance, in red when it runs out", () => {
+    const user = {
+      username: 'ana',
+      display_name: 'Ana',
+      is_admin: false,
+      must_change_password: false,
+    };
+    const { rerender } = render(
+      <Header onStartNewMeeting={vi.fn()} me={{ ...user, token_balance: 3 }} />
+    );
+    expect(screen.getByText('3 tokens')).toHaveClass('bg-secondary');
+
+    rerender(<Header onStartNewMeeting={vi.fn()} me={{ ...user, token_balance: 0 }} />);
+    expect(screen.getByText('0 tokens')).toHaveClass('bg-danger');
   });
 });

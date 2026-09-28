@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
-import { Card, Form } from '@govtechsg/sgds-react';
+import { Alert, Card, Form } from '@govtechsg/sgds-react';
 import { Upload as UploadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WHISPER_LANGUAGES } from '../../constants/languages';
@@ -16,6 +16,8 @@ interface ProjectUploadCardProps {
   projectUuid: string;
   /** Called after each file is stored, so the list shows it straight away. */
   onUploaded: () => void;
+  /** Tokens left (1 token = 1 transcription); null when unknown. */
+  tokenBalance?: number | null;
 }
 
 function isAudio(file: File): boolean {
@@ -24,7 +26,11 @@ function isAudio(file: File): boolean {
 }
 
 /** Drop several audios at once; they are sent one by one and queued on the server. */
-export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUploadCardProps) {
+export default function ProjectUploadCard({
+  projectUuid,
+  onUploaded,
+  tokenBalance = null,
+}: ProjectUploadCardProps) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [language, setLanguage] = useState<string | null>(null);
@@ -53,15 +59,21 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
     const files = Array.from(fileList);
     if (files.length === 0 || progress) return;
     const collected: UploadResult[] = [];
+    let outOfTokens = false;
     for (const [index, file] of files.entries()) {
       setProgress({ index: index + 1, total: files.length, name: file.name });
-      if (!isAudio(file)) {
+      if (outOfTokens && isAudio(file)) {
+        // The next audios would be refused too: don't send them.
+        collected.push({ file_name: file.name, status: 'no_tokens' });
+      } else if (!isAudio(file)) {
         collected.push({ file_name: file.name, status: 'rejected', detail: 'type' });
       } else if (exceedsUploadLimit(file, maxUploadMb)) {
         collected.push({ file_name: file.name, status: 'rejected', detail: 'size' });
       } else {
         try {
-          collected.push(...(await uploadProjectAudios(projectUuid, [file], language)));
+          const results = await uploadProjectAudios(projectUuid, [file], language);
+          collected.push(...results);
+          outOfTokens = results.some((r) => r.status === 'no_tokens');
           onUploaded();
         } catch (err) {
           collected.push({
@@ -86,13 +98,15 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
     if (result.status === 'queued') return t('projects.upload.result.queued');
     if (result.status === 'duplicate')
       return t('projects.upload.result.duplicate', { name: result.detail });
+    if (result.status === 'no_tokens') return t('projects.upload.result.noTokens');
     if (result.detail === 'size') return t('projects.upload.result.tooLarge', { max: maxUploadMb });
     return result.detail === 'type' || result.detail === 'Unsupported file type'
       ? t('projects.upload.result.unsupported')
       : t('projects.upload.result.rejected', { reason: result.detail });
   };
 
-  const busy = progress !== null;
+  const noTokens = tokenBalance === 0;
+  const busy = progress !== null || noTokens;
 
   return (
     <Card className="mb-4">
@@ -118,6 +132,11 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
           </Form.Group>
         </div>
 
+        {noTokens && (
+          <Alert show variant="warning" className="mb-2">
+            {t('auth.noTokens')}
+          </Alert>
+        )}
         <div
           className="upload-dropzone text-center mb-2"
           role="button"
@@ -166,7 +185,7 @@ export default function ProjectUploadCard({ projectUuid, onUploaded }: ProjectUp
                 className={
                   result.status === 'queued'
                     ? 'text-success'
-                    : result.status === 'duplicate'
+                    : result.status === 'duplicate' || result.status === 'no_tokens'
                       ? 'text-warning-emphasis'
                       : 'text-danger'
                 }

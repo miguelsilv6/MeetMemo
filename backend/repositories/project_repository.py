@@ -5,7 +5,7 @@ queue of project audios waiting to be processed.
 from datetime import datetime
 from typing import Optional
 
-from database import get_db
+from database import charge_token, get_db, refund_queued
 
 # Workflow states a queued audio can be picked up from, and the step each
 # needs next. An audio moves through them until 'completed' or 'error'.
@@ -113,9 +113,14 @@ class ProjectRepository:
         return [dict(row) for row in rows]
 
     async def delete(self, uuid: str) -> bool:
-        """Delete the project and, by cascade, its audios' rows."""
+        """
+        Delete the project and, by cascade, its audios' rows. Audios still
+        waiting in the queue get their tokens back.
+        """
         async with get_db() as conn:
-            result = await conn.execute("DELETE FROM projects WHERE uuid = $1", uuid)
+            async with conn.transaction():
+                await refund_queued(conn, "project_uuid = $1", uuid)
+                result = await conn.execute("DELETE FROM projects WHERE uuid = $1", uuid)
         return result.endswith(" 1")
 
     async def expired(self, now: Optional[datetime] = None) -> list[str]:
@@ -150,22 +155,40 @@ class ProjectRepository:
         file_hash: str,
         language: Optional[str],
     ) -> None:
-        """Add an uploaded audio to the project (and its owner); it waits in the queue."""
+        """
+        Add an uploaded audio to the project (and its owner), paid with one of
+        the owner's tokens; it waits in the queue.
+
+        Raises:
+            InsufficientTokensError: If the owner has no token left.
+        """
         async with get_db() as conn:
-            await conn.execute(
-                """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
-                                     language, project_uuid, user_uuid)
-                   SELECT $1, $2, 202, $3, 'uploaded', $4, $5, p.user_uuid
-                   FROM projects p WHERE p.uuid = $5""",
-                uuid, file_name, file_hash, language, project_uuid,
-            )
+            async with conn.transaction():
+                owner = await conn.fetchval(
+                    "SELECT user_uuid FROM projects WHERE uuid = $1", project_uuid
+                )
+                await charge_token(conn, owner, uuid)
+                await conn.execute(
+                    """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
+                                         language, project_uuid, user_uuid)
+                       VALUES ($1, $2, 202, $3, 'uploaded', $4, $5, $6)""",
+                    uuid, file_name, file_hash, language, project_uuid, owner,
+                )
 
     async def delete_job(self, project_uuid: str, job_uuid: str) -> bool:
-        """Delete one audio's row (and, by cascade, its export rows)."""
+        """
+        Delete one audio's row (and, by cascade, its export rows); if it was
+        still waiting in the queue, its token comes back.
+        """
         async with get_db() as conn:
-            result = await conn.execute(
-                "DELETE FROM jobs WHERE project_uuid = $1 AND uuid = $2", project_uuid, job_uuid
-            )
+            async with conn.transaction():
+                await refund_queued(
+                    conn, "project_uuid = $1 AND uuid = $2", project_uuid, job_uuid
+                )
+                result = await conn.execute(
+                    "DELETE FROM jobs WHERE project_uuid = $1 AND uuid = $2",
+                    project_uuid, job_uuid,
+                )
         return result.endswith(" 1")
 
     async def job_exists(self, job_uuid: str) -> bool:
@@ -235,25 +258,40 @@ class ProjectRepository:
         return int(result.split()[-1])
 
     async def mark_error(self, job_uuid: str, message: str) -> None:
-        """Fail an audio that could not start a step (the steps record their own errors)."""
+        """
+        Fail an audio whose processing stopped with an error the steps did not
+        record themselves (before a step started, or mid-step): otherwise it
+        would stay queued or "processing" forever, with its token spent.
+        """
         async with get_db() as conn:
             await conn.execute(
                 """UPDATE jobs SET workflow_state = 'error', status_code = 500,
                                   error_message = $2
                    WHERE uuid = $1 AND workflow_state = ANY($3::text[])""",
-                job_uuid, message, list(RESUMABLE_STATES),
+                job_uuid, message, [*RESUMABLE_STATES, *INTERRUPTED_STATES],
             )
 
     async def retry_job(self, project_uuid: str, job_uuid: str) -> bool:
-        """Queue a failed audio again from the start."""
+        """
+        Queue a failed audio again from the start, paid with a new token (its
+        first one came back when it failed).
+
+        Raises:
+            InsufficientTokensError: If the owner has no token left.
+        """
         async with get_db() as conn:
-            result = await conn.execute(
-                """UPDATE jobs SET workflow_state = 'uploaded', status_code = 202,
-                                  current_step_progress = 0, error_message = NULL
-                   WHERE project_uuid = $1 AND uuid = $2 AND workflow_state = 'error'""",
-                project_uuid, job_uuid,
-            )
-        return result.endswith(" 1")
+            async with conn.transaction():
+                owner = await conn.fetchval(
+                    """UPDATE jobs SET workflow_state = 'uploaded', status_code = 202,
+                                      current_step_progress = 0, error_message = NULL
+                       WHERE project_uuid = $1 AND uuid = $2 AND workflow_state = 'error'
+                       RETURNING user_uuid""",
+                    project_uuid, job_uuid,
+                )
+                if owner is None:
+                    return False
+                await charge_token(conn, owner, job_uuid)
+        return True
 
     async def queue_order(self) -> list[str]:
         """UUIDs of the audios waiting in the queue, the next to run first."""

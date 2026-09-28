@@ -7,6 +7,7 @@ from typing import Optional
 from uuid import UUID
 
 from access import (
+    NO_TOKENS_DETAIL,
     Principal,
     authorize_path,
     get_principal,
@@ -14,6 +15,7 @@ from access import (
     require_user,
 )
 from config import Settings, get_settings
+from database import InsufficientTokensError
 from dependencies import get_audio_service, get_project_repository
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field, field_validator
@@ -170,7 +172,11 @@ async def retry_audio(
 ) -> Response:
     """Queue an audio that failed again, from the start."""
     await _project_or_404(repo, project_uuid)
-    if not await repo.retry_job(project_uuid, job_uuid):
+    try:
+        retried = await repo.retry_job(project_uuid, job_uuid)
+    except InsufficientTokensError as e:
+        raise HTTPException(status_code=402, detail=NO_TOKENS_DETAIL) from e
+    if not retried:
         raise HTTPException(status_code=409, detail="Only a failed audio can be retried")
     queue = _queue(request)
     if queue:

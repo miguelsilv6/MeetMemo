@@ -109,6 +109,23 @@ describe('ProjectView', () => {
     expect(projectsApi.getProject).toHaveBeenCalledTimes(3);
   });
 
+  it('refreshes the token balance when an audio fails (its token comes back)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(projectsApi.getProject)
+      .mockResolvedValueOnce(project([audio('a', 'processing', { progress: 10 })]))
+      .mockResolvedValue(project([audio('a', 'error', { error_message: 'boom' })]));
+    const onBalanceChange = vi.fn();
+    renderView({ onBalanceChange });
+
+    expect(await screen.findByText('Processing · 10%')).toBeInTheDocument();
+    expect(onBalanceChange).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PROJECT_POLL_MS);
+    });
+    expect(await screen.findByText('boom')).toBeInTheDocument();
+    expect(onBalanceChange).toHaveBeenCalledTimes(1);
+  });
+
   it('uploads several files one by one and reports each result', async () => {
     vi.mocked(projectsApi.getProject).mockResolvedValue(project([]));
     vi.mocked(projectsApi.uploadProjectAudios)
@@ -150,6 +167,36 @@ describe('ProjectView', () => {
 
     expect(await screen.findByText(/over the 1 MB limit per file/)).toBeInTheDocument();
     expect(projectsApi.uploadProjectAudios).not.toHaveBeenCalled();
+  });
+
+  it('blocks uploads without tokens and stops sending once they run out', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValue(project([]));
+    vi.mocked(projectsApi.uploadProjectAudios)
+      .mockResolvedValueOnce([{ file_name: 'one.wav', status: 'queued', uuid: 'j1' }])
+      .mockResolvedValueOnce([{ file_name: 'two.wav', status: 'no_tokens' }]);
+    const onBalanceChange = vi.fn();
+    renderView({ tokenBalance: 2, onBalanceChange });
+    await screen.findByText('No audios in this project yet.');
+
+    const files = ['one.wav', 'two.wav', 'three.wav'].map(
+      (name) => new File(['x'], name, { type: 'audio/wav' })
+    );
+    fireEvent.change(screen.getByLabelText('Choose one or more files'), { target: { files } });
+
+    expect(await screen.findAllByText(/not uploaded: you have no tokens left/)).toHaveLength(2);
+    // The third file was never sent: the second showed the tokens had run out.
+    expect(projectsApi.uploadProjectAudios).toHaveBeenCalledTimes(2);
+    expect(onBalanceChange).toHaveBeenCalled();
+  });
+
+  it('explains that uploading needs tokens when the balance is zero', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValue(project([]));
+    renderView({ tokenBalance: 0 });
+    expect(await screen.findByText(/You have no tokens left/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /choose one or more files/i })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 
   it('opens completed audios and retries failed ones', async () => {

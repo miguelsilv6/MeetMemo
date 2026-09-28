@@ -9,6 +9,7 @@ from typing import Optional
 
 import aiofiles.os
 from config import Settings
+from database import InsufficientTokensError
 from fastapi import HTTPException, UploadFile
 from repositories.project_repository import ProjectRepository
 
@@ -116,7 +117,7 @@ class ProjectService:
 
         Returns:
             One result per file: {"file_name", "status": "queued" | "duplicate"
-            | "rejected", "uuid"?, "detail"?}.
+            | "no_tokens" | "rejected", "uuid"?, "detail"?}.
         """
         results = []
         for upload in files:
@@ -158,7 +159,13 @@ class ProjectService:
                     await aiofiles.os.remove(file_path)
             file_name = wav_name
 
-        await self.repo.add_job(job_uuid, project_uuid, file_name, file_hash, language)
+        try:
+            await self.repo.add_job(job_uuid, project_uuid, file_name, file_hash, language)
+        except InsufficientTokensError:
+            stored = os.path.join(self.settings.upload_dir, file_name)
+            if await aiofiles.os.path.exists(stored):
+                await aiofiles.os.remove(stored)
+            return {"file_name": upload.filename, "status": "no_tokens"}
         logger.info("Queued %s in project %s as job %s", file_name, project_uuid, job_uuid)
         return {"file_name": upload.filename, "status": "queued", "uuid": job_uuid}
 

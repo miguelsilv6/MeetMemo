@@ -5,6 +5,7 @@
 import type {
   AdminSettingsResponse,
   AdminUser,
+  TokenTransaction,
   UserContent,
   AuditEntry,
   RuntimeSettings,
@@ -116,11 +117,12 @@ export function listUsers(): Promise<AdminUser[]> {
 export function createUser(
   username: string,
   displayName: string,
-  password: string
+  password: string,
+  initialTokens = 0
 ): Promise<AdminUser> {
   return adminRequest('/users', {
     method: 'POST',
-    body: { username, display_name: displayName, password },
+    body: { username, display_name: displayName, password, initial_tokens: initialTokens },
   });
 }
 
@@ -141,4 +143,18 @@ export function deleteUser(uuid: string): Promise<void> {
 
 export function getUserContent(uuid: string): Promise<UserContent> {
   return adminRequest(`/users/${uuid}/content`);
+}
+
+export function changeUserTokens(
+  uuid: string,
+  delta: number,
+  note: string | null
+): Promise<{ token_balance: number }> {
+  return adminRequest(`/users/${uuid}/tokens`, { method: 'POST', body: { delta, note } });
+}
+
+export function getUserTokens(
+  uuid: string
+): Promise<{ token_balance: number; transactions: TokenTransaction[] }> {
+  return adminRequest(`/users/${uuid}/tokens`);
 }

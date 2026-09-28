@@ -100,6 +100,12 @@ def get_project_repository():
     return ProjectRepository()
 
 
+def get_token_repository():
+    """Get TokenRepository instance."""
+    from repositories.token_repository import TokenRepository
+    return TokenRepository()
+
+
 def get_user_repository():
     """Get UserRepository instance."""
     from repositories.user_repository import UserRepository

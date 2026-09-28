@@ -50,7 +50,7 @@ export interface ProjectDetails {
   description: string | null;
 }
 
-export type UploadResultStatus = 'queued' | 'duplicate' | 'rejected';
+export type UploadResultStatus = 'queued' | 'duplicate' | 'no_tokens' | 'rejected';
 
 export interface UploadResult {
   file_name: string;
