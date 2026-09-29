@@ -68,6 +68,7 @@ const unauthorized = () => new adminApi.AdminApiError(401, 'Not authenticated');
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.sessionStorage.clear();
   vi.mocked(adminApi.getAdminStatus).mockResolvedValue({ configured: true });
   vi.mocked(adminApi.getAdminSession).mockResolvedValue({ username: 'admin' });
   vi.mocked(adminApi.getAdminSettings).mockResolvedValue(settingsResponse);
@@ -75,9 +76,16 @@ beforeEach(() => {
   vi.mocked(adminApi.listUsers).mockResolvedValue([]);
 });
 
+const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}`) });
+
 async function renderSignedIn() {
-  render(<AdminView onExit={vi.fn()} />);
-  await screen.findByText('Transcription settings');
+  const view = render(<AdminView onExit={vi.fn()} />);
+  await screen.findByRole('tablist');
+  return view;
+}
+
+function openTab(name: string) {
+  fireEvent.click(tab(name));
 }
 
 describe('AdminView', () => {
@@ -97,7 +105,8 @@ describe('AdminView', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByText('Transcription settings')).toBeInTheDocument();
+    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+    expect(tab('Transcription')).toHaveAttribute('aria-selected', 'true');
     expect(adminApi.adminLogin).toHaveBeenCalledWith('admin', 'secret');
     expect(screen.getByText('Signed in as admin')).toBeInTheDocument();
   });
@@ -209,6 +218,7 @@ describe('AdminView', () => {
       },
     ]);
     await renderSignedIn();
+    openTab('History');
 
     const table = screen.getByRole('table');
     const rows = within(table).getAllByRole('row');
@@ -224,6 +234,7 @@ describe('AdminView', () => {
       changed: ['llm_summary_request'],
     });
     await renderSignedIn();
+    openTab('Prompts');
 
     const request = screen.getByLabelText(/Summary: request/);
     fireEvent.change(request, { target: { value: '  Resume em três pontos.\r\n' } });
@@ -247,6 +258,7 @@ describe('AdminView', () => {
 
   it('treats an emptied prompt as its default', async () => {
     await renderSignedIn();
+    openTab('Prompts');
 
     fireEvent.change(screen.getByLabelText(/Summary: system instructions/), {
       target: { value: '   ' },
@@ -259,6 +271,7 @@ describe('AdminView', () => {
 
   it('blocks saving an overlong prompt', async () => {
     await renderSignedIn();
+    openTab('Prompts');
 
     fireEvent.change(screen.getByLabelText(/Final reminder/), {
       target: { value: 'x'.repeat(1001) },
@@ -271,6 +284,7 @@ describe('AdminView', () => {
 
   it('shows the fixed prompt parts read-only', async () => {
     await renderSignedIn();
+    openTab('Prompts');
     expect(screen.getByText('Return ONLY a JSON array.')).toBeInTheDocument();
     expect(screen.getByText('/no_think')).toBeInTheDocument();
   });
@@ -288,6 +302,7 @@ describe('AdminView', () => {
       },
     ]);
     await renderSignedIn();
+    openTab('History');
 
     const row = within(screen.getByRole('table')).getAllByRole('row')[1];
     expect(within(row).getByText('Summary: system instructions')).toBeInTheDocument();
@@ -298,7 +313,93 @@ describe('AdminView', () => {
 
   it('shows restart-only configuration read-only', async () => {
     await renderSignedIn();
+    openTab('System');
     expect(screen.getByText('int8')).toBeInTheDocument();
     expect(screen.getByText('pyannote/speaker-diarization-3.1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
+  });
+
+  it('shows only the selected tab', async () => {
+    await renderSignedIn();
+    expect(screen.getByLabelText('Beam size')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Maximum size per file (MB)')).not.toBeInTheDocument();
+
+    openTab('Uploads');
+    expect(tab('Uploads')).toHaveAttribute('aria-selected', 'true');
+    expect(tab('Transcription')).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByLabelText('Maximum size per file (MB)')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Beam size')).not.toBeInTheDocument();
+
+    openTab('Security');
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /change password/i })).toBeVisible();
+  });
+
+  it('keeps unsaved edits across tabs and marks the tab that has them', async () => {
+    vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
+      settings: { ...settings, beam_size: 3 },
+      changed: ['beam_size'],
+    });
+    await renderSignedIn();
+
+    fireEvent.change(screen.getByLabelText('Beam size'), { target: { value: '3' } });
+    expect(tab('Transcription')).toHaveAccessibleName(/unsaved changes/);
+    expect(tab('Uploads')).not.toHaveAccessibleName(/unsaved changes/);
+
+    openTab('Users');
+    openTab('Transcription');
+    expect(screen.getByLabelText('Beam size')).toHaveValue(3);
+
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    expect(await screen.findByText('1 setting saved.')).toBeInTheDocument();
+    expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ beam_size: 3 })
+    );
+    expect(tab('Transcription')).not.toHaveAccessibleName(/unsaved changes/);
+  });
+
+  it('jumps to the tab with an invalid field when saving from another tab', async () => {
+    await renderSignedIn();
+    fireEvent.change(screen.getByLabelText('VAD silence threshold'), {
+      target: { value: '0.5' },
+    });
+    expect(tab('Transcription')).toHaveAccessibleName(/has errors/);
+
+    openTab('Uploads');
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(tab('Transcription')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Must be lower than the speech threshold.')).toBeInTheDocument();
+    expect(screen.getByText('Fix the highlighted fields before saving.')).toBeInTheDocument();
+    expect(adminApi.saveAdminSettings).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the history when its tab is opened', async () => {
+    await renderSignedIn();
+    expect(adminApi.getAdminAudit).toHaveBeenCalledTimes(1);
+    openTab('History');
+    await waitFor(() => expect(adminApi.getAdminAudit).toHaveBeenCalledTimes(2));
+    openTab('History');
+    expect(adminApi.getAdminAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it('moves between tabs with the arrow keys', async () => {
+    await renderSignedIn();
+    fireEvent.keyDown(tab('Transcription'), { key: 'ArrowRight' });
+    expect(tab('Language & retention')).toHaveAttribute('aria-selected', 'true');
+    expect(tab('Language & retention')).toHaveFocus();
+    fireEvent.keyDown(tab('Language & retention'), { key: 'End' });
+    expect(tab('System')).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(tab('System'), { key: 'ArrowRight' });
+    expect(tab('Transcription')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('reopens on the last tab used', async () => {
+    const view = await renderSignedIn();
+    openTab('Users');
+    view.unmount();
+
+    await renderSignedIn();
+    expect(tab('Users')).toHaveAttribute('aria-selected', 'true');
   });
 });

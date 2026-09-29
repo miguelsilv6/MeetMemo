@@ -1066,6 +1066,34 @@ button.kanban-add-column:hover {
   max-width: 420px;
 }
 
+/* One row of tabs; on narrow screens it scrolls sideways instead of wrapping. */
+.admin-tabs .nav-tabs {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.admin-tabs .nav-link {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-tab-marker {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.admin-tab-marker-unsaved {
+  color: var(--bs-warning, #b58100);
+}
+
+.admin-tab-marker-error {
+  color: var(--bs-danger, #d7260f);
+  font-weight: 700;
+}
+
 .admin-section {
   border-top: 1px solid var(--mm-border, var(--border));
   padding-top: 1rem;

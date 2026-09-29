@@ -308,6 +308,19 @@
   },
   "admin": {
     "title": "Administration",
+    "tabs": {
+      "label": "Admin panel sections",
+      "transcription": "Transcription",
+      "languageRetention": "Language & retention",
+      "uploads": "Uploads",
+      "prompts": "Prompts",
+      "users": "Users",
+      "security": "Security",
+      "audit": "History",
+      "system": "System",
+      "unsaved": "unsaved changes",
+      "hasErrors": "has errors"
+    },
     "backToApp": "Back to the app",
     "signedInAs": "Signed in as {{username}}",
     "logout": "Sign out",
@@ -323,7 +336,6 @@
       "tooMany": "Too many failed attempts. Try again in a few minutes."
     },
     "settings": {
-      "title": "Transcription settings",
       "intro": "Changes apply to jobs started after saving; jobs already in progress keep the settings they started with. Every change is recorded in the change history.",
       "save": "Save changes",
       "saving": "Saving…",
@@ -333,7 +345,7 @@
       "noChanges": "No changes to save.",
       "discard": "Discard changes",
       "resetDefaults": "Restore defaults",
-      "resetHint": "The form now shows the default values. Save to apply them.",
+      "resetHint": "Every settings tab now shows the default values. Save to apply them.",
       "invalid": "Fix the highlighted fields before saving.",
       "autoDetect": "Auto-detect",
       "reviewThresholdsIntro": "Segments crossing any of these thresholds are kept but marked \"Review\" in the transcript, to be checked against the audio.",
