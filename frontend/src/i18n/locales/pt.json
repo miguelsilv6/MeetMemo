@@ -308,6 +308,19 @@
   },
   "admin": {
     "title": "Administração",
+    "tabs": {
+      "label": "Secções do painel de administração",
+      "transcription": "Transcrição",
+      "languageRetention": "Idioma e retenção",
+      "uploads": "Carregamentos",
+      "prompts": "Prompts",
+      "users": "Utilizadores",
+      "security": "Segurança",
+      "audit": "Histórico",
+      "system": "Sistema",
+      "unsaved": "alterações por guardar",
+      "hasErrors": "com erros"
+    },
     "backToApp": "Voltar à aplicação",
     "signedInAs": "Sessão iniciada como {{username}}",
     "logout": "Terminar sessão",
@@ -323,7 +336,6 @@
       "tooMany": "Demasiadas tentativas falhadas. Tenta novamente daqui a alguns minutos."
     },
     "settings": {
-      "title": "Definições de transcrição",
       "intro": "As alterações aplicam-se aos trabalhos iniciados depois de guardar; os que já estão em curso mantêm as definições com que começaram. Cada alteração fica registada no histórico.",
       "save": "Guardar alterações",
       "saving": "A guardar…",
@@ -333,7 +345,7 @@
       "noChanges": "Não há alterações para guardar.",
       "discard": "Descartar alterações",
       "resetDefaults": "Repor predefinições",
-      "resetHint": "O formulário mostra agora os valores predefinidos. Guarda para os aplicar.",
+      "resetHint": "Todos os separadores de definições mostram agora os valores predefinidos. Guarda para os aplicar.",
       "invalid": "Corrige os campos assinalados antes de guardar.",
       "autoDetect": "Deteção automática",
       "reviewThresholdsIntro": "Os segmentos que ultrapassem qualquer destes limites são mantidos, mas marcados como \"Rever\" na transcrição, para confirmares com o áudio.",

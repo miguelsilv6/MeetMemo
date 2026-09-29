@@ -4,6 +4,10 @@ import { ArrowLeft, LogOut, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import AdminLogin from './AdminLogin';
 import AdminSettingsForm from './AdminSettingsForm';
+import type { SettingsTabStatus } from './AdminSettingsForm';
+import AdminTabs from './AdminTabs';
+import { ADMIN_PANEL_ID, adminTabId, isAdminTab } from '../../constants/adminTabs';
+import type { AdminTab } from '../../constants/adminTabs';
 import AdminPasswordForm from './AdminPasswordForm';
 import AdminAuditLog from './AdminAuditLog';
 import AdminUsers from './AdminUsers';
@@ -25,6 +29,27 @@ interface AdminViewProps {
 
 const isUnauthorized = (err: unknown) => err instanceof AdminApiError && err.status === 401;
 
+const TAB_STORAGE_KEY = 'meetmemo.adminTab';
+const NO_STATUS: SettingsTabStatus = { unsaved: [], withErrors: [] };
+
+function readStoredTab(): AdminTab {
+  try {
+    const stored = window.sessionStorage.getItem(TAB_STORAGE_KEY);
+    if (isAdminTab(stored)) return stored;
+  } catch {
+    // Storage unavailable (private mode, blocked): start on the first tab.
+  }
+  return 'transcription';
+}
+
+function storeTab(tab: AdminTab) {
+  try {
+    window.sessionStorage.setItem(TAB_STORAGE_KEY, tab);
+  } catch {
+    // Not remembering the tab is harmless.
+  }
+}
+
 export default function AdminView({ onExit }: AdminViewProps) {
   const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>('loading');
@@ -33,11 +58,14 @@ export default function AdminView({ onExit }: AdminViewProps) {
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<AdminTab>(readStoredTab);
+  const [tabStatus, setTabStatus] = useState<SettingsTabStatus>(NO_STATUS);
 
   const showLogin = useCallback(() => {
     setUsername(null);
     setData(null);
     setAudit([]);
+    setTabStatus(NO_STATUS);
     setPhase('login');
   }, []);
 
@@ -98,13 +126,22 @@ export default function AdminView({ onExit }: AdminViewProps) {
     }
   };
 
-  const refreshAudit = () => {
+  const refreshAudit = useCallback(() => {
     setAuditLoading(true);
     getAdminAudit()
       .then(setAudit)
       .catch(fail)
       .finally(() => setAuditLoading(false));
-  };
+  }, [fail]);
+
+  const selectTab = useCallback(
+    (tab: AdminTab) => {
+      if (tab === 'audit' && activeTab !== 'audit') refreshAudit();
+      setActiveTab(tab);
+      storeTab(tab);
+    },
+    [activeTab, refreshAudit]
+  );
 
   const handleSaved = (settings: RuntimeSettings) => {
     setData((prev) => (prev ? { ...prev, settings } : prev));
@@ -163,16 +200,34 @@ export default function AdminView({ onExit }: AdminViewProps) {
 
       {phase === 'ready' && data && (
         <>
-          <Row>
-            <Col lg={8}>
-              <AdminSettingsForm data={data} onSaved={handleSaved} onUnauthorized={showLogin} />
-            </Col>
-            <Col lg={4}>
-              <AdminPasswordForm onChanged={refreshAudit} onUnauthorized={showLogin} />
-            </Col>
-          </Row>
-          <AdminUsers onChanged={refreshAudit} onUnauthorized={showLogin} />
-          <AdminAuditLog entries={audit} loading={auditLoading} onRefresh={refreshAudit} />
+          <AdminTabs
+            active={activeTab}
+            onSelect={selectTab}
+            unsaved={tabStatus.unsaved}
+            withErrors={tabStatus.withErrors}
+          />
+          <div role="tabpanel" id={ADMIN_PANEL_ID} aria-labelledby={adminTabId(activeTab)}>
+            {/* Every panel stays mounted so drafts and loaded lists survive tab changes. */}
+            <AdminSettingsForm
+              data={data}
+              onSaved={handleSaved}
+              onUnauthorized={showLogin}
+              tab={activeTab}
+              onStatusChange={setTabStatus}
+              onRequestTab={selectTab}
+            />
+            <div hidden={activeTab !== 'users'}>
+              <AdminUsers onChanged={refreshAudit} onUnauthorized={showLogin} />
+            </div>
+            <Row hidden={activeTab !== 'security'}>
+              <Col lg={6}>
+                <AdminPasswordForm onChanged={refreshAudit} onUnauthorized={showLogin} />
+              </Col>
+            </Row>
+            <div hidden={activeTab !== 'audit'}>
+              <AdminAuditLog entries={audit} loading={auditLoading} onRefresh={refreshAudit} />
+            </div>
+          </div>
         </>
       )}
     </div>
