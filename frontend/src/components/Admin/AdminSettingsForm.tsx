@@ -39,6 +39,7 @@ const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
   job_retention_hours: 'languageRetention',
   project_retention_days: 'languageRetention',
   max_upload_mb: 'uploads',
+  default_daily_tokens: 'uploads',
   llm_summary_system_prompt: 'prompts',
   llm_summary_request: 'prompts',
   llm_language_rule: 'prompts',
@@ -423,11 +424,18 @@ export default function AdminSettingsForm({
           )}
 
           {tab === 'uploads' && (
-            <Section title={t('admin.settings.sections.uploads')}>
-              <Row>
-                <Col md={6}>{numberField('max_upload_mb')}</Col>
-              </Row>
-            </Section>
+            <>
+              <Section title={t('admin.settings.sections.uploads')}>
+                <Row>
+                  <Col md={6}>{numberField('max_upload_mb')}</Col>
+                </Row>
+              </Section>
+              <Section title={t('admin.settings.sections.dailyTokens')}>
+                <Row>
+                  <Col md={6}>{numberField('default_daily_tokens')}</Col>
+                </Row>
+              </Section>
+            </>
           )}
 
           {tab === 'prompts' && (

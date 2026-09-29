@@ -3,6 +3,7 @@ import { FileText, FolderOpen, KeyRound, LogOut, Shield, UserRound } from 'lucid
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../LanguageSwitcher';
 import type { Me } from '../../types/auth';
+import { availableTokens, dailyRemaining, hasDailyQuota } from '../../utils/tokens';
 
 interface HeaderProps {
   onStartNewMeeting: () => void;
@@ -64,11 +65,17 @@ export default function Header({
                 </span>
                 {me.token_balance !== null && (
                   <Badge
-                    bg={me.token_balance > 0 ? 'secondary' : 'danger'}
+                    bg={(availableTokens(me) ?? 0) > 0 ? 'secondary' : 'danger'}
                     className="header-tokens"
-                    title={t('auth.tokensHint')}
+                    title={hasDailyQuota(me) ? t('auth.tokensDailyHint') : t('auth.tokensHint')}
                   >
-                    {t('auth.tokens', { count: me.token_balance })}
+                    {hasDailyQuota(me)
+                      ? t('auth.tokensDaily', {
+                          remaining: dailyRemaining(me),
+                          quota: me.daily_quota,
+                          extra: me.token_balance,
+                        })
+                      : t('auth.tokens', { count: me.token_balance })}
                   </Badge>
                 )}
                 {onChangePassword && (

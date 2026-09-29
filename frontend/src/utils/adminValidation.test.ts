@@ -22,6 +22,7 @@ const valid: RuntimeSettings = {
   job_retention_hours: 12,
   project_retention_days: 7,
   max_upload_mb: 100,
+  default_daily_tokens: 0,
   llm_summary_system_prompt: 'Default system prompt.',
   llm_summary_request: 'Default request.',
   llm_language_rule: 'Default language rule.',

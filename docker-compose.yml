@@ -57,6 +57,8 @@ services:
       - ADMIN_USERNAME
       - ADMIN_PASSWORD
       - ADMIN_SESSION_HOURS
+      # Time zone in which the daily token quota resets at midnight.
+      - TOKENS_TIMEZONE
       - DATABASE_URL=postgresql://meetmemo:${POSTGRES_PASSWORD:-changeme}@postgres:5432/meetmemo
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}

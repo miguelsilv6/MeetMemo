@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from access import ADMIN_COOKIE, client_key, cookie_values, is_https
+from access import ADMIN_COOKIE, client_key, cookie_values, is_https, token_state
 from access import COOKIE_PATH as ACCESS_COOKIE_PATH
 from admin_auth import (
     DUMMY_PASSWORD_HASH,
@@ -34,7 +34,7 @@ from pydantic import BaseModel, Field, field_validator
 from repositories.admin_repository import AdminRepository
 from repositories.token_repository import NegativeBalanceError, TokenRepository
 from repositories.user_repository import UsernameTakenError, UserRepository
-from runtime_settings import WHISPER_LANGUAGE_CODES, RuntimeSettings
+from runtime_settings import MAX_DAILY_TOKENS, WHISPER_LANGUAGE_CODES, RuntimeSettings
 from services.runtime_settings_service import RuntimeSettingsService
 from services.user_service import UserService
 
@@ -273,6 +273,13 @@ class UserCreateRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=200)
     password: str = Field(min_length=1, max_length=MAX_PASSWORD_LENGTH)
     initial_tokens: int = Field(default=0, ge=0, le=MAX_TOKEN_CHANGE)
+    # None: follow the panel's default daily quota.
+    daily_token_quota: Optional[int] = Field(default=None, ge=0, le=MAX_DAILY_TOKENS)
+
+
+class DailyQuotaRequest(BaseModel):
+    """The account's own daily quota, or None to follow the panel's default."""
+    daily_token_quota: Optional[int] = Field(ge=0, le=MAX_DAILY_TOKENS)
 
 
 class TokenChangeRequest(BaseModel):
@@ -333,6 +340,7 @@ async def create_user(
     admin: dict = Depends(require_admin),
     repo: AdminRepository = Depends(get_admin_repository),
     service: UserService = Depends(get_user_service),
+    users: UserRepository = Depends(get_user_repository),
     tokens: TokenRepository = Depends(get_token_repository),
 ) -> dict:
     """Create an account; the user must choose a new password at first login."""
@@ -350,6 +358,11 @@ async def create_user(
         )
         await repo.record_audit(
             admin["username"], "user_tokens", 0, user["token_balance"]
+        )
+    if body.daily_token_quota is not None:
+        user = await users.set_daily_quota(str(user["uuid"]), body.daily_token_quota)
+        await repo.record_audit(
+            admin["username"], "user_daily_tokens", None, body.daily_token_quota
         )
     logger.info("Admin %s created user %s", admin["username"], user["username"])
     return user
@@ -451,7 +464,28 @@ async def change_user_tokens(
         "Admin %s changed %s's tokens by %+d to %d",
         admin["username"], user["username"], body.delta, balance,
     )
-    return {"token_balance": balance}
+    return token_state(await users.get(str(user_uuid)))
+
+
+@router.put("/users/{user_uuid}/daily-quota", dependencies=[Depends(require_admin_header)])
+async def set_user_daily_quota(
+    user_uuid: UUID,
+    body: DailyQuotaRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
+) -> dict:
+    """Give the account its own daily quota, or make it follow the panel's default (null)."""
+    before = await _user_or_404(users, user_uuid)
+    user = await users.set_daily_quota(str(user_uuid), body.daily_token_quota)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if before["daily_token_quota"] != user["daily_token_quota"]:
+        await repo.record_audit(
+            admin["username"], "user_daily_tokens",
+            before["daily_token_quota"], user["daily_token_quota"],
+        )
+    return {"daily_token_quota": user["daily_token_quota"], **token_state(user)}
 
 
 @router.get("/users/{user_uuid}/tokens")
@@ -462,9 +496,10 @@ async def user_token_history(
     users: UserRepository = Depends(get_user_repository),
     tokens: TokenRepository = Depends(get_token_repository),
 ) -> dict:
-    """The balance and every token movement, newest first."""
+    """The tokens (extra balance and today's quota) and every movement, newest first."""
     user = await _user_or_404(users, user_uuid)
     return {
-        "token_balance": user["token_balance"],
+        **token_state(user),
+        "daily_token_quota": user["daily_token_quota"],
         "transactions": await tokens.history(str(user_uuid), limit),
     }

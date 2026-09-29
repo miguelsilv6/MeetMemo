@@ -15,6 +15,7 @@ import useTranscript from './hooks/useTranscript';
 import useSpeakerManagement from './hooks/useSpeakerManagement';
 import useSummary from './hooks/useSummary';
 import useTranslation from './hooks/useTranslation';
+import { availableTokens } from './utils/tokens';
 import useHashRoute, {
   ADMIN_ROUTE,
   PROJECTS_ROUTE,
@@ -351,7 +352,7 @@ function App() {
             key={openProjectUuid}
             projectUuid={openProjectUuid}
             canUpload={!me?.is_admin}
-            tokenBalance={me?.token_balance ?? null}
+            tokenBalance={me ? availableTokens(me) : null}
             onBalanceChange={refreshSession}
             onBack={openProjects}
             onOpenAudio={handleOpenProjectAudio}
@@ -400,7 +401,7 @@ function App() {
                 onUploadLimit={applyUploadLimit}
                 onOpenProjects={openProjects}
                 canUpload={!me?.is_admin}
-                tokenBalance={me?.token_balance ?? null}
+                tokenBalance={me ? availableTokens(me) : null}
               />
             )}
 

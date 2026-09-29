@@ -229,7 +229,8 @@ def test_user_accounts_against_real_postgres(monkeypatch, tmp_path):
         }).status_code == 204
         me = client.get("/api/v1/auth/me", headers=ana).json()
         assert me == {"username": "ana", "display_name": "Ana Silva", "is_admin": False,
-                      "must_change_password": False, "token_balance": 5}
+                      "must_change_password": False, "token_balance": 5,
+                      "daily_quota": 0, "daily_used": 0}
 
         bruno_login = login("bruno", TEMPORARY)
         bruno = cookie_of(bruno_login, "meetmemo_session")

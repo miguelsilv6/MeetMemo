@@ -45,6 +45,8 @@ describe('Header', () => {
           is_admin: false,
           must_change_password: false,
           token_balance: 3,
+          daily_quota: 0,
+          daily_used: 0,
         }}
         onChangePassword={onChangePassword}
         onLogout={onLogout}
@@ -69,6 +71,8 @@ describe('Header', () => {
           is_admin: true,
           must_change_password: false,
           token_balance: 3,
+          daily_quota: 0,
+          daily_used: 0,
         }}
       />
     );
@@ -81,6 +85,8 @@ describe('Header', () => {
       display_name: 'Ana',
       is_admin: false,
       must_change_password: false,
+      daily_quota: 0,
+      daily_used: 0,
     };
     const { rerender } = render(
       <Header onStartNewMeeting={vi.fn()} me={{ ...user, token_balance: 3 }} />
@@ -89,5 +95,40 @@ describe('Header', () => {
 
     rerender(<Header onStartNewMeeting={vi.fn()} me={{ ...user, token_balance: 0 }} />);
     expect(screen.getByText('0 tokens')).toHaveClass('bg-danger');
+  });
+
+  it("shows today's quota and the extra balance when the user has a daily quota", () => {
+    const user = {
+      username: 'ana',
+      display_name: 'Ana',
+      is_admin: false,
+      must_change_password: false,
+    };
+    const { rerender } = render(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{ ...user, token_balance: 8, daily_quota: 5, daily_used: 3 }}
+      />
+    );
+    const badge = screen.getByText('2 of 5 today · +8');
+    expect(badge).toHaveClass('bg-secondary');
+    expect(badge.getAttribute('title')).toMatch(/midnight/);
+
+    // Quota used up but extra balance left: still usable.
+    rerender(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{ ...user, token_balance: 1, daily_quota: 5, daily_used: 5 }}
+      />
+    );
+    expect(screen.getByText('0 of 5 today · +1')).toHaveClass('bg-secondary');
+
+    rerender(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{ ...user, token_balance: 0, daily_quota: 5, daily_used: 5 }}
+      />
+    );
+    expect(screen.getByText('0 of 5 today · +0')).toHaveClass('bg-danger');
   });
 });

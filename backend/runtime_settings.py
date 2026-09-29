@@ -65,6 +65,10 @@ PROMPT_FIELDS = tuple(PROMPT_MAX_LENGTHS)
 # Largest upload the panel may allow, in MB. nginx rejects bodies above 500 MB
 # (client_max_body_size), and an upload is held in memory while it is checked.
 MAX_UPLOAD_MB_LIMIT = 500
+
+# Most tokens a daily quota can give (the same bound as one admin grant).
+MAX_DAILY_TOKENS = 10000
+
 MIB = 1024 * 1024
 
 
@@ -104,6 +108,9 @@ class RuntimeSettings(BaseModel):
 
     # Uploads (single audios, recordings and project audios)
     max_upload_mb: int = Field(default=100, ge=1, le=MAX_UPLOAD_MB_LIMIT)
+
+    # Tokens: each day's quota for users without their own (0 = no daily quota).
+    default_daily_tokens: int = Field(default=0, ge=0, le=MAX_DAILY_TOKENS)
 
     # LLM prompts (summaries and translations)
     llm_summary_system_prompt: str = Field(

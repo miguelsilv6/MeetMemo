@@ -29,6 +29,24 @@ COOKIE_PATH = "/api/v1"
 # 402 detail when an upload finds no token left.
 NO_TOKENS_DETAIL = "No tokens left. Ask the administrator for more."
 
+
+def token_state(account: Optional[dict]) -> dict:
+    """An account's tokens as the API shows them: the extra balance and today's quota."""
+    if not account:
+        return {"token_balance": None, "daily_quota": None, "daily_used": None}
+    return {
+        "token_balance": account["token_balance"],
+        "daily_quota": account["daily_quota"],
+        "daily_used": account["daily_used"],
+    }
+
+
+def tokens_available(account: Optional[dict]) -> int:
+    """How many transcriptions the account can still pay for right now."""
+    if not account:
+        return 0
+    return max(0, account["daily_quota"] - account["daily_used"]) + account["token_balance"]
+
 REQUEST_HEADER = "x-meetmemo-request"
 ADMIN_HEADER = "x-meetmemo-admin"
 _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})

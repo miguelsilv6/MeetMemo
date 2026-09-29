@@ -115,37 +115,80 @@ async def require_owners() -> None:
             await conn.execute("ALTER TABLE projects ALTER COLUMN user_uuid SET NOT NULL")
 
 
-TOKENS_SCHEMA_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "migrations", "006_tokens.sql"
-)
+TOKENS_SCHEMA_PATHS = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "migrations", name)
+    for name in ("006_tokens.sql", "007_daily_tokens.sql")
+]
+
+DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
 
 
-async def ensure_tokens_schema():
-    """Create the token balance, ledger and refund trigger on older databases."""
-    with open(TOKENS_SCHEMA_PATH, encoding="utf-8") as f:
-        schema_sql = f.read()
+async def ensure_tokens_schema(timezone: str = DEFAULT_TOKENS_TIMEZONE):
+    """
+    Create the token balances, ledger, daily quota and refund trigger on older
+    databases, and date the daily quota in ``timezone`` (an IANA name).
+    """
     async with get_db() as conn:
-        await conn.execute(schema_sql)
-    logger.info("Tokens schema ensured")
+        for path in TOKENS_SCHEMA_PATHS:
+            with open(path, encoding="utf-8") as f:
+                await conn.execute(f.read())
+        if not await conn.fetchval(
+            "SELECT EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = $1)", timezone
+        ):
+            logger.error(
+                "Unknown TOKENS_TIMEZONE %r; daily tokens use %s",
+                timezone, DEFAULT_TOKENS_TIMEZONE,
+            )
+            timezone = DEFAULT_TOKENS_TIMEZONE
+        literal = await conn.fetchval("SELECT quote_literal($1::text)", timezone)
+        await conn.execute(
+            f"""CREATE OR REPLACE FUNCTION tokens_today() RETURNS DATE AS $$
+                    SELECT (NOW() AT TIME ZONE {literal})::date
+                $$ LANGUAGE sql STABLE"""
+        )
+    logger.info("Tokens schema ensured (daily quota in %s)", timezone)
 
 
 class InsufficientTokensError(Exception):
     """The user has no token left for another transcription."""
 
 
-async def charge_token(conn, user_uuid: str, job_uuid: str) -> int:
+async def charge_token(conn, user_uuid: str, job_uuid: str) -> str:
     """
-    Take one token from the user for a job, inside the caller's transaction.
+    Take one token from the user for a job, inside the caller's transaction:
+    from today's quota while it lasts, otherwise from the extra balance.
 
-    The balance check and the debit are one statement, so concurrent uploads
-    can never spend more tokens than the user has.
+    Each check and debit is one statement, so concurrent uploads can never
+    spend more tokens than the user has.
 
     Returns:
-        The balance after the charge.
+        Where the token came from: ``"daily"`` or ``"balance"``.
 
     Raises:
-        InsufficientTokensError: If the balance is zero.
+        InsufficientTokensError: If the day's quota and the balance are both used up.
     """
+    daily = await conn.fetchrow(
+        """UPDATE users SET
+               daily_tokens_used = CASE WHEN daily_tokens_day = d.today
+                                        THEN daily_tokens_used + 1 ELSE 1 END,
+               daily_tokens_day = d.today
+           FROM (SELECT tokens_today() AS today) d
+           WHERE uuid = $1
+             AND CASE WHEN daily_tokens_day = d.today THEN daily_tokens_used ELSE 0 END
+                 < COALESCE(daily_token_quota, default_daily_tokens())
+           RETURNING token_balance, d.today""",
+        user_uuid,
+    )
+    if daily is not None:
+        await conn.execute(
+            """INSERT INTO token_transactions
+                   (user_uuid, delta, balance_after, reason, job_uuid, actor, pool, quota_day)
+               VALUES ($1, -1, $2, 'charge', $3, (SELECT username FROM users WHERE uuid = $1),
+                       'daily', $4)""",
+            user_uuid, daily["token_balance"], job_uuid, daily["today"],
+        )
+        return "daily"
+
     balance = await conn.fetchval(
         """UPDATE users SET token_balance = token_balance - 1
            WHERE uuid = $1 AND token_balance >= 1
@@ -159,7 +202,7 @@ async def charge_token(conn, user_uuid: str, job_uuid: str) -> int:
            VALUES ($1, -1, $2, 'charge', $3, (SELECT username FROM users WHERE uuid = $1))""",
         user_uuid, balance, job_uuid,
     )
-    return balance
+    return "balance"
 
 
 async def refund_queued(conn, where_sql: str, *args) -> int:

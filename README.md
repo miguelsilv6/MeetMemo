@@ -47,7 +47,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
 | **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job) |
 | **User Accounts** | Sign-in required; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |
-| **Tokens** | Each transcription costs one token from the user's balance, charged when the audio is accepted and refunded automatically if processing fails; the administrator grants or removes tokens and sees each user's history |
+| **Tokens** | Each transcription costs one token, charged when the audio is accepted and refunded automatically if processing fails. Users can have a daily quota (full again every midnight, not cumulative) spent before the extra balance the administrator grants; the administrator sets a default quota, per-user overrides and sees each user's history |
 | **Projects** | Group several audios of the same case: upload them at once, the server processes them one at a time (the page can be closed), and the project with every file it produced is deleted automatically after its retention (7 days by default, set in the admin panel) |
 
 ## Quick Start
@@ -158,6 +158,14 @@ fails or if it is deleted while still queued. Duplicates, summaries,
 translations and exports cost nothing. With no tokens left, uploading is
 disabled until the administrator adds more (**Users** → tokens, where every
 charge, refund and adjustment is listed).
+
+Tokens can also come from a **daily quota**: a number of tokens per day that is
+full again at midnight (in `TOKENS_TIMEZONE`, `Europe/Lisbon` by default) and
+does not accumulate. Uploads spend the day's quota first and the extra balance
+after it; the header shows both (e.g. "2 of 5 today · +8"). The default quota
+is set in the admin panel (**Uploads** tab, 0 = none) and each account can have
+its own (**Users** → tokens). A failed audio gives its token back to where it
+came from; a daily token only while it is still the same day.
 
 For several audios of the same case, open **Projects** in the header: create a
 project, drop all the audios on it, and they are queued and processed on the

@@ -20,6 +20,7 @@ export interface RuntimeSettings {
   job_retention_hours: number;
   project_retention_days: number;
   max_upload_mb: number;
+  default_daily_tokens: number;
   llm_summary_system_prompt: string;
   llm_summary_request: string;
   llm_language_rule: string;
@@ -75,6 +76,18 @@ export interface AdminUser {
   project_count: number;
   audio_count: number;
   token_balance: number;
+  /** The account's own daily quota, or null to follow the panel's default. */
+  daily_token_quota: number | null;
+  /** The daily quota in force (own or default) and how much of it today took. */
+  daily_quota: number;
+  daily_used: number;
+}
+
+/** An account's tokens as the admin API returns them. */
+export interface UserTokenState {
+  token_balance: number;
+  daily_quota: number;
+  daily_used: number;
 }
 
 /** One movement in a user's token ledger. */
@@ -89,6 +102,10 @@ export interface TokenTransaction {
   file_name: string | null;
   actor: string | null;
   note: string | null;
+  /** Where the token came from or went back to: today's quota or the extra balance. */
+  pool: 'daily' | 'balance';
+  /** For daily movements, the day whose quota they belong to (YYYY-MM-DD). */
+  quota_day: string | null;
 }
 
 /** What one account owns, for the administrator to open. */
