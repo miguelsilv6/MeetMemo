@@ -324,17 +324,6 @@
     "backToApp": "Back to the app",
     "signedInAs": "Signed in as {{username}}",
     "logout": "Sign out",
-    "notConfiguredTitle": "Admin panel not configured",
-    "notConfiguredBody": "Set ADMIN_PASSWORD (at least 12 characters) in the backend environment and restart the backend to create the admin account.",
-    "login": {
-      "title": "Administrator sign-in",
-      "username": "Username",
-      "password": "Password",
-      "submit": "Sign in",
-      "submitting": "Signing in…",
-      "invalid": "Invalid username or password.",
-      "tooMany": "Too many failed attempts. Try again in a few minutes."
-    },
     "settings": {
       "intro": "Changes apply to jobs started after saving; jobs already in progress keep the settings they started with. Every change is recorded in the change history.",
       "save": "Save changes",
@@ -722,7 +711,7 @@
   "auth": {
     "login": {
       "title": "Sign in to MeetMemo",
-      "intro": "Accounts are created by the administrator. If you do not have one yet, ask them for access.",
+      "intro": "Users and the administrator sign in here. Accounts are created by the administrator; if you do not have one yet, ask them for access.",
       "username": "Username",
       "password": "Password",
       "submit": "Sign in",

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, Col, Row } from '@govtechsg/sgds-react';
 import { ArrowLeft, LogOut, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import AdminLogin from './AdminLogin';
 import AdminSettingsForm from './AdminSettingsForm';
 import type { SettingsTabStatus } from './AdminSettingsForm';
 import AdminTabs from './AdminTabs';
@@ -11,20 +10,18 @@ import type { AdminTab } from '../../constants/adminTabs';
 import AdminPasswordForm from './AdminPasswordForm';
 import AdminAuditLog from './AdminAuditLog';
 import AdminUsers from './AdminUsers';
-import {
-  AdminApiError,
-  adminLogout,
-  getAdminAudit,
-  getAdminSession,
-  getAdminSettings,
-  getAdminStatus,
-} from '../../services/adminApi';
+import { AdminApiError, getAdminAudit, getAdminSettings } from '../../services/adminApi';
 import type { AdminSettingsResponse, AuditEntry, RuntimeSettings } from '../../types/admin';
 
-type Phase = 'loading' | 'unconfigured' | 'login' | 'ready' | 'error';
+type Phase = 'loading' | 'ready' | 'error';
 
 interface AdminViewProps {
+  /** The signed-in administrator (they sign in on the app's login page). */
+  username: string;
   onExit: () => void;
+  onLogout: () => void;
+  /** The administrator's session ended (expired or signed out elsewhere). */
+  onSessionExpired: () => void;
 }
 
 const isUnauthorized = (err: unknown) => err instanceof AdminApiError && err.status === 401;
@@ -50,10 +47,14 @@ function storeTab(tab: AdminTab) {
   }
 }
 
-export default function AdminView({ onExit }: AdminViewProps) {
+export default function AdminView({
+  username,
+  onExit,
+  onLogout,
+  onSessionExpired,
+}: AdminViewProps) {
   const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>('loading');
-  const [username, setUsername] = useState<string | null>(null);
   const [data, setData] = useState<AdminSettingsResponse | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -61,13 +62,7 @@ export default function AdminView({ onExit }: AdminViewProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>(readStoredTab);
   const [tabStatus, setTabStatus] = useState<SettingsTabStatus>(NO_STATUS);
 
-  const showLogin = useCallback(() => {
-    setUsername(null);
-    setData(null);
-    setAudit([]);
-    setTabStatus(NO_STATUS);
-    setPhase('login');
-  }, []);
+  const showLogin = onSessionExpired;
 
   const fail = useCallback(
     (err: unknown) => {
@@ -90,41 +85,14 @@ export default function AdminView({ onExit }: AdminViewProps) {
 
   useEffect(() => {
     let cancelled = false;
-    const init = async () => {
-      try {
-        const { configured } = await getAdminStatus();
-        if (cancelled) return;
-        if (!configured) {
-          setPhase('unconfigured');
-          return;
-        }
-        const session = await getAdminSession();
-        if (cancelled) return;
-        setUsername(session.username);
-        await loadDashboard();
-      } catch (err) {
-        if (!cancelled) fail(err);
-      }
-    };
-    init();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
+    loadDashboard().catch((err) => {
+      if (!cancelled) fail(err);
+    });
     return () => {
       cancelled = true;
     };
   }, [fail, loadDashboard]);
-
-  const handleLoggedIn = (name: string) => {
-    setUsername(name);
-    setPhase('loading');
-    loadDashboard().catch(fail);
-  };
-
-  const handleLogout = async () => {
-    try {
-      await adminLogout();
-    } finally {
-      showLogin();
-    }
-  };
 
   const refreshAudit = useCallback(() => {
     setAuditLoading(true);
@@ -156,11 +124,9 @@ export default function AdminView({ onExit }: AdminViewProps) {
           {t('admin.title')}
         </h2>
         <div className="d-flex flex-wrap align-items-center gap-2">
-          {phase === 'ready' && username && (
-            <span className="text-muted small">{t('admin.signedInAs', { username })}</span>
-          )}
-          {phase === 'ready' && (
-            <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
+          <span className="text-muted small">{t('admin.signedInAs', { username })}</span>
+          {phase !== 'loading' && (
+            <Button variant="outline-secondary" size="sm" onClick={onLogout}>
               <LogOut size={14} className="me-1" />
               {t('admin.logout')}
             </Button>
@@ -183,20 +149,11 @@ export default function AdminView({ onExit }: AdminViewProps) {
         </div>
       )}
 
-      {phase === 'unconfigured' && (
-        <Alert show variant="warning">
-          <strong>{t('admin.notConfiguredTitle')}</strong>
-          <p className="mb-0 mt-1">{t('admin.notConfiguredBody')}</p>
-        </Alert>
-      )}
-
       {phase === 'error' && (
         <Alert show variant="danger">
           {error}
         </Alert>
       )}
-
-      {phase === 'login' && <AdminLogin onLoggedIn={handleLoggedIn} />}
 
       {phase === 'ready' && data && (
         <>

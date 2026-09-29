@@ -196,6 +196,13 @@ def test_user_accounts_against_real_postgres(monkeypatch, tmp_path):
             headers=admin_headers,
         )
         assert weak.status_code == 422
+        # The administrator's username is reserved: everyone signs in on one page.
+        reserved = client.post(
+            "/api/v1/admin/users",
+            json={"username": "ADMIN", "display_name": "x", "password": TEMPORARY},
+            headers=admin_headers,
+        )
+        assert reserved.status_code == 409
         users = {u["username"]: u for u in client.get("/api/v1/admin/users", headers=admin).json()}
         assert set(users) == {"ana", "bruno"}
 
@@ -331,3 +338,37 @@ def test_user_accounts_against_real_postgres(monkeypatch, tmp_path):
         # --- Logout ends the session ---------------------------------------------
         assert client.post("/api/v1/auth/logout", headers=bruno_headers).status_code == 204
         assert client.get("/api/v1/auth/me", headers=bruno).status_code == 401
+
+        # --- One sign-in page: the administrator uses it too -----------------------
+        wrong_admin = login("admin", "wrong password")
+        assert wrong_admin.status_code == 401
+        assert wrong_admin.json() == login("nobody", "wrong password").json()
+        as_admin = login("admin", ADMIN_PASSWORD)
+        assert as_admin.status_code == 200
+        assert as_admin.json() == {
+            "username": "admin", "display_name": None, "is_admin": True,
+            "must_change_password": False, "token_balance": None, "daily_quota": None,
+            "daily_used": None,
+        }
+        set_cookie = as_admin.headers["set-cookie"].lower()
+        assert "meetmemo_admin=" in set_cookie and "path=/api/v1" in set_cookie
+        assert "httponly" in set_cookie and "samesite=strict" in set_cookie
+        unified_admin = cookie_of(as_admin, "meetmemo_admin")
+        assert client.get("/api/v1/auth/me", headers=unified_admin).json()["is_admin"] is True
+        assert client.get("/api/v1/admin/session", headers=unified_admin).status_code == 200
+
+        # Signing in as one kind ends the other's session in that browser.
+        bruno = cookie_of(login("bruno", BRUNO_PASSWORD), "meetmemo_session")
+        both = {"Cookie": f"{bruno['Cookie']}; {unified_admin['Cookie']}"}
+        switched = client.post(
+            "/api/v1/auth/login", json={"username": "admin", "password": ADMIN_PASSWORD},
+            headers={**both, **HEADERS},
+        )
+        assert switched.status_code == 200
+        assert 'meetmemo_session=""' in switched.headers["set-cookie"]
+        assert client.get("/api/v1/auth/me", headers=bruno).status_code == 401
+
+        # Logging out ends the administrator's session as well.
+        assert client.post("/api/v1/auth/logout",
+                           headers={**unified_admin, **HEADERS}).status_code == 204
+        assert client.get("/api/v1/admin/session", headers=unified_admin).status_code == 401

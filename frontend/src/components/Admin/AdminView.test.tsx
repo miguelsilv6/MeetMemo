@@ -8,10 +8,6 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/adminApi')>();
   return {
     ...actual,
-    getAdminStatus: vi.fn(),
-    getAdminSession: vi.fn(),
-    adminLogin: vi.fn(),
-    adminLogout: vi.fn(),
     getAdminSettings: vi.fn(),
     saveAdminSettings: vi.fn(),
     getAdminAudit: vi.fn(),
@@ -70,8 +66,6 @@ const unauthorized = () => new adminApi.AdminApiError(401, 'Not authenticated');
 beforeEach(() => {
   vi.clearAllMocks();
   window.sessionStorage.clear();
-  vi.mocked(adminApi.getAdminStatus).mockResolvedValue({ configured: true });
-  vi.mocked(adminApi.getAdminSession).mockResolvedValue({ username: 'admin' });
   vi.mocked(adminApi.getAdminSettings).mockResolvedValue(settingsResponse);
   vi.mocked(adminApi.getAdminAudit).mockResolvedValue([]);
   vi.mocked(adminApi.listUsers).mockResolvedValue([]);
@@ -79,10 +73,21 @@ beforeEach(() => {
 
 const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}`) });
 
+function renderPanel() {
+  const props = {
+    username: 'admin',
+    onExit: vi.fn(),
+    onLogout: vi.fn(),
+    onSessionExpired: vi.fn(),
+  };
+  const view = render(<AdminView {...props} />);
+  return { view, props };
+}
+
 async function renderSignedIn() {
-  const view = render(<AdminView onExit={vi.fn()} />);
+  const rendered = renderPanel();
   await screen.findByRole('tablist');
-  return view;
+  return rendered;
 }
 
 function openTab(name: string) {
@@ -90,38 +95,18 @@ function openTab(name: string) {
 }
 
 describe('AdminView', () => {
-  it('explains how to enable the panel when no admin account exists', async () => {
-    vi.mocked(adminApi.getAdminStatus).mockResolvedValue({ configured: false });
-    render(<AdminView onExit={vi.fn()} />);
-    expect(await screen.findByText('Admin panel not configured')).toBeInTheDocument();
-    expect(adminApi.getAdminSession).not.toHaveBeenCalled();
-  });
-
-  it('asks to sign in, then shows the dashboard', async () => {
-    vi.mocked(adminApi.getAdminSession).mockRejectedValue(unauthorized());
-    vi.mocked(adminApi.adminLogin).mockResolvedValue({ username: 'admin' });
-    render(<AdminView onExit={vi.fn()} />);
-
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'admin' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret' } });
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
-
-    expect(await screen.findByRole('tablist')).toBeInTheDocument();
+  it('shows the dashboard for the signed-in administrator', async () => {
+    await renderSignedIn();
     expect(tab('Transcription')).toHaveAttribute('aria-selected', 'true');
-    expect(adminApi.adminLogin).toHaveBeenCalledWith('admin', 'secret');
     expect(screen.getByText('Signed in as admin')).toBeInTheDocument();
+    // There is no separate sign-in form: everyone signs in on the app's page.
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument();
   });
 
-  it('shows a generic error for wrong credentials', async () => {
-    vi.mocked(adminApi.getAdminSession).mockRejectedValue(unauthorized());
-    vi.mocked(adminApi.adminLogin).mockRejectedValue(unauthorized());
-    render(<AdminView onExit={vi.fn()} />);
-
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'x' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'y' } });
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
-
-    expect(await screen.findByText('Invalid username or password.')).toBeInTheDocument();
+  it('reports an expired session when the dashboard cannot load', async () => {
+    vi.mocked(adminApi.getAdminSettings).mockRejectedValue(unauthorized());
+    const { props } = renderPanel();
+    await waitFor(() => expect(props.onSessionExpired).toHaveBeenCalled());
   });
 
   it('saves edited settings and refreshes the change history', async () => {
@@ -179,24 +164,20 @@ describe('AdminView', () => {
     expect(adminApi.saveAdminSettings).not.toHaveBeenCalled();
   });
 
-  it('returns to the sign-in form when the session expired during a save', async () => {
+  it('reports an expired session when a save is refused', async () => {
     vi.mocked(adminApi.saveAdminSettings).mockRejectedValue(unauthorized());
-    await renderSignedIn();
+    const { props } = await renderSignedIn();
 
     fireEvent.change(screen.getByLabelText('Beam size'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
 
-    expect(await screen.findByText('Administrator sign-in')).toBeInTheDocument();
+    await waitFor(() => expect(props.onSessionExpired).toHaveBeenCalled());
   });
 
-  it('signs out', async () => {
-    vi.mocked(adminApi.adminLogout).mockResolvedValue(undefined);
-    await renderSignedIn();
-
+  it('signs out through the app', async () => {
+    const { props } = await renderSignedIn();
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
-
-    expect(await screen.findByText('Administrator sign-in')).toBeInTheDocument();
-    expect(adminApi.adminLogout).toHaveBeenCalled();
+    expect(props.onLogout).toHaveBeenCalled();
   });
 
   it('lists the change history with readable setting names', async () => {
@@ -397,7 +378,7 @@ describe('AdminView', () => {
   });
 
   it('reopens on the last tab used', async () => {
-    const view = await renderSignedIn();
+    const { view } = await renderSignedIn();
     openTab('Users');
     view.unmount();
 

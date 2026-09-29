@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation as useI18n } from 'react-i18next';
 import { Alert, Button, Card, Container, Modal } from '@govtechsg/sgds-react';
 import { ArrowLeft, Shield } from 'lucide-react';
 import type { ProjectAudio, ProjectDetail } from './types/projects';
 import type { RecentJob, WorkflowStep } from './types/api';
+import type { Me } from './types/auth';
 
 // Custom Hooks
 import useBackendHealth from './hooks/useBackendHealth';
@@ -16,6 +17,7 @@ import useSpeakerManagement from './hooks/useSpeakerManagement';
 import useSummary from './hooks/useSummary';
 import useTranslation from './hooks/useTranslation';
 import { availableTokens } from './utils/tokens';
+import { isForbiddenRoute, routeAfterSignIn } from './utils/signInRoute';
 import useHashRoute, {
   ADMIN_ROUTE,
   PROJECTS_ROUTE,
@@ -74,14 +76,20 @@ function App() {
   const signedIn = !!me && !me.must_change_password;
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  // Leaving the admin panel (by its button, a link or the address bar): the
-  // administrator may have signed in or out there, so check the session again.
-  const lastRouteRef = useRef(route);
   const refreshSession = session.refresh;
+
+  // The admin panel is the administrator's; a user who opens it goes back to the app.
+  const forbidden = isForbiddenRoute(signedIn ? me : null, route);
   useEffect(() => {
-    if (lastRouteRef.current === ADMIN_ROUTE && route !== ADMIN_ROUTE) refreshSession();
-    lastRouteRef.current = route;
-  }, [route, refreshSession]);
+    if (forbidden) window.location.hash = '';
+  }, [forbidden]);
+
+  // Everyone signs in on the same page (see routeAfterSignIn for where they land).
+  const handleSignedIn = (signedInAs: Me) => {
+    session.signedIn(signedInAs);
+    const next = routeAfterSignIn(signedInAs, route);
+    if (next !== null) window.location.hash = next;
+  };
   const projectsRoute = isProjectsRoute(route);
   const openProjectUuid = parseProjectRoute(route);
 
@@ -281,8 +289,8 @@ function App() {
     return <LoadingScreen backendError={backendError} />;
   }
 
-  // Everything but the admin panel needs a signed-in account.
-  if (route !== ADMIN_ROUTE && !signedIn) {
+  // Everything, the admin panel included, needs a signed-in account.
+  if (!signedIn) {
     return (
       <div className="app">
         <Header onStartNewMeeting={() => {}} />
@@ -313,7 +321,7 @@ function App() {
                   {session.state.message}
                 </Alert>
               )}
-              <LoginView onSignedIn={session.signedIn} />
+              <LoginView onSignedIn={handleSignedIn} />
             </>
           )}
         </Container>
@@ -341,11 +349,14 @@ function App() {
             <div>{t('auth.adminBanner', { username: me.username })}</div>
           </Alert>
         )}
-        {route === ADMIN_ROUTE ? (
+        {route === ADMIN_ROUTE && me?.is_admin ? (
           <AdminView
+            username={me.username}
             onExit={() => {
               window.location.hash = '';
             }}
+            onLogout={handleLogout}
+            onSessionExpired={refreshSession}
           />
         ) : openProjectUuid ? (
           <ProjectView

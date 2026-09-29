@@ -46,7 +46,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI |
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
 | **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job) |
-| **User Accounts** | Sign-in required; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |
+| **User Accounts** | Sign-in required, on one page for users and the administrator; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |
 | **Tokens** | Each transcription costs one token, charged when the audio is accepted and refunded automatically if processing fails. Users can have a daily quota (full again every midnight, not cumulative) spent before the extra balance the administrator grants; the administrator sets a default quota, per-user overrides and sees each user's history |
 | **Projects** | Group several audios of the same case: upload them at once, the server processes them one at a time (the page can be closed), and the project with every file it produced is deleted automatically after its retention (7 days by default, set in the admin panel) |
 
@@ -145,7 +145,10 @@ graph LR
 6. **Summarize** - Generate AI summary with key insights and action items
 7. **Export** - Download professional PDF or Markdown files
 
-Everyone signs in first. The administrator creates the accounts in the admin
+Everyone signs in first, on the same page: users and the administrator alike
+(with the administrator's username, `ADMIN_USERNAME`, which no user account may
+take), and the administrator then lands on the admin panel. The administrator
+creates the accounts in the admin
 panel (**Users**), with a temporary password that the user replaces at first
 sign-in, and can deactivate, reset or delete an account (deleting removes all
 of its audios, projects and files). Upgrading an installation from before

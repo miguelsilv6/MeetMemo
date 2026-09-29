@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import {
   AdminApiError,
-  adminLogin,
-  adminLogout,
+  changeAdminPassword,
+  deleteUser,
   formatErrorDetail,
   getAdminSettings,
 } from './adminApi';
@@ -33,21 +33,24 @@ afterEach(() => {
 
 describe('adminApi', () => {
   it('sends the anti-CSRF header, same-origin credentials and a JSON body', async () => {
-    fetchMock.mockResolvedValue(response(200, { username: 'admin' }));
-    await adminLogin('admin', 'secret');
+    fetchMock.mockResolvedValue(response(204));
+    await changeAdminPassword('old secret', 'new secret');
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/api/v1/admin/login');
+    expect(url).toBe('/api/v1/admin/password');
     expect(init.method).toBe('POST');
     expect(init.credentials).toBe('same-origin');
     expect(init.headers['X-MeetMemo-Admin']).toBe('1');
     expect(init.headers['Content-Type']).toBe('application/json');
-    expect(JSON.parse(init.body)).toEqual({ username: 'admin', password: 'secret' });
+    expect(JSON.parse(init.body)).toEqual({
+      current_password: 'old secret',
+      new_password: 'new secret',
+    });
   });
 
   it('resolves 204 responses without parsing a body', async () => {
     fetchMock.mockResolvedValue(response(204));
-    await expect(adminLogout()).resolves.toBeUndefined();
+    await expect(deleteUser('u-1')).resolves.toBeUndefined();
   });
 
   it('throws AdminApiError with the status and backend detail', async () => {
