@@ -10,19 +10,16 @@ which a cross-site form cannot send.
 import asyncio
 import hmac
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from access import ADMIN_COOKIE, client_key, cookie_values, is_https, token_state
-from access import COOKIE_PATH as ACCESS_COOKIE_PATH
+from access import ADMIN_COOKIE, client_key, cookie_values, token_state
 from admin_auth import (
     DUMMY_PASSWORD_HASH,
     MAX_PASSWORD_LENGTH,
     LoginRateLimiter,
     hash_password,
     hash_session_token,
-    new_session_token,
     password_problem,
     verify_password,
 )
@@ -37,17 +34,15 @@ from repositories.user_repository import UsernameTakenError, UserRepository
 from runtime_settings import MAX_DAILY_TOKENS, WHISPER_LANGUAGE_CODES, RuntimeSettings
 from services.runtime_settings_service import RuntimeSettingsService
 from services.user_service import UserService
+from sessions import close_admin_sessions, open_admin_session
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin")
 
+# Set and cleared in sessions.py, for the whole API (the administrator opens
+# users' audios and projects in the app).
 SESSION_COOKIE = ADMIN_COOKIE
-# The whole API, so the administrator can open users' audios and projects in
-# the app. Sessions from before lived at /api/v1/admin; that copy is removed
-# at login and logout.
-COOKIE_PATH = ACCESS_COOKIE_PATH
-LEGACY_COOKIE_PATH = "/api/v1/admin"
 CSRF_HEADER = "x-meetmemo-admin"
 
 _rate_limiter = LoginRateLimiter()
@@ -67,10 +62,6 @@ class PasswordChangeRequest(BaseModel):
 
 def _client_key(request: Request) -> str:
     return client_key(request)
-
-
-def _is_https(request: Request) -> bool:
-    return is_https(request)
 
 
 async def _verify_password(password: str, stored_hash: str) -> bool:
@@ -108,9 +99,10 @@ async def login(
     request: Request,
     response: Response,
     repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    """Start an admin session."""
+    """Start an admin session (the app signs in through /auth/login; kept for scripts)."""
     client = _client_key(request)
     if _rate_limiter.is_blocked(client):
         raise HTTPException(
@@ -136,22 +128,8 @@ async def login(
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
     _rate_limiter.reset(client)
-    token = new_session_token()
-    max_age = settings.admin_session_hours * 3600
-    await repo.create_session(
-        hash_session_token(token),
-        credentials["username"],
-        datetime.now(timezone.utc) + timedelta(seconds=max_age),
-    )
-    response.delete_cookie(SESSION_COOKIE, path=LEGACY_COOKIE_PATH)
-    response.set_cookie(
-        SESSION_COOKIE,
-        token,
-        max_age=max_age,
-        path=COOKIE_PATH,
-        httponly=True,
-        secure=_is_https(request),
-        samesite="strict",
+    await open_admin_session(
+        request, response, users, repo, credentials["username"], settings.admin_session_hours
     )
     logger.info("Admin %s logged in from %s", credentials["username"], client)
     return {"username": credentials["username"]}
@@ -162,11 +140,8 @@ async def logout(
     request: Request, repo: AdminRepository = Depends(get_admin_repository)
 ) -> Response:
     """End the current admin session (idempotent)."""
-    for token in cookie_values(request, SESSION_COOKIE):
-        await repo.delete_session(hash_session_token(token))
     response = Response(status_code=204)
-    response.delete_cookie(SESSION_COOKIE, path=COOKIE_PATH)
-    response.delete_cookie(SESSION_COOKIE, path=LEGACY_COOKIE_PATH)
+    await close_admin_sessions(request, response, repo)
     return response
 
 
@@ -347,6 +322,13 @@ async def create_user(
     problem = password_problem(body.password)
     if problem:
         raise HTTPException(status_code=422, detail=problem)
+    # Everyone signs in on the same page: the administrator's username must
+    # stay unambiguous.
+    credentials = await repo.get_credentials()
+    if credentials and body.username.lower() == credentials["username"].lower():
+        raise HTTPException(
+            status_code=409, detail="This username is reserved for the administrator."
+        )
     try:
         user = await service.create(body.username, body.display_name.strip(), body.password)
     except UsernameTakenError as e:

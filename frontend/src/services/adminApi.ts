@@ -76,22 +76,6 @@ async function adminRequest<T>(
   return (await response.json()) as T;
 }
 
-export function getAdminStatus(): Promise<{ configured: boolean }> {
-  return adminRequest('/status');
-}
-
-export function getAdminSession(): Promise<{ username: string }> {
-  return adminRequest('/session');
-}
-
-export function adminLogin(username: string, password: string): Promise<{ username: string }> {
-  return adminRequest('/login', { method: 'POST', body: { username, password } });
-}
-
-export function adminLogout(): Promise<void> {
-  return adminRequest('/logout', { method: 'POST' });
-}
-
 export function getAdminSettings(): Promise<AdminSettingsResponse> {
   return adminRequest('/settings');
 }

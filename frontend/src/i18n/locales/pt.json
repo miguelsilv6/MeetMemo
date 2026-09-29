@@ -324,17 +324,6 @@
     "backToApp": "Voltar à aplicação",
     "signedInAs": "Sessão iniciada como {{username}}",
     "logout": "Terminar sessão",
-    "notConfiguredTitle": "Painel de administração não configurado",
-    "notConfiguredBody": "Define ADMIN_PASSWORD (pelo menos 12 caracteres) no ambiente do backend e reinicia o backend para criar a conta de administrador.",
-    "login": {
-      "title": "Entrada de administrador",
-      "username": "Utilizador",
-      "password": "Palavra-passe",
-      "submit": "Entrar",
-      "submitting": "A entrar…",
-      "invalid": "Utilizador ou palavra-passe inválidos.",
-      "tooMany": "Demasiadas tentativas falhadas. Tenta novamente daqui a alguns minutos."
-    },
     "settings": {
       "intro": "As alterações aplicam-se aos trabalhos iniciados depois de guardar; os que já estão em curso mantêm as definições com que começaram. Cada alteração fica registada no histórico.",
       "save": "Guardar alterações",
@@ -722,7 +711,7 @@
   "auth": {
     "login": {
       "title": "Entrar no MeetMemo",
-      "intro": "As contas são criadas pelo administrador. Se ainda não tens uma, pede-lhe acesso.",
+      "intro": "Utilizadores e administrador entram aqui. As contas são criadas pelo administrador; se ainda não tens uma, pede-lhe acesso.",
       "username": "Utilizador",
       "password": "Palavra-passe",
       "submit": "Entrar",

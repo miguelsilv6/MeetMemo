@@ -12,7 +12,7 @@ from access import (
     get_principal,
     require_request_header,
 )
-from admin_auth import LoginRateLimiter
+from admin_auth import DUMMY_PASSWORD_HASH, LoginRateLimiter
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
@@ -89,18 +89,52 @@ def test_repeated_failed_logins_are_blocked():
         async def get_credentials(self, username):
             return None
 
+    class Admin:
+        async def get_credentials(self):
+            return {"username": "admin", "password_hash": DUMMY_PASSWORD_HASH}
+
     app = FastAPI()
     app.include_router(auth_api.router, prefix="/api/v1")
     app.dependency_overrides[auth_api.get_user_repository] = NoUsers
+    app.dependency_overrides[auth_api.get_admin_repository] = Admin
     app.dependency_overrides[auth_api.get_settings] = lambda: SimpleNamespace(
         user_session_hours=12
     )
     client = TestClient(app, headers={"X-MeetMemo-Request": "1"})
     body = {"username": "ana", "password": "guess"}
 
-    assert [client.post("/api/v1/auth/login", json=body).status_code for _ in range(3)] == [
-        401, 401, 401
-    ]
+    # Wrong guesses for a user and for the administrator count together.
+    admin_guess = {"username": "admin", "password": "guess"}
+    assert [client.post("/api/v1/auth/login", json=b).status_code
+            for b in (body, admin_guess, body)] == [401, 401, 401]
     assert client.post("/api/v1/auth/login", json=body).status_code == 429
     assert client.post("/api/v1/auth/login", json=body, headers={"X-MeetMemo-Request": ""}
                        ).status_code == 403
+
+
+def test_users_still_sign_in_when_the_admin_account_is_unavailable():
+    spec = importlib.util.spec_from_file_location(
+        "auth_api_no_admin", Path(__file__).resolve().parents[1] / "api" / "v1" / "auth.py"
+    )
+    auth_api = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(auth_api)
+
+    class NoUsers:
+        async def get_credentials(self, username):
+            return None
+
+    class BrokenAdmin:
+        async def get_credentials(self):
+            raise RuntimeError("relation admin_credentials does not exist")
+
+    app = FastAPI()
+    app.include_router(auth_api.router, prefix="/api/v1")
+    app.dependency_overrides[auth_api.get_user_repository] = NoUsers
+    app.dependency_overrides[auth_api.get_admin_repository] = BrokenAdmin
+    app.dependency_overrides[auth_api.get_settings] = lambda: SimpleNamespace(
+        user_session_hours=12, admin_session_hours=8
+    )
+    client = TestClient(app, headers={"X-MeetMemo-Request": "1"})
+    response = client.post("/api/v1/auth/login", json={"username": "admin", "password": "x"})
+    assert response.status_code == 401  # a normal failed login, not a server error
+

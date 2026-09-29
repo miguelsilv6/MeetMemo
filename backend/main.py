@@ -32,6 +32,7 @@ from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
 from repositories.project_repository import ProjectRepository
+from repositories.user_repository import UserRepository
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.cleanup_service import CleanupService
@@ -158,6 +159,21 @@ async def bootstrap_admin_account(app_settings) -> None:
         )
 
 
+async def warn_admin_username_conflict() -> None:
+    """
+    Everyone signs in on the same page, where the administrator's username wins:
+    a user account with that name (from before it was reserved) cannot sign in.
+    """
+    credentials = await AdminRepository().get_credentials()
+    if credentials and await UserRepository().get_credentials(credentials["username"]):
+        logger.warning(
+            "A user account is named '%s' like the administrator: it cannot sign in "
+            "(that username opens the administrator's session). Delete it or recreate "
+            "it under another name.",
+            credentials["username"],
+        )
+
+
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI):
     """
@@ -213,6 +229,7 @@ async def lifespan(fastapi_app: FastAPI):
         try:
             await ensure_admin_schema()
             await bootstrap_admin_account(app_settings)
+            await warn_admin_username_conflict()
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Admin panel unavailable: %s", e, exc_info=True)
         logger.info("Database initialized")

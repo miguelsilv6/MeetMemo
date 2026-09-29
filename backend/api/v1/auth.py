@@ -1,23 +1,23 @@
 """
-User sign-in: login/logout, the current account, and password change.
+Sign-in for everyone: login/logout, the current account, and password change.
 
+Users and the administrator sign in on the same page: a username equal to the
+administrator's opens an administrator session, any other a user session.
 Sessions are server-side: the browser holds a random token in an HttpOnly,
 SameSite=Strict cookie, and the database holds only its SHA-256. Accounts are
 created by the administrator; there is no sign-up.
 """
 import asyncio
+import hmac
 import logging
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from access import (
-    COOKIE_PATH,
     USER_COOKIE,
     Principal,
     client_key,
     cookie_values,
     get_session_principal,
-    is_https,
     require_request_header,
     token_state,
 )
@@ -27,15 +27,21 @@ from admin_auth import (
     LoginRateLimiter,
     hash_password,
     hash_session_token,
-    new_session_token,
     password_problem,
     verify_password,
 )
 from config import Settings, get_settings
-from dependencies import get_user_repository
+from dependencies import get_admin_repository, get_user_repository
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
+from repositories.admin_repository import AdminRepository
 from repositories.user_repository import UserRepository
+from sessions import (
+    close_admin_sessions,
+    close_user_sessions,
+    open_admin_session,
+    open_user_session,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,46 +78,60 @@ def _me(principal: Principal, account: Optional[dict] = None) -> dict:
     }
 
 
+def _is_admin_username(username: str, credentials: Optional[dict]) -> bool:
+    return credentials is not None and hmac.compare_digest(
+        username.encode("utf-8"), credentials["username"].encode("utf-8")
+    )
+
+
 @router.post("/login")
 async def login(
     body: LoginRequest,
     request: Request,
     response: Response,
     users: UserRepository = Depends(get_user_repository),
+    admins: AdminRepository = Depends(get_admin_repository),
     settings: Settings = Depends(get_settings),
 ) -> dict:
-    """Start a user session."""
+    """Start a session, as the administrator or as a user, depending on the username."""
     client = client_key(request)
     if _rate_limiter.is_blocked(client):
         raise HTTPException(
             status_code=429, detail="Too many failed attempts. Try again later."
         )
 
-    account = await users.get_credentials(body.username.strip())
-    # Always run the (slow) hash check so timing doesn't reveal the username.
-    stored_hash = account["password_hash"] if account else DUMMY_PASSWORD_HASH
+    username = body.username.strip()
+    try:
+        admin = await admins.get_credentials()
+    except Exception:  # pylint: disable=broad-exception-caught
+        # The admin panel is optional (see main.py): users still sign in.
+        logger.error("Admin account unavailable; only users can sign in", exc_info=True)
+        admin = None
+    as_admin = _is_admin_username(username, admin)
+    account = None if as_admin else await users.get_credentials(username)
+    # Always exactly one (slow) hash check, so neither timing nor the error
+    # reveals whether the username exists or belongs to the administrator.
+    if as_admin:
+        stored_hash = admin["password_hash"]
+    else:
+        stored_hash = account["password_hash"] if account else DUMMY_PASSWORD_HASH
     password_ok = await _verify(body.password, stored_hash)
-    if not (account and account["is_active"] and password_ok):
+    if not password_ok or not (as_admin or (account and account["is_active"])):
         _rate_limiter.record_failure(client)
-        logger.warning("Failed user login from %s", client)
+        logger.warning("Failed login from %s", client)
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
     _rate_limiter.reset(client)
-    token = new_session_token()
-    max_age = settings.user_session_hours * 3600
-    await users.create_session(
-        hash_session_token(token),
-        str(account["uuid"]),
-        datetime.now(timezone.utc) + timedelta(seconds=max_age),
-    )
-    response.set_cookie(
-        USER_COOKIE,
-        token,
-        max_age=max_age,
-        path=COOKIE_PATH,
-        httponly=True,
-        secure=is_https(request),
-        samesite="strict",
+    if as_admin:
+        await open_admin_session(
+            request, response, users, admins, admin["username"],
+            settings.admin_session_hours,
+        )
+        logger.info("Admin %s logged in from %s", admin["username"], client)
+        return _me(Principal(username=admin["username"], is_admin=True))
+
+    await open_user_session(
+        request, response, users, admins, str(account["uuid"]), settings.user_session_hours
     )
     logger.info("User %s logged in from %s", account["username"], client)
     user = await users.get(str(account["uuid"]))
@@ -126,13 +146,14 @@ async def login(
 
 @router.post("/logout", status_code=204)
 async def logout(
-    request: Request, users: UserRepository = Depends(get_user_repository)
+    request: Request,
+    users: UserRepository = Depends(get_user_repository),
+    admins: AdminRepository = Depends(get_admin_repository),
 ) -> Response:
-    """End the current user session (idempotent)."""
-    for token in cookie_values(request, USER_COOKIE):
-        await users.delete_session(hash_session_token(token))
+    """End the current session, user or administrator (idempotent)."""
     response = Response(status_code=204)
-    response.delete_cookie(USER_COOKIE, path=COOKIE_PATH)
+    await close_user_sessions(request, response, users)
+    await close_admin_sessions(request, response, admins)
     return response
 
 
