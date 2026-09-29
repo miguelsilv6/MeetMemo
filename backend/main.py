@@ -204,7 +204,7 @@ async def lifespan(fastapi_app: FastAPI):
         # Required: job queries filter on jobs.project_uuid and jobs.user_uuid.
         await ensure_projects_schema()
         await ensure_users_schema()
-        await ensure_tokens_schema()
+        await ensure_tokens_schema(app_settings.tokens_timezone)
         # Audios and projects from before user accounts have no owner: they are
         # deleted with their files, once.
         await purge_ownerless(app_settings)

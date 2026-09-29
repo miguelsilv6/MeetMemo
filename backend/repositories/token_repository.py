@@ -54,7 +54,7 @@ class TokenRepository:
         async with get_db() as conn:
             rows = await conn.fetch(
                 """SELECT t.id, t.created_at, t.delta, t.balance_after, t.reason, t.job_uuid,
-                          j.file_name, t.actor, t.note
+                          j.file_name, t.actor, t.note, t.pool, t.quota_day
                    FROM token_transactions t
                    LEFT JOIN jobs j ON j.uuid = t.job_uuid
                    WHERE t.user_uuid = $1

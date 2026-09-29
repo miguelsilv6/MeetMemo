@@ -7,6 +7,7 @@ import type {
   AdminUser,
   TokenTransaction,
   UserContent,
+  UserTokenState,
   AuditEntry,
   RuntimeSettings,
   SaveSettingsResponse,
@@ -118,11 +119,18 @@ export function createUser(
   username: string,
   displayName: string,
   password: string,
-  initialTokens = 0
+  initialTokens = 0,
+  dailyQuota: number | null = null
 ): Promise<AdminUser> {
   return adminRequest('/users', {
     method: 'POST',
-    body: { username, display_name: displayName, password, initial_tokens: initialTokens },
+    body: {
+      username,
+      display_name: displayName,
+      password,
+      initial_tokens: initialTokens,
+      daily_token_quota: dailyQuota,
+    },
   });
 }
 
@@ -149,12 +157,26 @@ export function changeUserTokens(
   uuid: string,
   delta: number,
   note: string | null
-): Promise<{ token_balance: number }> {
+): Promise<UserTokenState> {
   return adminRequest(`/users/${uuid}/tokens`, { method: 'POST', body: { delta, note } });
 }
 
-export function getUserTokens(
-  uuid: string
-): Promise<{ token_balance: number; transactions: TokenTransaction[] }> {
+/** The account's own daily quota, or null to follow the panel's default. */
+export function setUserDailyQuota(
+  uuid: string,
+  quota: number | null
+): Promise<UserTokenState & { daily_token_quota: number | null }> {
+  return adminRequest(`/users/${uuid}/daily-quota`, {
+    method: 'PUT',
+    body: { daily_token_quota: quota },
+  });
+}
+
+export function getUserTokens(uuid: string): Promise<
+  UserTokenState & {
+    daily_token_quota: number | null;
+    transactions: TokenTransaction[];
+  }
+> {
   return adminRequest(`/users/${uuid}/tokens`);
 }

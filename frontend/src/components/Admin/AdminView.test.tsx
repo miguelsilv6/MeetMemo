@@ -40,6 +40,7 @@ const settings: RuntimeSettings = {
   job_retention_hours: 12,
   project_retention_days: 7,
   max_upload_mb: 100,
+  default_daily_tokens: 0,
   llm_summary_system_prompt: 'Default system prompt.',
   llm_summary_request: 'Default request.',
   llm_language_rule: 'Default language rule.',
@@ -329,6 +330,7 @@ describe('AdminView', () => {
     expect(tab('Transcription')).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByLabelText('Maximum size per file (MB)')).toBeInTheDocument();
     expect(screen.queryByLabelText('Beam size')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Default daily tokens')).toHaveValue(0);
 
     openTab('Security');
     expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
@@ -355,7 +357,7 @@ describe('AdminView', () => {
     expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
       expect.objectContaining({ beam_size: 3 })
     );
-    expect(tab('Transcription')).not.toHaveAccessibleName(/unsaved changes/);
+    await waitFor(() => expect(tab('Transcription')).not.toHaveAccessibleName(/unsaved changes/));
   });
 
   it('jumps to the tab with an invalid field when saving from another tab', async () => {
@@ -401,5 +403,34 @@ describe('AdminView', () => {
 
     await renderSignedIn();
     expect(tab('Users')).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('saves the default daily tokens from the Uploads tab', async () => {
+    vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
+      settings: { ...settings, default_daily_tokens: 5 },
+      changed: ['default_daily_tokens'],
+    });
+    await renderSignedIn();
+    openTab('Uploads');
+    const field = screen.getByLabelText('Default daily tokens');
+    fireEvent.change(field, { target: { value: '10001' } });
+    expect(screen.getByText(/10000/)).toBeInTheDocument();
+    fireEvent.change(field, { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() =>
+      expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ default_daily_tokens: 5 })
+      )
+    );
+  });
+
+  it('reloads the users each time their tab is opened', async () => {
+    await renderSignedIn();
+    expect(adminApi.listUsers).not.toHaveBeenCalled();
+    openTab('Users');
+    await waitFor(() => expect(adminApi.listUsers).toHaveBeenCalledTimes(1));
+    openTab('Uploads');
+    openTab('Users');
+    await waitFor(() => expect(adminApi.listUsers).toHaveBeenCalledTimes(2));
   });
 });

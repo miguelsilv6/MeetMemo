@@ -217,7 +217,11 @@ export default function AdminView({ onExit }: AdminViewProps) {
               onRequestTab={selectTab}
             />
             <div hidden={activeTab !== 'users'}>
-              <AdminUsers onChanged={refreshAudit} onUnauthorized={showLogin} />
+              <AdminUsers
+                onChanged={refreshAudit}
+                onUnauthorized={showLogin}
+                active={activeTab === 'users'}
+              />
             </div>
             <Row hidden={activeTab !== 'security'}>
               <Col lg={6}>

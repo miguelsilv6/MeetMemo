@@ -17,6 +17,7 @@ from access import (
     get_principal,
     require_request_header,
     require_user,
+    tokens_available,
 )
 from config import Settings, get_settings
 from database import InsufficientTokensError, get_export_paths, update_status
@@ -96,7 +97,7 @@ async def create_job(
     # Refuse early rather than after receiving the whole file; the charge
     # below is what actually guarantees the balance.
     account = await users.get(principal.user_uuid)
-    if not account or account["token_balance"] < 1:
+    if tokens_available(account) < 1:
         raise HTTPException(status_code=402, detail=NO_TOKENS_DETAIL)
 
     try:

@@ -16,6 +16,7 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
     resetUserPassword: vi.fn(),
     deleteUser: vi.fn(),
     getUserContent: vi.fn(),
+    setUserDailyQuota: vi.fn(),
   };
 });
 
@@ -30,6 +31,9 @@ const ana: AdminUser = {
   project_count: 2,
   audio_count: 5,
   token_balance: 3,
+  daily_token_quota: null,
+  daily_quota: 0,
+  daily_used: 0,
 };
 
 function renderUsers() {
@@ -78,7 +82,8 @@ describe('AdminUsers', () => {
         'bruno',
         'Bruno Costa',
         'long enough pass',
-        0
+        0,
+        null
       )
     );
     expect(await screen.findByText('User bruno created.')).toBeInTheDocument();
@@ -160,6 +165,9 @@ describe('AdminUsers', () => {
   it('gives and takes tokens and shows their history', async () => {
     vi.mocked(adminApi.getUserTokens).mockResolvedValue({
       token_balance: 3,
+      daily_quota: 0,
+      daily_used: 0,
+      daily_token_quota: null,
       transactions: [
         {
           id: 2,
@@ -171,6 +179,8 @@ describe('AdminUsers', () => {
           file_name: 'call.wav',
           actor: 'ana',
           note: null,
+          pool: 'balance',
+          quota_day: null,
         },
         {
           id: 1,
@@ -182,16 +192,22 @@ describe('AdminUsers', () => {
           file_name: null,
           actor: 'admin',
           note: 'Initial tokens',
+          pool: 'balance',
+          quota_day: null,
         },
       ],
     });
-    vi.mocked(adminApi.changeUserTokens).mockResolvedValue({ token_balance: 8 });
+    vi.mocked(adminApi.changeUserTokens).mockResolvedValue({
+      token_balance: 8,
+      daily_quota: 0,
+      daily_used: 0,
+    });
     renderUsers();
     await screen.findByText('Ana Silva');
 
     fireEvent.click(screen.getByRole('button', { name: "Manage ana's tokens" }));
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByText('Current balance: 3 tokens.')).toBeInTheDocument();
+    expect(await within(dialog).findByText('Extra balance: 3 tokens.')).toBeInTheDocument();
     expect(within(dialog).getByText('call.wav · ana')).toBeInTheDocument();
     expect(within(dialog).getByText('+4')).toBeInTheDocument();
 
@@ -207,5 +223,78 @@ describe('AdminUsers', () => {
       expect(adminApi.changeUserTokens).toHaveBeenCalledWith('u-ana', 5, 'Monthly top-up')
     );
     expect(await screen.findByText('5 tokens added to ana.')).toBeInTheDocument();
+  });
+
+  it('creates an account with its own daily quota', async () => {
+    vi.mocked(adminApi.createUser).mockResolvedValue({ ...ana, uuid: 'u-rui', username: 'rui' });
+    renderUsers();
+    await screen.findByText('Ana Silva');
+
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'rui' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Rui' } });
+    fireEvent.change(screen.getByLabelText('Temporary password'), {
+      target: { value: 'long enough pass' },
+    });
+    const daily = screen.getByLabelText('Daily quota');
+    fireEvent.change(daily, { target: { value: '-1' } });
+    expect(screen.getByRole('button', { name: /create user/i })).toBeDisabled();
+    fireEvent.change(daily, { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: /create user/i }));
+
+    await waitFor(() =>
+      expect(adminApi.createUser).toHaveBeenCalledWith('rui', 'Rui', 'long enough pass', 0, 4)
+    );
+  });
+
+  it("shows today's quota and sets or clears an account's own quota", async () => {
+    const withQuota = { ...ana, daily_token_quota: 5, daily_quota: 5, daily_used: 2 };
+    vi.mocked(adminApi.listUsers).mockResolvedValue([withQuota]);
+    vi.mocked(adminApi.getUserTokens).mockResolvedValue({
+      token_balance: 3,
+      daily_quota: 5,
+      daily_used: 2,
+      daily_token_quota: 5,
+      transactions: [
+        {
+          id: 1,
+          created_at: '2026-09-28T11:00:00Z',
+          delta: -1,
+          balance_after: 3,
+          reason: 'charge',
+          job_uuid: 'j1',
+          file_name: 'call.wav',
+          actor: 'ana',
+          note: null,
+          pool: 'daily',
+          quota_day: '2026-09-28',
+        },
+      ],
+    });
+    vi.mocked(adminApi.setUserDailyQuota).mockResolvedValue({
+      token_balance: 3,
+      daily_quota: 0,
+      daily_used: 2,
+      daily_token_quota: null,
+    });
+    renderUsers();
+
+    const cell = await screen.findByRole('button', { name: "Manage ana's tokens" });
+    expect(cell).toHaveTextContent('3/5 today · +3');
+    fireEvent.click(cell);
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Today: 2 of 5 used.')).toBeInTheDocument();
+    expect(within(dialog).getByText('(own value)')).toBeInTheDocument();
+    expect(within(dialog).getByText('daily quota')).toBeInTheDocument(); // the charge's pool
+
+    const perDay = within(dialog).getByLabelText('Tokens per day');
+    expect(perDay).toHaveValue(5);
+    const save = within(dialog).getByRole('button', { name: 'Save quota' });
+    expect(save).toBeDisabled(); // unchanged
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use the default' }));
+    expect(perDay).toHaveValue(null);
+    fireEvent.click(save);
+
+    await waitFor(() => expect(adminApi.setUserDailyQuota).toHaveBeenCalledWith('u-ana', null));
+    expect(await screen.findByText('ana now follows the default daily quota.')).toBeInTheDocument();
   });
 });

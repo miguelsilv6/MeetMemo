@@ -8,6 +8,7 @@ created by the administrator; there is no sign-up.
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from access import (
     COOKIE_PATH,
@@ -18,6 +19,7 @@ from access import (
     get_session_principal,
     is_https,
     require_request_header,
+    token_state,
 )
 from admin_auth import (
     DUMMY_PASSWORD_HASH,
@@ -59,14 +61,14 @@ async def _verify(password: str, stored_hash: str) -> bool:
     return await loop.run_in_executor(None, verify_password, password, stored_hash)
 
 
-def _me(principal: Principal, token_balance=None) -> dict:
+def _me(principal: Principal, account: Optional[dict] = None) -> dict:
     return {
         "username": principal.username,
         "display_name": principal.display_name,
         "is_admin": principal.is_admin,
         "must_change_password": principal.must_change_password,
-        # None for the administrator, who has no account and uploads nothing.
-        "token_balance": token_balance,
+        # All None for the administrator, who has no account and uploads nothing.
+        **token_state(account),
     }
 
 
@@ -118,7 +120,7 @@ async def login(
         "display_name": user["display_name"],
         "is_admin": False,
         "must_change_password": user["must_change_password"],
-        "token_balance": user["token_balance"],
+        **token_state(user),
     }
 
 
@@ -139,12 +141,9 @@ async def me(
     principal: Principal = Depends(get_session_principal),
     users: UserRepository = Depends(get_user_repository),
 ) -> dict:
-    """The signed-in user (or administrator), with the user's token balance."""
-    balance = None
-    if principal.user_uuid:
-        account = await users.get(principal.user_uuid)
-        balance = account["token_balance"] if account else 0
-    return _me(principal, balance)
+    """The signed-in user (or administrator), with the user's tokens."""
+    account = await users.get(principal.user_uuid) if principal.user_uuid else None
+    return _me(principal, account)
 
 
 @router.post("/password", status_code=204)

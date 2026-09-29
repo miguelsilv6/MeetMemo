@@ -20,6 +20,8 @@ const ana: Me = {
   is_admin: false,
   must_change_password: false,
   token_balance: 3,
+  daily_quota: 0,
+  daily_used: 0,
 };
 
 const apiError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });

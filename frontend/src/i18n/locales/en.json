@@ -304,7 +304,7 @@
     "processingFailed": "Processing failed. Please try again.",
     "processingGeneric": "An error occurred while processing. Please try again.",
     "fileTooLarge": "The file “{{name}}” is {{size}} MB, over the {{max}} MB limit per file.",
-    "noTokens": "You have no tokens left. Ask the administrator for more."
+    "noTokens": "You have no tokens left. If you have a daily quota, it comes back at midnight; otherwise ask the administrator for more."
   },
   "admin": {
     "title": "Administration",
@@ -356,7 +356,8 @@
         "languageRetention": "Language and retention",
         "uploads": "Uploads",
         "prompts": "LLM prompts (summaries and translation)",
-        "restartOnly": "Restart-only configuration (read-only)"
+        "restartOnly": "Restart-only configuration (read-only)",
+        "dailyTokens": "Daily tokens"
       },
       "fields": {
         "whisper_model_name": {
@@ -457,6 +458,10 @@
         "max_upload_mb": {
           "label": "Maximum size per file (MB)",
           "help": "Applies from now on to uploaded audios, recordings made in the browser and project audios. At most 500 MB: that is nginx's limit, and each file is held in memory while it is received."
+        },
+        "default_daily_tokens": {
+          "label": "Default daily tokens",
+          "help": "The daily quota of users without their own (set under Users). It is full again every day at midnight and does not accumulate; uploads use this quota first and the extra balance after it. 0 = no daily quota."
         }
       },
       "restartOnly": {
@@ -529,7 +534,8 @@
         "user_deactivated": "User deactivated",
         "user_password_reset": "User password reset",
         "user_deleted": "User deleted",
-        "user_tokens": "User tokens changed"
+        "user_tokens": "User tokens changed",
+        "user_daily_tokens": "User daily quota changed"
       }
     },
     "users": {
@@ -581,9 +587,9 @@
       "column": "Tokens",
       "manageFor": "Manage {{username}}'s tokens",
       "title": "{{name}}'s tokens",
-      "balance_zero": "Current balance: {{count}} tokens.",
-      "balance_one": "Current balance: {{count}} token.",
-      "balance_other": "Current balance: {{count}} tokens.",
+      "balance_zero": "Extra balance: {{count}} tokens.",
+      "balance_one": "Extra balance: {{count}} token.",
+      "balance_other": "Extra balance: {{count}} tokens.",
       "amount": "Amount",
       "note": "Reason (optional)",
       "add": "Add",
@@ -592,7 +598,7 @@
       "noHistory": "No movements yet.",
       "reasonColumn": "Movement",
       "change": "Change",
-      "after": "Balance",
+      "after": "Extra balance",
       "details": "Details",
       "deletedAudio": "deleted audio",
       "reasons": {
@@ -606,7 +612,24 @@
       "added_other": "{{count}} tokens added to {{username}}.",
       "removed_zero": "{{count}} tokens removed from {{username}}.",
       "removed_one": "{{count}} token removed from {{username}}.",
-      "removed_other": "{{count}} tokens removed from {{username}}."
+      "removed_other": "{{count}} tokens removed from {{username}}.",
+      "dailyQuota": "Daily quota",
+      "dailyQuotaHelp": "Empty: use the default (Uploads tab). 0: no daily quota.",
+      "defaultPlaceholder": "Default",
+      "cell": "{{remaining}}/{{quota}} today · +{{extra}}",
+      "dailyToday": "Today: {{used}} of {{quota}} used.",
+      "noDailyQuota": "No daily quota.",
+      "followsDefault": "default",
+      "ownQuota": "own value",
+      "quotaPerDay": "Tokens per day",
+      "saveQuota": "Save quota",
+      "useDefault": "Use the default",
+      "extraTitle": "Extra balance",
+      "fromDaily": "daily quota",
+      "quotaSet_zero": "{{username}} now has no daily quota.",
+      "quotaSet_one": "{{username}}'s daily quota: {{count}} token.",
+      "quotaSet_other": "{{username}}'s daily quota: {{count}} tokens.",
+      "quotaDefaultSet": "{{username}} now follows the default daily quota."
     }
   },
   "projects": {
@@ -722,6 +745,8 @@
     "tokens_one": "{{count}} token",
     "tokens_other": "{{count}} tokens",
     "tokensHint": "Each transcription uses 1 token. If processing fails, the token is given back.",
-    "noTokens": "You have no tokens left (1 token = 1 transcription). Ask the administrator for more to upload new audios."
+    "noTokens": "You have no tokens left (1 token = 1 transcription). If you have a daily quota, it comes back at midnight; to upload new audios now, ask the administrator for more.",
+    "tokensDaily": "{{remaining}} of {{quota}} today · +{{extra}}",
+    "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back."
   }
 }

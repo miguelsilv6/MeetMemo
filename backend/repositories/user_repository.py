@@ -7,8 +7,13 @@ from typing import Optional
 import asyncpg
 from database import get_db
 
+# daily_token_quota is the account's own quota (None: the panel's default);
+# daily_quota is the one in force and daily_used what today's uploads took.
 _USER_COLUMNS = """u.uuid, u.username, u.display_name, u.is_active, u.must_change_password,
-                   u.created_at, u.last_login_at, u.token_balance"""
+                   u.created_at, u.last_login_at, u.token_balance, u.daily_token_quota,
+                   COALESCE(u.daily_token_quota, default_daily_tokens()) AS daily_quota,
+                   CASE WHEN u.daily_tokens_day = tokens_today()
+                        THEN u.daily_tokens_used ELSE 0 END AS daily_used"""
 
 
 class UsernameTakenError(Exception):
@@ -79,6 +84,17 @@ class UserRepository:
                    ORDER BY LOWER(u.username)"""
             )
         return [dict(row) for row in rows]
+
+    async def set_daily_quota(self, uuid: str, quota: Optional[int]) -> Optional[dict]:
+        """Give the account its own daily quota, or None to follow the panel's default."""
+        async with get_db() as conn:
+            row = await conn.fetchrow(
+                f"""UPDATE users AS u SET daily_token_quota = $2
+                    WHERE uuid = $1
+                    RETURNING {_USER_COLUMNS}""",
+                uuid, quota,
+            )
+        return dict(row) if row else None
 
     async def update(
         self, uuid: str, display_name: Optional[str], is_active: Optional[bool]

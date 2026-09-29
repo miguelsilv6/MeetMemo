@@ -12,8 +12,10 @@ import {
   getUserTokens,
   listUsers,
   resetUserPassword,
+  setUserDailyQuota,
   updateUser,
 } from '../../services/adminApi';
+import { availableTokens, dailyRemaining } from '../../utils/tokens';
 import { jobRoute, projectRoute } from '../../hooks/useHashRoute';
 import { formatDateTime } from '../../utils/projectDates';
 import type { AdminUser, TokenTransaction, UserContent } from '../../types/admin';
@@ -26,6 +28,11 @@ interface AdminUsersProps {
   /** After any change, so the audit trail can refresh. */
   onChanged: () => void;
   onUnauthorized: () => void;
+  /**
+   * Whether the list is on screen. It reloads each time it comes back into
+   * view, since balances and quotas change with uploads and panel settings.
+   */
+  active?: boolean;
 }
 
 type Dialog =
@@ -35,7 +42,7 @@ type Dialog =
   | { kind: 'tokens'; user: AdminUser; history: TokenTransaction[] | null };
 
 /** User accounts: create, (de)activate, reset password, delete, open their content. */
-export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProps) {
+export default function AdminUsers({ onChanged, onUnauthorized, active = true }: AdminUsersProps) {
   const { t, i18n } = useTranslation();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +52,12 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
     displayName: '',
     password: '',
     tokens: '0',
+    /** Empty: follow the panel's default daily quota. */
+    dailyQuota: '',
   });
   const [tokenChange, setTokenChange] = useState({ amount: '', note: '' });
+  /** The daily quota being edited in the tokens dialog; empty value = the default. */
+  const [quotaDraft, setQuotaDraft] = useState('');
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [dialogInput, setDialogInput] = useState('');
@@ -72,9 +83,9 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
   }, [fail]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
-    load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch when shown
+    if (active) load();
+  }, [active, load]);
 
   const afterChange = async (message: string) => {
     setNotice(message);
@@ -86,12 +97,15 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
   const initialTokens = Number(draft.tokens);
   const validTokens = (value: number, min: number) =>
     Number.isInteger(value) && value >= min && value <= MAX_TOKEN_CHANGE;
+  const draftQuota = draft.dailyQuota.trim() === '' ? null : Number(draft.dailyQuota);
+  const validQuota = (value: number | null) => value === null || validTokens(value, 0);
   const passwordTooShort = draft.password.length > 0 && draft.password.length < MIN_PASSWORD_LENGTH;
   const canCreate =
     /^[A-Za-z0-9._@-]{3,100}$/.test(draft.username) &&
     draft.displayName.trim().length > 0 &&
     draft.password.length >= MIN_PASSWORD_LENGTH &&
     validTokens(initialTokens, 0) &&
+    validQuota(draftQuota) &&
     !creating;
 
   const handleCreate = async (e: FormEvent) => {
@@ -103,9 +117,10 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
         draft.username,
         draft.displayName.trim(),
         draft.password,
-        initialTokens
+        initialTokens,
+        draftQuota
       );
-      setDraft({ username: '', displayName: '', password: '', tokens: '0' });
+      setDraft({ username: '', displayName: '', password: '', tokens: '0', dailyQuota: '' });
       await afterChange(t('admin.users.created', { username: user.username }));
     } catch (err) {
       fail(err);
@@ -129,12 +144,9 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
 
   const loadTokens = async (user: AdminUser) => {
     try {
-      const { token_balance: balance, transactions } = await getUserTokens(user.uuid);
-      setDialog({
-        kind: 'tokens',
-        user: { ...user, token_balance: balance },
-        history: transactions,
-      });
+      const { transactions, ...state } = await getUserTokens(user.uuid);
+      setDialog({ kind: 'tokens', user: { ...user, ...state }, history: transactions });
+      setQuotaDraft(state.daily_token_quota === null ? '' : String(state.daily_token_quota));
     } catch (err) {
       setDialog(null);
       fail(err);
@@ -154,6 +166,26 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
           count: amount,
           username: dialog.user.username,
         })
+      );
+      await loadTokens(dialog.user);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const quotaValue = quotaDraft.trim() === '' ? null : Number(quotaDraft);
+
+  const applyQuota = async () => {
+    if (dialog?.kind !== 'tokens' || !validQuota(quotaValue)) return;
+    setBusy(true);
+    try {
+      await setUserDailyQuota(dialog.user.uuid, quotaValue);
+      await afterChange(
+        quotaValue === null
+          ? t('admin.tokens.quotaDefaultSet', { username: dialog.user.username })
+          : t('admin.tokens.quotaSet', { count: quotaValue, username: dialog.user.username })
       );
       await loadTokens(dialog.user);
     } catch (err) {
@@ -285,6 +317,25 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                 />
               </Form.Group>
             </Col>
+            <Col md={3} lg={2}>
+              <Form.Group controlId="new-user-daily" className="mb-2">
+                <Form.Label>{t('admin.tokens.dailyQuota')}</Form.Label>
+                <Form.Control
+                  type="number"
+                  min={0}
+                  max={MAX_TOKEN_CHANGE}
+                  step={1}
+                  value={draft.dailyQuota}
+                  placeholder={t('admin.tokens.defaultPlaceholder')}
+                  isInvalid={!validQuota(draftQuota)}
+                  aria-describedby="new-user-daily-help"
+                  onChange={(e) => setDraft({ ...draft, dailyQuota: e.target.value })}
+                />
+                <Form.Text id="new-user-daily-help" className="text-muted">
+                  {t('admin.tokens.dailyQuotaHelp')}
+                </Form.Text>
+              </Form.Group>
+            </Col>
           </Row>
           <div className="d-flex flex-wrap align-items-center gap-3">
             <Button type="submit" variant="primary" disabled={!canCreate}>
@@ -337,13 +388,22 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                     </td>
                     <td>
                       <Button
-                        variant={user.token_balance > 0 ? 'outline-secondary' : 'outline-danger'}
+                        variant={
+                          (availableTokens(user) ?? 0) > 0 ? 'outline-secondary' : 'outline-danger'
+                        }
                         size="sm"
+                        className="text-nowrap"
                         onClick={() => openDialog({ kind: 'tokens', user, history: null })}
                         aria-label={t('admin.tokens.manageFor', { username: user.username })}
                       >
                         <Coins size={14} className="me-1" />
-                        {user.token_balance}
+                        {user.daily_quota > 0
+                          ? t('admin.tokens.cell', {
+                              remaining: dailyRemaining(user),
+                              quota: user.daily_quota,
+                              extra: user.token_balance,
+                            })
+                          : user.token_balance}
                       </Button>
                     </td>
                     <td className="text-nowrap small">{date(user.last_login_at)}</td>
@@ -486,7 +546,69 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
             ))}
           {dialog?.kind === 'tokens' && (
             <>
-              <p className="mb-3">
+              <h6>{t('admin.tokens.dailyQuota')}</h6>
+              <p className="mb-2">
+                {dialog.user.daily_quota > 0
+                  ? t('admin.tokens.dailyToday', {
+                      used: dialog.user.daily_used,
+                      quota: dialog.user.daily_quota,
+                    })
+                  : t('admin.tokens.noDailyQuota')}{' '}
+                <span className="text-muted">
+                  (
+                  {dialog.user.daily_token_quota === null
+                    ? t('admin.tokens.followsDefault')
+                    : t('admin.tokens.ownQuota')}
+                  )
+                </span>
+              </p>
+              <Row className="align-items-end g-2 mb-4">
+                <Col sm={4}>
+                  <Form.Group controlId="token-daily-quota">
+                    <Form.Label>{t('admin.tokens.quotaPerDay')}</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={0}
+                      max={MAX_TOKEN_CHANGE}
+                      step={1}
+                      value={quotaDraft}
+                      placeholder={t('admin.tokens.defaultPlaceholder')}
+                      isInvalid={!validQuota(quotaValue)}
+                      aria-describedby="token-daily-quota-help"
+                      onChange={(e) => setQuotaDraft(e.target.value)}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col sm={8} className="d-flex flex-wrap gap-2">
+                  <Button
+                    variant="primary"
+                    disabled={
+                      busy ||
+                      !validQuota(quotaValue) ||
+                      quotaValue === dialog.user.daily_token_quota
+                    }
+                    onClick={applyQuota}
+                  >
+                    {t('admin.tokens.saveQuota')}
+                  </Button>
+                  {dialog.user.daily_token_quota !== null && (
+                    <Button
+                      variant="outline-secondary"
+                      disabled={busy}
+                      onClick={() => setQuotaDraft('')}
+                    >
+                      {t('admin.tokens.useDefault')}
+                    </Button>
+                  )}
+                </Col>
+                <Col xs={12}>
+                  <Form.Text id="token-daily-quota-help" className="text-muted">
+                    {t('admin.tokens.dailyQuotaHelp')}
+                  </Form.Text>
+                </Col>
+              </Row>
+              <h6>{t('admin.tokens.extraTitle')}</h6>
+              <p className="mb-2">
                 {t('admin.tokens.balance', { count: dialog.user.token_balance })}
               </p>
               <Row className="align-items-end g-2 mb-3">
@@ -559,7 +681,14 @@ export default function AdminUsers({ onChanged, onUnauthorized }: AdminUsersProp
                       {dialog.history.map((entry) => (
                         <tr key={entry.id}>
                           <td className="text-nowrap small">{date(entry.created_at)}</td>
-                          <td>{t(`admin.tokens.reasons.${entry.reason}`)}</td>
+                          <td>
+                            {t(`admin.tokens.reasons.${entry.reason}`)}
+                            {entry.pool === 'daily' && (
+                              <small className="d-block text-muted">
+                                {t('admin.tokens.fromDaily')}
+                              </small>
+                            )}
+                          </td>
                           <td
                             className={`text-end ${entry.delta > 0 ? 'text-success' : 'text-danger'}`}
                           >

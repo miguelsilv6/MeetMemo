@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     admin_password: str | None = None
     admin_session_hours: int = 8
     user_session_hours: int = 12
+    # Time zone (IANA name) in which the daily token quota resets at midnight.
+    tokens_timezone: str = "Europe/Lisbon"
 
     # Cleanup & Maintenance
     cleanup_interval_hours: int = 1
