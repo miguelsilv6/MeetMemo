@@ -59,6 +59,10 @@ def audio_status(job: dict, current_job: Optional[str], queue: list[str]) -> dic
         else None,
         "error_message": job.get("error_message") if status == "error" else None,
         "language": job.get("language"),
+        # Detected by Whisper, once transcribed (no probability when the
+        # language was chosen rather than detected).
+        "detected_language": job.get("detected_language"),
+        "language_probability": job.get("language_probability"),
         "created_at": job["created_at"],
     }
 

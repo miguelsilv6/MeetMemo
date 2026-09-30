@@ -71,6 +71,16 @@ def test_audio_status_distinguishes_queued_processing_done_and_failed():
     assert (done["status"], done["progress"], done["error_message"]) == ("completed", 100, None)
 
 
+def test_audio_status_carries_the_detected_language_and_import_date():
+    done = audio_status(
+        _row("e", "completed", detected_language="en", language_probability=0.42), None, []
+    )
+    assert (done["detected_language"], done["language_probability"]) == ("en", 0.42)
+    assert done["created_at"] == NOW
+    waiting = audio_status(_row("f", "uploaded"), None, ["f"])
+    assert (waiting["detected_language"], waiting["language_probability"]) == (None, None)
+
+
 # --- Files of a job --------------------------------------------------------------
 
 

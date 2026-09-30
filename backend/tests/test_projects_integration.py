@@ -205,6 +205,14 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         detail = client.get(f"/api/v1/projects/{pid}").json()
         assert [a["status"] for a in detail["audios"]] == ["completed", "error"]
         assert detail["audios"][1]["error_message"] == "Unsupported model: evil"
+        # What Whisper detected, once transcribed; nothing before.
+        assert (detail["audios"][0]["detected_language"],
+                detail["audios"][0]["language_probability"]) == (None, None)
+        run(database.save_transcription_data(
+            first, {"language": "en", "language_probability": 0.42, "segments": []}))
+        audio = client.get(f"/api/v1/projects/{pid}").json()["audios"][0]
+        assert (audio["detected_language"], audio["language_probability"]) == ("en", 0.42)
+        assert audio["created_at"]
 
         # A failed audio can be queued again; a completed one cannot.
         assert client.post(f"/api/v1/projects/{pid}/audios/{second}/retry").status_code == 204
