@@ -471,6 +471,18 @@ export async function startTranscription(
   });
 }
 
+// Transcribe a completed audio again in the given language (Whisper code).
+// Everything made from its old transcript is deleted; no token is charged.
+export async function retranscribeJob(uuid: string, language: string): Promise<unknown> {
+  return await apiCall(`/jobs/${uuid}/retranscribe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ language }),
+  });
+}
+
 // Start diarization step
 export async function startDiarization(uuid: string): Promise<unknown> {
   return await apiCall(`/jobs/${uuid}/diarizations`, {

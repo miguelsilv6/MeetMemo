@@ -43,7 +43,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Real-time Progress** | Live status updates and job management for long-running tasks |
 | **Speaker Management** | Edit speaker names with persistent storage across sessions |
 | **Export Options** | Professional PDF and Markdown exports for transcripts and summaries |
-| **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI |
+| **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI; below 80% confidence the audio can be transcribed again in a chosen language (free of tokens; the old transcript, its edits, summary, translations and exports are replaced) |
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
 | **Portuguese Translation** | Translate the transcript to Portuguese on demand (cached per job), in the background like summaries, block by block with progress; a failed or interrupted translation resumes where it stopped. Engine chosen in the admin panel: the LLM, or NLLB-200 offline |
 | **User Accounts** | Sign-in required, on one page for users and the administrator; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |

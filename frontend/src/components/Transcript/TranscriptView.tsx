@@ -58,6 +58,10 @@ interface TranscriptViewProps {
   handleToggleTranslation: (segments: TranscriptSegmentType[] | undefined) => void;
   canUndo: boolean;
   handleUndo: () => void;
+  /** Transcribe the audio again in another language (offered on low confidence). */
+  handleRetranscribe?: (language: string) => Promise<void>;
+  /** Pre-selected language for that. */
+  retranscribeLanguage?: string | null;
 }
 
 /**
@@ -109,6 +113,8 @@ export default function TranscriptView({
   handleToggleTranslation,
   canUndo,
   handleUndo,
+  handleRetranscribe,
+  retranscribeLanguage = null,
 }: TranscriptViewProps) {
   const { t } = useTranslation();
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
@@ -406,6 +412,8 @@ export default function TranscriptView({
           summaryTask={summaryTask}
           summary={summary}
           jobId={jobId}
+          onRetranscribe={handleRetranscribe}
+          retranscribeLanguage={retranscribeLanguage}
         />
       </Col>
 

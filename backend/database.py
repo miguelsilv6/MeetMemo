@@ -117,7 +117,8 @@ async def require_owners() -> None:
 
 TOKENS_SCHEMA_PATHS = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "migrations", name)
-    for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql")
+    for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql",
+                 "010_retranscription.sql")
 ]
 
 DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
@@ -225,7 +226,8 @@ async def charge_token(conn, user_uuid: str, job_uuid: str) -> str:
 async def refund_queued(conn, where_sql: str, *args) -> int:
     """
     Refund the tokens of audios still waiting (never processed) that are about
-    to be deleted, inside the caller's transaction. ``where_sql`` selects the
+    to be deleted, inside the caller's transaction. An audio waiting for a
+    re-transcription already used its token and gets nothing back. ``where_sql`` selects the
     jobs, with ``args`` as its parameters.
 
     Returns:
@@ -236,7 +238,8 @@ async def refund_queued(conn, where_sql: str, *args) -> int:
             FROM (SELECT refund_job_charge(uuid, 'system', 'Deleted before processing')
                          AS refunded
                   FROM jobs
-                  WHERE workflow_state = 'uploaded' AND ({where_sql})) r""",
+                  WHERE workflow_state = 'uploaded' AND token_refundable
+                    AND ({where_sql})) r""",
         *args,
     )
 

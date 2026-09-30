@@ -177,4 +177,35 @@ describe('useSummary', () => {
     await waitFor(() => expect(result.current.generatingSummary).toBe(true));
     expect(result.current.summaryTask?.status).toBe('running');
   });
+
+  it("drops the summary when the job changes (another job's, or before a new transcription)", async () => {
+    vi.mocked(api.generateSummary).mockResolvedValue({ summary: 'Old summary' });
+    const { result, rerender } = renderHook(
+      ({ jobId }: { jobId: string | null }) => useSummary(jobId, vi.fn(), vi.fn()),
+      { initialProps: { jobId: 'job1' as string | null } }
+    );
+    await act(async () => {
+      await result.current.handleGenerateSummary();
+    });
+    expect(result.current.summary).toEqual({ summary: 'Old summary' });
+
+    rerender({ jobId: 'job1' }); // same job: kept
+    expect(result.current.summary).toEqual({ summary: 'Old summary' });
+    rerender({ jobId: null });
+    rerender({ jobId: 'job1' }); // the same job, transcribed again
+    await waitFor(() => expect(result.current.summary).toBeNull());
+  });
+
+  it('keeps a summary fetched for a job that is being opened', async () => {
+    vi.mocked(api.generateSummary).mockResolvedValue({ summary: 'Past summary' });
+    const { result, rerender } = renderHook(
+      ({ jobId }: { jobId: string | null }) => useSummary(jobId, vi.fn(), vi.fn()),
+      { initialProps: { jobId: null as string | null } }
+    );
+    await act(async () => {
+      await result.current.generateSummaryFor('job2');
+    });
+    rerender({ jobId: 'job2' });
+    expect(result.current.summary).toEqual({ summary: 'Past summary' });
+  });
 });

@@ -11,6 +11,7 @@ from database import (
     cleanup_old_jobs,
     delete_job,
     get_all_jobs,
+    get_db,
     get_diarization_data,
     get_job,
     get_job_by_hash,
@@ -162,6 +163,38 @@ class JobRepository:
             Diarization data or None if not found
         """
         return await get_diarization_data(uuid)
+
+    async def reset_for_retranscription(self, uuid: str, language: str) -> Optional[list[str]]:
+        """
+        Put a completed audio back at the start, to be transcribed again in
+        ``language``: its transcription and diarization data, exports and
+        summary/translation tasks are dropped, and its token is no longer
+        refundable (it paid for the first transcription).
+
+        Returns:
+            The paths of the export files to delete, or None if the audio is
+            not completed (still processing, failed, or gone).
+        """
+        async with get_db() as conn:
+            async with conn.transaction():
+                reset = await conn.fetchval(
+                    """UPDATE jobs SET workflow_state = 'uploaded', status_code = 202,
+                                      current_step_progress = 0, error_message = NULL,
+                                      language = $2, transcription_data = NULL,
+                                      diarization_data = NULL, token_refundable = FALSE
+                       WHERE uuid = $1 AND workflow_state = 'completed'
+                       RETURNING uuid""",
+                    uuid, language,
+                )
+                if reset is None:
+                    return None
+                exports = await conn.fetch(
+                    """DELETE FROM export_jobs WHERE job_uuid = $1
+                       RETURNING file_path""",
+                    uuid,
+                )
+                await conn.execute("DELETE FROM llm_tasks WHERE job_uuid = $1", uuid)
+        return [row["file_path"] for row in exports if row["file_path"]]
 
     async def update_file_name(self, uuid: str, new_file_name: str) -> None:
         """

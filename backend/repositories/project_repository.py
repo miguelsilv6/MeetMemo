@@ -283,7 +283,8 @@ class ProjectRepository:
             async with conn.transaction():
                 owner = await conn.fetchval(
                     """UPDATE jobs SET workflow_state = 'uploaded', status_code = 202,
-                                      current_step_progress = 0, error_message = NULL
+                                      current_step_progress = 0, error_message = NULL,
+                                      token_refundable = TRUE
                        WHERE project_uuid = $1 AND uuid = $2 AND workflow_state = 'error'
                        RETURNING user_uuid""",
                     project_uuid, job_uuid,

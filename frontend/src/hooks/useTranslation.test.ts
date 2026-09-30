@@ -265,4 +265,26 @@ describe('useTranslation', () => {
     await waitFor(() => expect(result.current.translating).toBe(true));
     expect(result.current.translationProgress).toMatchObject({ done: 5, total: 20 });
   });
+
+  it('hides the translation when the job changes (another job, or transcribed again)', async () => {
+    vi.mocked(api.translateTranscript).mockResolvedValue({
+      status: 'cached',
+      engine: 'llm',
+      segments: translated,
+    });
+    const { result, rerender } = renderHook(
+      ({ jobId }: { jobId: string | null }) => useTranslation(jobId, vi.fn()),
+      { initialProps: { jobId: 'job1' as string | null } }
+    );
+    await act(async () => {
+      await result.current.handleToggleTranslation(segments);
+    });
+    expect(result.current.translatedSegments).toEqual(translated);
+
+    rerender({ jobId: null });
+    rerender({ jobId: 'job1' });
+    await waitFor(() => expect(result.current.showTranslation).toBe(false));
+    expect(result.current.translatedSegments).toBeNull();
+    expect(result.current.translationEngine).toBeNull();
+  });
 });
