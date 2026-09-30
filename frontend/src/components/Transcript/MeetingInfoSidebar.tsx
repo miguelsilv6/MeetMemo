@@ -5,13 +5,14 @@ import { getSpeakerColor } from '../../utils/speakerColors';
 import { getLanguageName } from '../../constants/languages';
 import { getConfidenceVariant } from '../../utils/confidence';
 import * as api from '../../services/api';
-import type { SelectedFile, Summary, Transcript } from '../../types/api';
+import type { LlmTask, SelectedFile, Summary, Transcript } from '../../types/api';
 
 interface MeetingInfoSidebarProps {
   selectedFile: SelectedFile;
   transcript: Transcript | null;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
+  summaryTask?: LlmTask | null;
   summary: Summary | null;
   jobId: string | null;
 }
@@ -21,6 +22,7 @@ export default function MeetingInfoSidebar({
   transcript,
   handleGenerateSummary,
   generatingSummary,
+  summaryTask = null,
   summary,
   jobId,
 }: MeetingInfoSidebarProps) {
@@ -108,7 +110,9 @@ export default function MeetingInfoSidebar({
                   role="status"
                   aria-hidden="true"
                 ></span>
-                {t('meetingInfo.generatingSummary')}
+                {summaryTask?.status === 'queued'
+                  ? t('llmTask.queued', { count: summaryTask.queue_position ?? 0 })
+                  : t('meetingInfo.generatingSummary')}
               </>
             ) : summary?.summary ? (
               <>

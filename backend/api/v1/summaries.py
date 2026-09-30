@@ -1,25 +1,29 @@
 """
 Summaries router for AI summary operations.
 
-This router handles summary generation, updates, and deletion.
+Summaries are generated in the background (services/llm_tasks.py): asking
+for one queues a task the page polls; edits and deletion act on the cache.
 """
 import logging
-import os
 
-import aiofiles
-from access import authorize_path, require_request_header
+from access import Principal, authorize_path, get_principal, require_request_header
 from config import Settings, get_settings
-from dependencies import get_job_repository, get_summary_service
-from fastapi import APIRouter, Depends, HTTPException
+from dependencies import get_job_repository, get_llm_task_repository, get_summary_service
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from models import SummarizeRequest, SummaryResponse, UpdateSummaryRequest
 from repositories.job_repository import JobRepository
+from repositories.llm_task_repository import LlmTaskRepository
+from services.llm_tasks import TranscriptMissingError, read_transcript, task_info, wake_llm_queue
 from services.summary_service import SummaryService
-from utils.file_utils import get_transcript_path
-from utils.formatters import format_transcript_for_llm
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
+
+
+def _unfinished(task):
+    """A task still under way, or the failure of the latest one (the page shows it)."""
+    return task if task and task["status"] != "done" else None
 
 
 @router.get("/jobs/{uuid}/summaries", response_model=SummaryResponse)
@@ -27,109 +31,72 @@ async def get_summary(
     uuid: str,
     job_repo: JobRepository = Depends(get_job_repository),
     summary_service: SummaryService = Depends(get_summary_service),
-    settings: Settings = Depends(get_settings)
+    tasks: LlmTaskRepository = Depends(get_llm_task_repository),
 ) -> SummaryResponse:
-    """Get cached summary or generate new one."""
+    """The cached summary, and/or the state of its task ("none" if never asked)."""
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-
-    # Check for cached summary
-    cached_summary = await summary_service.get_cached_summary(uuid)
-    if cached_summary:
-        logger.info("Returning cached summary for %s", uuid)
+    task = await tasks.latest(uuid, "summary")
+    cached = await summary_service.get_cached_summary(uuid)
+    if cached:
         return SummaryResponse(
-            uuid=uuid,
-            file_name=job['file_name'],
-            status="cached",
-            status_code=200,
-            summary=cached_summary
+            uuid=uuid, file_name=job["file_name"], status="cached", status_code=200,
+            summary=cached, task=task_info(_unfinished(task)),
         )
-
-    # Generate new summary
-    file_name = job['file_name']
-    base_name = os.path.splitext(file_name)[0]
-
-    # Get transcript
-    try:
-        transcript_path = await get_transcript_path(
-            base_name,
-            settings.transcript_dir,
-            settings.transcript_edited_dir
-        )
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail="Transcript not found") from exc
-
-    async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
-        transcript_json = await f.read()
-
-    formatted_transcript = format_transcript_for_llm(transcript_json)
-    summary = await summary_service.summarize(formatted_transcript)
-
-    # Cache the summary
-    await summary_service.save_summary(uuid, summary)
-    logger.info("Generated and cached new summary for %s", uuid)
-
     return SummaryResponse(
-        uuid=uuid,
-        file_name=file_name,
-        status="generated",
-        status_code=200,
-        summary=summary
+        uuid=uuid, file_name=job["file_name"], status=task["status"] if task else "none",
+        status_code=200, task=task_info(task),
     )
 
 
 @router.post("/jobs/{uuid}/summaries", response_model=SummaryResponse)
 async def create_summary(
     uuid: str,
+    http_request: Request,
+    response: Response,
     request: SummarizeRequest = None,
+    principal: Principal = Depends(get_principal),
     job_repo: JobRepository = Depends(get_job_repository),
     summary_service: SummaryService = Depends(get_summary_service),
-    settings: Settings = Depends(get_settings)
+    tasks: LlmTaskRepository = Depends(get_llm_task_repository),
+    settings: Settings = Depends(get_settings),
 ) -> SummaryResponse:
-    """Generate new summary with optional custom prompts."""
+    """Summarize the transcript, in the background.
+
+    A cached summary is returned at once (200), unless ``regenerate`` or
+    custom prompts ask for a new one. Otherwise a summary task is queued, or
+    the one under way returned (202), and the page polls GET .../summaries.
+    """
+    request = request or SummarizeRequest()
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-
-    file_name = job['file_name']
-    base_name = os.path.splitext(file_name)[0]
-
-    # Get transcript
     try:
-        transcript_path = await get_transcript_path(
-            base_name,
-            settings.transcript_dir,
-            settings.transcript_edited_dir
-        )
-    except FileNotFoundError as exc:
+        await read_transcript(settings, job)
+    except TranscriptMissingError as exc:
         raise HTTPException(status_code=404, detail="Transcript not found") from exc
 
-    async with aiofiles.open(transcript_path, "r", encoding="utf-8") as f:
-        transcript_json = await f.read()
+    custom = {
+        key: value
+        for key, value in (("custom_prompt", request.custom_prompt),
+                           ("system_prompt", request.system_prompt))
+        if value
+    }
+    if not custom and not request.regenerate:
+        cached = await summary_service.get_cached_summary(uuid)
+        if cached:
+            return SummaryResponse(
+                uuid=uuid, file_name=job["file_name"], status="cached", status_code=200,
+                summary=cached,
+            )
 
-    formatted_transcript = format_transcript_for_llm(transcript_json)
-
-    # Generate summary with optional custom prompts
-    custom_prompt = request.custom_prompt if request else None
-    system_prompt = request.system_prompt if request else None
-
-    summary = await summary_service.summarize(
-        formatted_transcript,
-        custom_prompt,
-        system_prompt,
-    )
-
-    # Cache the summary
-    await summary_service.save_summary(uuid, summary)
-    logger.info("Generated new summary for %s", uuid)
-
+    task = await tasks.enqueue(uuid, "summary", custom, principal.username)
+    wake_llm_queue(http_request)
+    response.status_code = 202
     return SummaryResponse(
-        uuid=uuid,
-        file_name=file_name,
-        status="generated",
-        status_code=200,
-        summary=summary
+        uuid=uuid, file_name=job["file_name"], status=task["status"], status_code=202,
+        task=task_info(task),
     )
 
 

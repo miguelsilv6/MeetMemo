@@ -39,13 +39,13 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Speech Recognition** | faster-whisper with CTranslate2 (4x speedup, 99+ languages) |
 | **Speaker Diarization** | PyAnnote.audio 3.1 for automatic speaker identification and labeling |
 | **Audio Playback & Sync** | Built-in audio player with transcript synchronization - click any segment to jump to that timestamp |
-| **AI Summarization** | LLM-powered summaries with key points, action items, and insights |
+| **AI Summarization** | LLM-powered summaries with key points, action items, and insights, made in the background on the server (the page shows the queue and progress; it can be closed meanwhile, and a slow model is never cut off by a proxy timeout) |
 | **Real-time Progress** | Live status updates and job management for long-running tasks |
 | **Speaker Management** | Edit speaker names with persistent storage across sessions |
 | **Export Options** | Professional PDF and Markdown exports for transcripts and summaries |
 | **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI |
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
-| **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job) |
+| **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job), in the background like summaries, block by block with progress; a failed or interrupted translation resumes where it stopped |
 | **User Accounts** | Sign-in required, on one page for users and the administrator; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |
 | **Tokens** | Each transcription costs one token, charged when the audio is accepted and refunded automatically if processing fails. Users can have a daily quota (full again every midnight, not cumulative) spent before the extra balance the administrator grants; the administrator sets a default quota, per-user overrides and sees each user's history |
 | **Projects** | Group several audios of the same case: upload them at once, the server processes them one at a time (the page can be closed), and the project with every file it produced is deleted automatically after its retention (7 days by default, set in the admin panel) |

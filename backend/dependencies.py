@@ -106,6 +106,12 @@ def get_token_repository():
     return TokenRepository()
 
 
+def get_llm_task_repository():
+    """Get LlmTaskRepository instance (background summaries and translations)."""
+    from repositories.llm_task_repository import LlmTaskRepository
+    return LlmTaskRepository()
+
+
 def get_user_repository():
     """Get UserRepository instance."""
     from repositories.user_repository import UserRepository

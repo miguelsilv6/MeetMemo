@@ -21,6 +21,21 @@ class SummarizeRequest(BaseModel):
     """Model for summarization requests with optional custom prompts."""
     custom_prompt: Optional[str] = None
     system_prompt: Optional[str] = None
+    # Make a new summary even if one is cached (custom prompts always do).
+    regenerate: bool = False
+
+
+class LlmTaskInfo(BaseModel):
+    """A background summary or translation task, as the page polls it."""
+    id: int
+    kind: str
+    status: str
+    progress_done: int = 0
+    progress_total: int = 0
+    # How many tasks run before this one (queued tasks only).
+    queue_position: Optional[int] = None
+    error_code: Optional[str] = None
+    error: Optional[str] = None
 
 
 class UpdateSummaryRequest(BaseModel):
@@ -152,9 +167,13 @@ class SummaryResponse(BaseModel):
     """Model for summary response."""
     uuid: str
     file_name: str
+    # "cached" (the summary is here) or the task's state: "queued",
+    # "running", "error", or "none" when there is neither.
     status: str
     status_code: int
-    summary: str
+    summary: Optional[str] = None
+    # The latest summary task, while one is under way or when it failed.
+    task: Optional[LlmTaskInfo] = None
 
 
 class DeleteResponse(BaseModel):
@@ -174,14 +193,17 @@ class RenameResponse(BaseModel):
 class TranslateResponse(BaseModel):
     """Model for transcript translation response."""
     uuid: str
+    # "original" (already Portuguese) or "cached" with the segments, else the
+    # task's state: "queued", "running", "error", or "none".
     status: str
     status_code: int
     target_language: str
     # The translated segments for the requested range, starting at `start`,
-    # out of `total` segments in the transcript.
-    segments: list[dict]
+    # out of `total` segments in the transcript (empty until translated).
+    segments: list[dict] = []
     start: int = 0
     total: int = 0
+    task: Optional[LlmTaskInfo] = None
 
 
 class SpeakerUpdateResponse(BaseModel):

@@ -737,5 +737,19 @@
     "noTokens": "Não tens tokens disponíveis (1 token = 1 transcrição). Se tens quota diária, volta à meia-noite; para carregares já novos áudios, pede mais ao administrador.",
     "tokensDaily": "{{remaining}} de {{quota}} hoje · +{{extra}}",
     "tokensDailyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula) e o saldo extra, gasto depois da quota. Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido."
+  },
+  "llmTask": {
+    "queued_zero": "Em fila: é o próximo",
+    "queued_one": "Em fila: {{count}} à frente",
+    "queued_other": "Em fila: {{count}} à frente",
+    "detail": "(Detalhe: {{detail}})",
+    "errors": {
+      "timeout": "O modelo de linguagem não respondeu a tempo. O administrador pode aumentar o LLM_TIMEOUT ou usar um modelo mais rápido.",
+      "unavailable": "O modelo de linguagem não está disponível. Confirma que o serviço (por exemplo, o Ollama) está a correr.",
+      "unusable": "O modelo de linguagem devolveu uma resposta que não foi possível usar. Tenta novamente ou usa um modelo maior.",
+      "transcript_missing": "Este áudio ainda não tem transcrição.",
+      "transcript_changed": "A transcrição foi alterada várias vezes durante o processamento. Tenta novamente.",
+      "internal": "Ocorreu um erro inesperado no servidor."
+    }
   }
 }

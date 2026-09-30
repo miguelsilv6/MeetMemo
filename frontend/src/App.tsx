@@ -197,6 +197,7 @@ function App() {
   const {
     summary,
     generatingSummary,
+    summaryTask,
     editingSummary,
     setEditingSummary,
     showEditSummaryModal,
@@ -436,6 +437,7 @@ function App() {
                 handleRequestSplitSegment={handleRequestSplitSegment}
                 handleGenerateSummary={handleGenerateSummary}
                 generatingSummary={generatingSummary}
+                summaryTask={summaryTask}
                 summary={summary}
                 translatedSegments={translatedSegments}
                 translating={translating}

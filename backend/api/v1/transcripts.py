@@ -6,36 +6,28 @@ This router handles getting and updating transcript content.
 import json
 import logging
 import os
+from typing import Optional
 
 import aiofiles
-from access import authorize_path, require_request_header
+from access import Principal, authorize_path, get_principal, require_request_header
 from config import Settings, get_settings
-from dependencies import get_job_repository, get_summary_service
-from fastapi import APIRouter, Depends, HTTPException
+from dependencies import get_job_repository, get_llm_task_repository, get_summary_service
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from models import TranscriptResponse, TranscriptUpdateRequest, TranslateRequest, TranslateResponse
 from repositories.job_repository import JobRepository
+from repositories.llm_task_repository import LlmTaskRepository
 from security import sanitize_log_data
 from services.job_files import translation_files
+from services.llm_tasks import (
+    TRANSLATION_TARGET,
+    TranscriptMissingError,
+    available_translation,
+    task_info,
+    wake_llm_queue,
+)
 from services.summary_service import SummaryService
-from utils.file_utils import get_transcript_path
 
 logger = logging.getLogger(__name__)
-
-# Translations always target European Portuguese.
-TRANSLATION_TARGET = "pt-PT"
-# Segments sent to the LLM per request: small enough for a small model on CPU
-# to answer completely and within LLM_TIMEOUT.
-TRANSLATION_BLOCK_SIZE = 15
-
-
-async def _read_json(path: str):
-    async with aiofiles.open(path, "r", encoding="utf-8") as f:
-        return json.loads(await f.read())
-
-
-async def _write_json(path: str, data) -> None:
-    async with aiofiles.open(path, "w", encoding="utf-8") as f:
-        await f.write(json.dumps(data, indent=4, ensure_ascii=False))
 
 router = APIRouter(dependencies=[Depends(require_request_header), Depends(authorize_path)])
 
@@ -169,109 +161,79 @@ async def update_transcript(
         ) from e
 
 
-@router.post("/jobs/{uuid}/transcripts/translate", response_model=TranslateResponse)
-async def translate_transcript(  # pylint: disable=too-many-locals
-    uuid: str,
-    request: TranslateRequest = None,
-    job_repo: JobRepository = Depends(get_job_repository),
-    summary_service: SummaryService = Depends(get_summary_service),
-    settings: Settings = Depends(get_settings)
+def _translation_response(
+    uuid: str, status: str, segments: list[dict], request: TranslateRequest,
+    total: int, task: Optional[dict] = None,
 ) -> TranslateResponse:
-    """Translate a range of transcript segments into European Portuguese.
+    start = min(request.start, total)
+    end = total if request.limit is None else min(total, start + request.limit)
+    return TranslateResponse(
+        uuid=uuid,
+        status=status,
+        status_code=200,
+        target_language=TRANSLATION_TARGET,
+        segments=segments[start:end],
+        start=start,
+        total=total,
+        task=task_info(task),
+    )
 
-    Clients translate a long transcript in blocks (`start`/`limit`) so each
-    request stays well inside the LLM and proxy timeouts and progress can be
-    shown. Translated blocks are saved as they complete, so a retry resumes
-    where a failed run stopped; once every segment is translated, the full
-    translation is cached. A transcript that is already in Portuguese is
-    returned unchanged, without calling the LLM. All translation caches are
-    invalidated whenever the transcript text is edited (see `update_transcript`).
+
+async def _translation_state(uuid, job_repo, settings):
+    job = await job_repo.get(uuid)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    try:
+        status, segments = await available_translation(settings, job_repo, job)
+    except TranscriptMissingError as exc:
+        raise HTTPException(status_code=404, detail="Transcript not found") from exc
+    return job, status, segments
+
+
+@router.post("/jobs/{uuid}/transcripts/translate", response_model=TranslateResponse)
+async def translate_transcript(
+    uuid: str,
+    http_request: Request,
+    response: Response,
+    request: TranslateRequest = None,
+    principal: Principal = Depends(get_principal),
+    job_repo: JobRepository = Depends(get_job_repository),
+    tasks: LlmTaskRepository = Depends(get_llm_task_repository),
+    settings: Settings = Depends(get_settings),
+) -> TranslateResponse:
+    """Translate the transcript into European Portuguese, in the background.
+
+    A transcript already in Portuguese, or one translated before, is returned
+    at once (200; `start`/`limit` select a range). Otherwise a translation
+    task is queued, or the one under way returned (202), and the page polls
+    GET .../transcripts/translation. Translations are invalidated whenever
+    the transcript text is edited (see `update_transcript`).
     """
     request = request or TranslateRequest()
-    try:
-        job = await job_repo.get(uuid)
-        if not job:
-            raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    _, status, segments = await _translation_state(uuid, job_repo, settings)
+    if status is not None:
+        return _translation_response(uuid, status, segments, request, len(segments))
+    task = await tasks.enqueue(uuid, "translation", None, principal.username)
+    wake_llm_queue(http_request)
+    response.status_code = 202
+    return _translation_response(uuid, task["status"], [], request, len(segments), task)
 
-        file_name = job['file_name']
-        base_name = os.path.splitext(file_name)[0]
 
-        try:
-            transcript_path = await get_transcript_path(
-                base_name,
-                settings.transcript_dir,
-                settings.transcript_edited_dir
-            )
-        except FileNotFoundError as exc:
-            raise HTTPException(status_code=404, detail="Transcript not found") from exc
-
-        segments = await _read_json(transcript_path)
-        total = len(segments)
-        start = min(request.start, total)
-        end = total if request.limit is None else min(total, start + request.limit)
-
-        def respond(status: str, translated: list[dict]) -> TranslateResponse:
-            return TranslateResponse(
-                uuid=uuid,
-                status=status,
-                status_code=200,
-                target_language=TRANSLATION_TARGET,
-                segments=translated,
-                start=start,
-                total=total,
-            )
-
-        transcription = await job_repo.get_transcription(uuid)
-        if transcription and transcription.get("language") == "pt":
-            logger.info("Transcript for job %s is already Portuguese; not translating", uuid)
-            return respond("original", segments[start:end])
-
-        # Keyed by the variant, so translations cached before European
-        # Portuguese was enforced (`<name>.pt.json`) are not reused.
-        cache_path = os.path.join(
-            settings.translation_dir, f"{base_name}.{TRANSLATION_TARGET}.json"
-        )
-        if await aiofiles.os.path.exists(cache_path):
-            cached = await _read_json(cache_path)
-            if len(cached) == total:
-                return respond("cached", cached[start:end])
-
-        # Translated text by segment index, saved after every block.
-        partial_path = os.path.join(
-            settings.translation_dir, f"{base_name}.{TRANSLATION_TARGET}.partial.json"
-        )
-        partial: dict[str, str] = (
-            await _read_json(partial_path)
-            if await aiofiles.os.path.exists(partial_path)
-            else {}
-        )
-
-        missing = [i for i in range(start, end) if str(i) not in partial]
-        os.makedirs(settings.translation_dir, exist_ok=True)
-        for offset in range(0, len(missing), TRANSLATION_BLOCK_SIZE):
-            block = missing[offset:offset + TRANSLATION_BLOCK_SIZE]
-            translated = await summary_service.translate_segments([segments[i] for i in block])
-            for index, segment in zip(block, translated):
-                partial[str(index)] = segment.get("text", "")
-            await _write_json(partial_path, partial)
-
-        if all(str(i) in partial for i in range(total)):
-            full = [{**segment, "text": partial[str(i)]} for i, segment in enumerate(segments)]
-            await _write_json(cache_path, full)
-            if os.path.exists(partial_path):
-                os.remove(partial_path)
-            logger.info("Generated and cached translation for job %s", uuid)
-
-        return respond(
-            "generated" if missing else "cached",
-            [{**segments[i], "text": partial[str(i)]} for i in range(start, end)],
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Error translating transcript for job %s: %s", uuid, e, exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail="Internal server error while translating transcript"
-        ) from e
+@router.get("/jobs/{uuid}/transcripts/translation", response_model=TranslateResponse)
+async def get_translation(
+    uuid: str,
+    job_repo: JobRepository = Depends(get_job_repository),
+    tasks: LlmTaskRepository = Depends(get_llm_task_repository),
+    settings: Settings = Depends(get_settings),
+) -> TranslateResponse:
+    """The translation if it is ready, else the state of its task ("none" if never asked)."""
+    _, status, segments = await _translation_state(uuid, job_repo, settings)
+    task = await tasks.latest(uuid, "translation")
+    if status is not None:
+        # A task that finished is not news; one under way or failed still is.
+        unfinished = task if task and task["status"] != "done" else None
+        return _translation_response(uuid, status, segments, TranslateRequest(),
+                                     len(segments), unfinished)
+    return _translation_response(
+        uuid, task["status"] if task else "none", [], TranslateRequest(), len(segments), task
+    )

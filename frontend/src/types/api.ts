@@ -30,14 +30,36 @@ export interface Transcript {
 export type SpeakerMapping = Record<string, string>;
 
 /** AI-generated meeting summary. */
-export interface Summary {
-  summary?: string;
-  key_points?: string[];
-  action_items?: string[];
+/**
+ * A summary or translation being produced in the background (the page polls
+ * it). Mirrors backend models.LlmTaskInfo.
+ */
+export interface LlmTask {
+  id: number;
+  kind: 'summary' | 'translation';
+  status: 'queued' | 'running' | 'done' | 'error';
+  progress_done: number;
+  progress_total: number;
+  /** How many tasks run before this one (queued tasks only). */
+  queue_position: number | null;
+  /** On failure: timeout, unavailable, unusable, transcript_missing, ... */
+  error_code: string | null;
+  error: string | null;
 }
 
-/** Response returned by the transcript translation endpoint. */
+export interface Summary {
+  summary?: string | null;
+  key_points?: string[];
+  action_items?: string[];
+  /** "cached" when `summary` is here, else the task's state (or "none"). */
+  status?: string;
+  /** The summary task under way, or the latest one's failure. */
+  task?: LlmTask | null;
+}
+
+/** Response returned by the transcript translation endpoints. */
 export interface TranslateResponse {
+  /** "original"/"cached" with the segments, else the task's state (or "none"). */
   status?: string;
   target_language?: string;
   /** Translated segments for the requested range, starting at `start`. */
@@ -45,6 +67,7 @@ export interface TranslateResponse {
   start?: number;
   /** Number of segments in the whole transcript. */
   total?: number;
+  task?: LlmTask | null;
 }
 
 /** A single min/max peak pair, normalized to [-1, 1]. */

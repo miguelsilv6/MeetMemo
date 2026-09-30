@@ -737,5 +737,19 @@
     "noTokens": "You have no tokens left (1 token = 1 transcription). If you have a daily quota, it comes back at midnight; to upload new audios now, ask the administrator for more.",
     "tokensDaily": "{{remaining}} of {{quota}} today · +{{extra}}",
     "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back."
+  },
+  "llmTask": {
+    "queued_zero": "Queued: next up",
+    "queued_one": "Queued: {{count}} ahead",
+    "queued_other": "Queued: {{count}} ahead",
+    "detail": "(Detail: {{detail}})",
+    "errors": {
+      "timeout": "The language model did not answer in time. The administrator can raise LLM_TIMEOUT or use a faster model.",
+      "unavailable": "The language model is not available. Check that its service (e.g. Ollama) is running.",
+      "unusable": "The language model returned an answer that could not be used. Try again or use a larger model.",
+      "transcript_missing": "This audio has no transcript yet.",
+      "transcript_changed": "The transcript was edited several times while it was being processed. Try again.",
+      "internal": "An unexpected error occurred on the server."
+    }
   }
 }

@@ -149,6 +149,20 @@ async def ensure_tokens_schema(timezone: str = DEFAULT_TOKENS_TIMEZONE):
     logger.info("Tokens schema ensured (daily quota in %s)", timezone)
 
 
+LLM_TASKS_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations", "008_llm_tasks.sql"
+)
+
+
+async def ensure_llm_tasks_schema():
+    """Create the background summary/translation task table on older databases."""
+    with open(LLM_TASKS_SCHEMA_PATH, encoding="utf-8") as f:
+        schema_sql = f.read()
+    async with get_db() as conn:
+        await conn.execute(schema_sql)
+    logger.info("LLM tasks schema ensured")
+
+
 class InsufficientTokensError(Exception):
     """The user has no token left for another transcription."""
 
