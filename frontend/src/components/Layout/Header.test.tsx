@@ -143,4 +143,28 @@ describe('Header', () => {
     expect(screen.getByText('4 of 5 today')).toHaveClass('bg-secondary');
     expect(screen.queryByText(/\+0/)).toBeNull();
   });
+
+  it('shows ∞ for unlimited tokens, whatever the balance and quota', () => {
+    render(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{
+          username: 'ana',
+          display_name: 'Ana',
+          is_admin: false,
+          must_change_password: false,
+          token_balance: 0,
+          daily_quota: 5,
+          daily_used: 5,
+          unlimited_tokens: true,
+        }}
+      />
+    );
+    const infinity = screen.getByLabelText('Unlimited tokens');
+    expect(infinity).toHaveTextContent('∞');
+    const badge = infinity.closest('.header-tokens') as HTMLElement;
+    expect(badge).toHaveClass('bg-secondary'); // never "no tokens"
+    expect(badge.getAttribute('title')).toMatch(/do not use tokens/);
+    expect(screen.queryByText(/today/)).toBeNull();
+  });
 });

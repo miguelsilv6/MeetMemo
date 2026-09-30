@@ -7,6 +7,7 @@ project belongs to one user: anyone else gets a 404, so they cannot even learn
 that it exists. State-changing requests must carry a custom header, which a
 cross-site form cannot send.
 """
+import math
 from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
@@ -31,20 +32,27 @@ NO_TOKENS_DETAIL = "No tokens left. Ask the administrator for more."
 
 
 def token_state(account: Optional[dict]) -> dict:
-    """An account's tokens as the API shows them: the extra balance and today's quota."""
+    """
+    An account's tokens as the API shows them: the extra balance, today's
+    quota, and whether it has unlimited tokens (never charged).
+    """
     if not account:
-        return {"token_balance": None, "daily_quota": None, "daily_used": None}
+        return {"token_balance": None, "daily_quota": None, "daily_used": None,
+                "unlimited_tokens": None}
     return {
         "token_balance": account["token_balance"],
         "daily_quota": account["daily_quota"],
         "daily_used": account["daily_used"],
+        "unlimited_tokens": bool(account.get("unlimited_tokens")),
     }
 
 
-def tokens_available(account: Optional[dict]) -> int:
-    """How many transcriptions the account can still pay for right now."""
+def tokens_available(account: Optional[dict]) -> float:
+    """How many transcriptions the account can still pay for right now (inf: unlimited)."""
     if not account:
         return 0
+    if account.get("unlimited_tokens"):
+        return math.inf
     return max(0, account["daily_quota"] - account["daily_used"]) + account["token_balance"]
 
 REQUEST_HEADER = "x-meetmemo-request"

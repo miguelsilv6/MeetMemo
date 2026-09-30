@@ -17,6 +17,7 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
     deleteUser: vi.fn(),
     getUserContent: vi.fn(),
     setUserDailyQuota: vi.fn(),
+    setUserUnlimitedTokens: vi.fn(),
   };
 });
 
@@ -31,6 +32,7 @@ const ana: AdminUser = {
   project_count: 2,
   audio_count: 5,
   token_balance: 3,
+  unlimited_tokens: false,
   daily_token_quota: null,
   daily_quota: 0,
   daily_used: 0,
@@ -165,6 +167,7 @@ describe('AdminUsers', () => {
   it('gives and takes tokens and shows their history', async () => {
     vi.mocked(adminApi.getUserTokens).mockResolvedValue({
       token_balance: 3,
+      unlimited_tokens: false,
       daily_quota: 0,
       daily_used: 0,
       daily_token_quota: null,
@@ -199,6 +202,7 @@ describe('AdminUsers', () => {
     });
     vi.mocked(adminApi.changeUserTokens).mockResolvedValue({
       token_balance: 8,
+      unlimited_tokens: false,
       daily_quota: 0,
       daily_used: 0,
     });
@@ -251,6 +255,7 @@ describe('AdminUsers', () => {
     vi.mocked(adminApi.listUsers).mockResolvedValue([withQuota]);
     vi.mocked(adminApi.getUserTokens).mockResolvedValue({
       token_balance: 3,
+      unlimited_tokens: false,
       daily_quota: 5,
       daily_used: 2,
       daily_token_quota: 5,
@@ -272,6 +277,7 @@ describe('AdminUsers', () => {
     });
     vi.mocked(adminApi.setUserDailyQuota).mockResolvedValue({
       token_balance: 3,
+      unlimited_tokens: false,
       daily_quota: 0,
       daily_used: 2,
       daily_token_quota: null,
@@ -296,5 +302,55 @@ describe('AdminUsers', () => {
 
     await waitFor(() => expect(adminApi.setUserDailyQuota).toHaveBeenCalledWith('u-ana', null));
     expect(await screen.findByText('ana now follows the default daily quota.')).toBeInTheDocument();
+  });
+
+  it('shows no "+0" in the list when there is no extra balance', async () => {
+    vi.mocked(adminApi.listUsers).mockResolvedValue([
+      { ...ana, token_balance: 0, daily_token_quota: 5, daily_quota: 5, daily_used: 2 },
+    ]);
+    renderUsers();
+    const cell = await screen.findByRole('button', { name: "Manage ana's tokens" });
+    expect(cell).toHaveTextContent('3/5 today');
+    expect(cell).not.toHaveTextContent('+');
+  });
+
+  it('gives an account unlimited tokens, shown as ∞', async () => {
+    const tokens = {
+      token_balance: 0,
+      daily_quota: 0,
+      daily_used: 0,
+      daily_token_quota: null,
+      transactions: [],
+    };
+    vi.mocked(adminApi.getUserTokens)
+      .mockResolvedValueOnce({ ...tokens, unlimited_tokens: false })
+      .mockResolvedValue({ ...tokens, unlimited_tokens: true });
+    vi.mocked(adminApi.setUserUnlimitedTokens).mockResolvedValue({
+      token_balance: 0,
+      unlimited_tokens: true,
+      daily_quota: 0,
+      daily_used: 0,
+    });
+    renderUsers();
+
+    const cell = await screen.findByRole('button', { name: "Manage ana's tokens" });
+    fireEvent.click(cell);
+    const dialog = await screen.findByRole('dialog');
+    const toggle = await within(dialog).findByLabelText('Unlimited tokens');
+    expect(toggle).not.toBeChecked();
+    expect(within(dialog).queryByText(/are not being used/)).toBeNull();
+
+    vi.mocked(adminApi.listUsers).mockResolvedValue([{ ...ana, unlimited_tokens: true }]);
+    fireEvent.click(toggle);
+
+    await waitFor(() =>
+      expect(adminApi.setUserUnlimitedTokens).toHaveBeenCalledWith('u-ana', true)
+    );
+    expect(await screen.findByText('ana now has unlimited tokens.')).toBeInTheDocument();
+    expect(await within(dialog).findByText(/are not being used/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Unlimited tokens')).toBeChecked();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: "Manage ana's tokens" })).toHaveTextContent('∞')
+    );
   });
 });

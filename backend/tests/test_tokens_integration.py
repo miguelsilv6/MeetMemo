@@ -234,7 +234,8 @@ def test_tokens_against_real_postgres(monkeypatch, tmp_path):
                            json={"delta": 0}).status_code == 422
         granted = client.post(f"/api/v1/admin/users/{ana_uuid}/tokens", headers=admin_headers,
                               json={"delta": 5, "note": "  top-up  "})
-        assert granted.json() == {"token_balance": 5, "daily_quota": 0, "daily_used": 0}
+        assert granted.json() == {"token_balance": 5, "daily_quota": 0, "daily_used": 0,
+                                  "unlimited_tokens": False}
         assert ledger()["transactions"][0]["note"] == "top-up"
 
         # --- Audios deleted before processing get their token back ---------------

@@ -68,21 +68,27 @@ export default function Header({
                     bg={(availableTokens(me) ?? 0) > 0 ? 'secondary' : 'danger'}
                     className="header-tokens"
                     title={
-                      !hasDailyQuota(me)
-                        ? t('auth.tokensHint')
-                        : me.token_balance > 0
-                          ? t('auth.tokensDailyHint')
-                          : t('auth.tokensDailyOnlyHint')
+                      me.unlimited_tokens
+                        ? t('auth.tokensUnlimitedHint')
+                        : !hasDailyQuota(me)
+                          ? t('auth.tokensHint')
+                          : me.token_balance > 0
+                            ? t('auth.tokensDailyHint')
+                            : t('auth.tokensDailyOnlyHint')
                     }
                   >
-                    {!hasDailyQuota(me)
-                      ? t('auth.tokens', { count: me.token_balance })
-                      : // The extra balance only when there is one ("+0" says nothing).
-                        t(me.token_balance > 0 ? 'auth.tokensDaily' : 'auth.tokensDailyOnly', {
-                          remaining: dailyRemaining(me),
-                          quota: me.daily_quota,
-                          extra: me.token_balance,
-                        })}
+                    {me.unlimited_tokens ? (
+                      <span aria-label={t('auth.tokensUnlimited')}>∞</span>
+                    ) : !hasDailyQuota(me) ? (
+                      t('auth.tokens', { count: me.token_balance })
+                    ) : (
+                      // The extra balance only when there is one ("+0" says nothing).
+                      t(me.token_balance > 0 ? 'auth.tokensDaily' : 'auth.tokensDailyOnly', {
+                        remaining: dailyRemaining(me),
+                        quota: me.daily_quota,
+                        extra: me.token_balance,
+                      })
+                    )}
                   </Badge>
                 )}
                 {onChangePassword && (

@@ -257,6 +257,11 @@ class DailyQuotaRequest(BaseModel):
     daily_token_quota: Optional[int] = Field(ge=0, le=MAX_DAILY_TOKENS)
 
 
+class UnlimitedTokensRequest(BaseModel):
+    """Whether the account is never charged for transcriptions."""
+    unlimited_tokens: bool
+
+
 class TokenChangeRequest(BaseModel):
     """Tokens to give (positive) or take (negative), with an optional reason."""
     delta: int = Field(ge=-MAX_TOKEN_CHANGE, le=MAX_TOKEN_CHANGE)
@@ -468,6 +473,33 @@ async def set_user_daily_quota(
             before["daily_token_quota"], user["daily_token_quota"],
         )
     return {"daily_token_quota": user["daily_token_quota"], **token_state(user)}
+
+
+@router.put("/users/{user_uuid}/unlimited-tokens", dependencies=[Depends(require_admin_header)])
+async def set_user_unlimited_tokens(
+    user_uuid: UUID,
+    body: UnlimitedTokensRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    users: UserRepository = Depends(get_user_repository),
+) -> dict:
+    """Give the account unlimited tokens (never charged), or take them away.
+
+    Its extra balance and daily quota stay as they are, and count again once
+    the account is no longer unlimited.
+    """
+    before = await _user_or_404(users, user_uuid)
+    user = await users.set_unlimited_tokens(str(user_uuid), body.unlimited_tokens)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if before["unlimited_tokens"] != user["unlimited_tokens"]:
+        key = "user_unlimited_on" if user["unlimited_tokens"] else "user_unlimited_off"
+        await repo.record_audit(admin["username"], key, None, user["username"])
+        logger.info(
+            "Admin %s %s unlimited tokens for %s", admin["username"],
+            "granted" if user["unlimited_tokens"] else "removed", user["username"],
+        )
+    return token_state(user)
 
 
 @router.get("/users/{user_uuid}/tokens")

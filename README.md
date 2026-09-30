@@ -171,6 +171,12 @@ is set in the admin panel (**Uploads** tab, 0 = none) and each account can have
 its own (**Users** → tokens). A failed audio gives its token back to where it
 came from; a daily token only while it is still the same day.
 
+An account can also have **unlimited tokens** (**Users** → tokens → "Unlimited
+tokens"): its transcriptions use no tokens and its uploads are never blocked,
+and the header shows "∞". Its daily quota and extra balance are kept as they
+are and count again once the option is turned off; each change is in the
+panel's history.
+
 For several audios of the same case, open **Projects** in the header: create a
 project, drop all the audios on it, and they are queued and processed on the
 server one after another. Duplicates within a project are skipped, a failed

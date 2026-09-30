@@ -13,6 +13,7 @@ import {
   listUsers,
   resetUserPassword,
   setUserDailyQuota,
+  setUserUnlimitedTokens,
   updateUser,
 } from '../../services/adminApi';
 import { availableTokens, dailyRemaining } from '../../utils/tokens';
@@ -186,6 +187,24 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
         quotaValue === null
           ? t('admin.tokens.quotaDefaultSet', { username: dialog.user.username })
           : t('admin.tokens.quotaSet', { count: quotaValue, username: dialog.user.username })
+      );
+      await loadTokens(dialog.user);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyUnlimited = async (unlimited: boolean) => {
+    if (dialog?.kind !== 'tokens') return;
+    setBusy(true);
+    try {
+      await setUserUnlimitedTokens(dialog.user.uuid, unlimited);
+      await afterChange(
+        t(unlimited ? 'admin.tokens.unlimitedOn' : 'admin.tokens.unlimitedOff', {
+          username: dialog.user.username,
+        })
       );
       await loadTokens(dialog.user);
     } catch (err) {
@@ -397,13 +416,22 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
                         aria-label={t('admin.tokens.manageFor', { username: user.username })}
                       >
                         <Coins size={14} className="me-1" />
-                        {user.daily_quota > 0
-                          ? t('admin.tokens.cell', {
+                        {user.unlimited_tokens ? (
+                          <span title={t('admin.tokens.unlimited')}>∞</span>
+                        ) : user.daily_quota > 0 ? (
+                          t(
+                            user.token_balance > 0
+                              ? 'admin.tokens.cell'
+                              : 'admin.tokens.cellNoExtra',
+                            {
                               remaining: dailyRemaining(user),
                               quota: user.daily_quota,
                               extra: user.token_balance,
-                            })
-                          : user.token_balance}
+                            }
+                          )
+                        ) : (
+                          user.token_balance
+                        )}
                       </Button>
                     </td>
                     <td className="text-nowrap small">{date(user.last_login_at)}</td>
@@ -546,6 +574,25 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
             ))}
           {dialog?.kind === 'tokens' && (
             <>
+              <Form.Group className="mb-3">
+                <Form.Check
+                  type="switch"
+                  id="token-unlimited"
+                  label={t('admin.tokens.unlimited')}
+                  checked={dialog.user.unlimited_tokens}
+                  disabled={busy}
+                  onChange={(e) => applyUnlimited(e.target.checked)}
+                  aria-describedby="token-unlimited-help"
+                />
+                <Form.Text id="token-unlimited-help" className="text-muted">
+                  {t('admin.tokens.unlimitedHelp')}
+                </Form.Text>
+              </Form.Group>
+              {dialog.user.unlimited_tokens && (
+                <Alert variant="info" className="py-2" show>
+                  {t('admin.tokens.unlimitedActive')}
+                </Alert>
+              )}
               <h6>{t('admin.tokens.dailyQuota')}</h6>
               <p className="mb-2">
                 {dialog.user.daily_quota > 0

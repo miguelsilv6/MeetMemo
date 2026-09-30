@@ -541,7 +541,9 @@
         "user_password_reset": "User password reset",
         "user_deleted": "User deleted",
         "user_tokens": "User tokens changed",
-        "user_daily_tokens": "User daily quota changed"
+        "user_daily_tokens": "User daily quota changed",
+        "user_unlimited_on": "Unlimited tokens turned on",
+        "user_unlimited_off": "Unlimited tokens turned off"
       }
     },
     "users": {
@@ -623,6 +625,7 @@
       "dailyQuotaHelp": "Empty: use the default (Uploads tab). 0: no daily quota.",
       "defaultPlaceholder": "Default",
       "cell": "{{remaining}}/{{quota}} today · +{{extra}}",
+      "cellNoExtra": "{{remaining}}/{{quota}} today",
       "dailyToday": "Today: {{used}} of {{quota}} used.",
       "noDailyQuota": "No daily quota.",
       "followsDefault": "default",
@@ -635,7 +638,12 @@
       "quotaSet_zero": "{{username}} now has no daily quota.",
       "quotaSet_one": "{{username}}'s daily quota: {{count}} token.",
       "quotaSet_other": "{{username}}'s daily quota: {{count}} tokens.",
-      "quotaDefaultSet": "{{username}} now follows the default daily quota."
+      "quotaDefaultSet": "{{username}} now follows the default daily quota.",
+      "unlimited": "Unlimited tokens",
+      "unlimitedHelp": "This user's transcriptions use no tokens and uploads are never blocked. The daily quota and extra balance are kept and count again once this is turned off.",
+      "unlimitedActive": "Unlimited tokens on: the daily quota and extra balance below are not being used.",
+      "unlimitedOn": "{{username}} now has unlimited tokens.",
+      "unlimitedOff": "{{username}} no longer has unlimited tokens."
     }
   },
   "projects": {
@@ -755,7 +763,9 @@
     "tokensDaily": "{{remaining}} of {{quota}} today · +{{extra}}",
     "tokensDailyOnly": "{{remaining}} of {{quota}} today",
     "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back.",
-    "tokensDailyOnlyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate). Each transcription uses 1 token; if processing fails, the token is given back."
+    "tokensDailyOnlyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate). Each transcription uses 1 token; if processing fails, the token is given back.",
+    "tokensUnlimited": "Unlimited tokens",
+    "tokensUnlimitedHint": "Unlimited tokens: transcriptions do not use tokens."
   },
   "llmTask": {
     "queued_zero": "Queued: next up",

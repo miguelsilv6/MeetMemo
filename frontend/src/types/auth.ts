@@ -16,4 +16,6 @@ export interface Me {
   daily_quota: number | null;
   /** How much of today's quota uploads have taken. */
   daily_used: number | null;
+  /** Never charged for transcriptions (null for the administrator). */
+  unlimited_tokens?: boolean | null;
 }

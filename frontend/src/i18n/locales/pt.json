@@ -541,7 +541,9 @@
         "user_password_reset": "Palavra-passe de utilizador reposta",
         "user_deleted": "Utilizador eliminado",
         "user_tokens": "Tokens de utilizador alterados",
-        "user_daily_tokens": "Quota diária de utilizador alterada"
+        "user_daily_tokens": "Quota diária de utilizador alterada",
+        "user_unlimited_on": "Tokens ilimitados ativados",
+        "user_unlimited_off": "Tokens ilimitados desativados"
       }
     },
     "users": {
@@ -623,6 +625,7 @@
       "dailyQuotaHelp": "Vazio: usa o valor por omissão (separador Carregamentos). 0: sem quota diária.",
       "defaultPlaceholder": "Por omissão",
       "cell": "{{remaining}}/{{quota}} hoje · +{{extra}}",
+      "cellNoExtra": "{{remaining}}/{{quota}} hoje",
       "dailyToday": "Hoje: {{used}} de {{quota}} usados.",
       "noDailyQuota": "Sem quota diária.",
       "followsDefault": "valor por omissão",
@@ -635,7 +638,12 @@
       "quotaSet_zero": "{{username}} fica sem quota diária.",
       "quotaSet_one": "Quota diária de {{username}}: {{count}} token.",
       "quotaSet_other": "Quota diária de {{username}}: {{count}} tokens.",
-      "quotaDefaultSet": "{{username}} passa a usar a quota diária por omissão."
+      "quotaDefaultSet": "{{username}} passa a usar a quota diária por omissão.",
+      "unlimited": "Tokens ilimitados",
+      "unlimitedHelp": "As transcrições deste utilizador não gastam tokens e os carregamentos nunca ficam bloqueados. A quota diária e o saldo extra ficam guardados e voltam a contar quando se desliga.",
+      "unlimitedActive": "Tokens ilimitados ativos: a quota diária e o saldo extra abaixo não estão a ser usados.",
+      "unlimitedOn": "{{username}} passou a ter tokens ilimitados.",
+      "unlimitedOff": "{{username}} deixou de ter tokens ilimitados."
     }
   },
   "projects": {
@@ -755,7 +763,9 @@
     "tokensDaily": "{{remaining}} de {{quota}} hoje · +{{extra}}",
     "tokensDailyOnly": "{{remaining}} de {{quota}} hoje",
     "tokensDailyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula) e o saldo extra, gasto depois da quota. Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido.",
-    "tokensDailyOnlyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula). Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido."
+    "tokensDailyOnlyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula). Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido.",
+    "tokensUnlimited": "Tokens ilimitados",
+    "tokensUnlimitedHint": "Tokens ilimitados: as transcrições não gastam tokens."
   },
   "llmTask": {
     "queued_zero": "Em fila: é o próximo",
