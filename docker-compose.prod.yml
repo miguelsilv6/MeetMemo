@@ -57,6 +57,9 @@ services:
       - ADMIN_SESSION_HOURS
       # Time zone in which the daily token quota resets at midnight.
       - TOKENS_TIMEZONE
+      # Offline translation engine (NLLB-200), when chosen in the admin panel.
+      - NLLB_MODEL
+      - NLLB_DEVICE
       - DATABASE_URL=postgresql://meetmemo:${POSTGRES_PASSWORD:-changeme}@postgres:5432/meetmemo
       - PYTHONUNBUFFERED=1
       - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}

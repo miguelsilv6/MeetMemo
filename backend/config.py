@@ -7,6 +7,7 @@ with validation, defaults, and computed properties.
 from datetime import timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from hardware import (
     PROFILE_MANAGED_FIELDS,
@@ -46,6 +47,11 @@ class Settings(BaseSettings):
     # Threads faster-whisper uses on CPU. 0 = every CPU available to the
     # container (its library default would be only 4).
     whisper_cpu_threads: int = 0
+    # Offline translation engine (chosen in the admin panel): Meta's model
+    # repository, converted locally for CTranslate2, and where it runs
+    # (auto = the GPU if there is one).
+    nllb_model: str = "facebook/nllb-200-distilled-600M"
+    nllb_device: Literal["auto", "cpu", "cuda"] = "auto"
 
     # File Storage Paths
     upload_dir: str = "audiofiles"

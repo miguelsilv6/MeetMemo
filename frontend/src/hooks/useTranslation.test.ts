@@ -143,6 +143,7 @@ describe('useTranslation', () => {
       total: 20,
       queued: true,
       position: 1,
+      preparing: false,
     });
 
     await act(async () => {
@@ -153,6 +154,7 @@ describe('useTranslation', () => {
       total: 20,
       queued: false,
       position: null,
+      preparing: false,
     });
 
     await act(async () => {
@@ -163,6 +165,60 @@ describe('useTranslation', () => {
     expect(result.current.showTranslation).toBe(true);
     expect(result.current.translating).toBe(false);
     expect(result.current.translationProgress).toBeNull();
+  });
+
+  it('says the offline engine is being prepared, then shows which engine translated', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.translateTranscript).mockResolvedValue({
+      status: 'running',
+      engine: 'nllb',
+      segments: [],
+      total: 20,
+      task: task({ progress_total: 0 }),
+    });
+    vi.mocked(api.getTranslation)
+      .mockResolvedValueOnce({ status: 'none', segments: [], task: null }) // on mount
+      .mockResolvedValueOnce({
+        status: 'cached',
+        engine: 'nllb',
+        segments: translated,
+        total: 2,
+        task: null,
+      });
+    const { result } = renderHook(() => useTranslation('job1', vi.fn()));
+
+    let done: Promise<void> = Promise.resolve();
+    await act(async () => {
+      done = result.current.handleToggleTranslation(segments);
+    });
+    expect(result.current.translationProgress).toMatchObject({ preparing: true, total: 20 });
+    expect(result.current.translationEngine).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LLM_POLL_MS);
+      await done;
+    });
+    expect(result.current.translatedSegments).toEqual(translated);
+    expect(result.current.translationEngine).toBe('nllb');
+  });
+
+  it('does not call a language model task that has not started yet "preparing"', async () => {
+    vi.mocked(api.translateTranscript).mockResolvedValue({
+      status: 'running',
+      engine: 'llm',
+      segments: [],
+      total: 20,
+      task: task({ progress_total: 0 }),
+    });
+    vi.mocked(api.getTranslation).mockImplementation(() => new Promise(() => {}));
+    const { result } = renderHook(() => useTranslation('job1', vi.fn()));
+
+    act(() => {
+      result.current.handleToggleTranslation(segments);
+    });
+
+    await waitFor(() => expect(result.current.translationProgress).not.toBeNull());
+    expect(result.current.translationProgress?.preparing).toBe(false);
   });
 
   it('explains why a background translation failed', async () => {

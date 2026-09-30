@@ -58,10 +58,15 @@ export interface Summary {
 }
 
 /** Response returned by the transcript translation endpoints. */
+/** Translation engines the admin panel can select. */
+export type TranslationEngine = 'llm' | 'nllb';
+
 export interface TranslateResponse {
   /** "original"/"cached" with the segments, else the task's state (or "none"). */
   status?: string;
   target_language?: string;
+  /** The engine that translated (or is translating): the language model or NLLB-200. */
+  engine?: TranslationEngine;
   /** Translated segments for the requested range, starting at `start`. */
   segments?: TranscriptSegment[];
   start?: number;

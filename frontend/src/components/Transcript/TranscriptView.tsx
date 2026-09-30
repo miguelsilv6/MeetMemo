@@ -23,6 +23,7 @@ import type {
   Summary,
   Transcript,
   TranscriptSegment as TranscriptSegmentType,
+  TranslationEngine,
 } from '../../types/api';
 
 type TranscriptDisplayMode = 'list' | 'kanban';
@@ -51,6 +52,8 @@ interface TranscriptViewProps {
   translating: boolean;
   /** Blocks translated so far, while a translation is running. */
   translationProgress?: TranslationProgress | null;
+  /** The engine of the translation on screen. */
+  translationEngine?: TranslationEngine | null;
   showTranslation: boolean;
   handleToggleTranslation: (segments: TranscriptSegmentType[] | undefined) => void;
   canUndo: boolean;
@@ -101,6 +104,7 @@ export default function TranscriptView({
   translatedSegments,
   translating,
   translationProgress = null,
+  translationEngine = null,
   showTranslation,
   handleToggleTranslation,
   canUndo,
@@ -241,11 +245,13 @@ export default function TranscriptView({
                   )}
                   {translating && translationProgress?.queued
                     ? t('llmTask.queued', { count: translationProgress.position ?? 0 })
-                    : translating && translationProgress
-                      ? t('transcript.translatingProgress', { ...translationProgress })
-                      : showTranslation
-                        ? t('transcript.showOriginal')
-                        : t('transcript.translateToPortuguese')}
+                    : translating && translationProgress?.preparing
+                      ? t('transcript.preparingEngine')
+                      : translating && translationProgress
+                        ? t('transcript.translatingProgress', { ...translationProgress })
+                        : showTranslation
+                          ? t('transcript.showOriginal')
+                          : t('transcript.translateToPortuguese')}
                 </Button>
               )}
               <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
@@ -272,6 +278,14 @@ export default function TranscriptView({
               </Button>
             </div>
           </Card.Header>
+          {showTranslation && translationEngine && (
+            <div
+              className="translation-engine-note small text-muted px-3 py-2 border-bottom"
+              data-testid="translation-engine-note"
+            >
+              {t(`transcript.translatedBy.${translationEngine}`)}
+            </div>
+          )}
           {selectMode && (
             <div className="bulk-actions-bar d-flex flex-wrap gap-2 align-items-center px-3 py-2 border-bottom">
               <span className="text-muted small">

@@ -8,7 +8,7 @@ take effect for new jobs without a restart. Settings that need a restart
 in the environment only.
 """
 import logging
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from llm_prompts import (
     DEFAULT_SUMMARY_REQUEST,
@@ -108,6 +108,10 @@ class RuntimeSettings(BaseModel):
 
     # Uploads (single audios, recordings and project audios)
     max_upload_mb: int = Field(default=100, ge=1, le=MAX_UPLOAD_MB_LIMIT)
+
+    # Translation engine: the language model (European Portuguese, needs the
+    # LLM server) or NLLB-200 (offline; generic Portuguese; non-commercial).
+    translation_engine: Literal["llm", "nllb"] = "llm"
 
     # Tokens: each day's quota for users without their own (0 = no daily quota).
     default_daily_tokens: int = Field(default=0, ge=0, le=MAX_DAILY_TOKENS)

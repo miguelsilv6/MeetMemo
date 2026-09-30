@@ -82,6 +82,11 @@
     "translateToPortuguese": "Traduzir para português (PT)",
     "showOriginal": "Mostrar Original",
     "translatingProgress": "A traduzir… {{done}}/{{total}}",
+    "preparingEngine": "A preparar o motor de tradução…",
+    "translatedBy": {
+      "llm": "Tradução feita pelo modelo de linguagem (português europeu).",
+      "nllb": "Tradução feita pelo NLLB-200 (offline). O português pode não seguir a norma europeia."
+    },
     "editSpeakers": "Editar Interlocutores",
     "placeholder": "A transcrição vai aparecer aqui depois do processamento",
     "loadingKanban": "A carregar vista Kanban…",
@@ -346,7 +351,8 @@
         "uploads": "Carregamentos",
         "prompts": "Prompts do LLM (resumos e tradução)",
         "restartOnly": "Configuração que exige reinício (só leitura)",
-        "dailyTokens": "Tokens diários"
+        "dailyTokens": "Tokens diários",
+        "translation": "Tradução"
       },
       "fields": {
         "whisper_model_name": {
@@ -415,6 +421,17 @@
         "default_language": {
           "label": "Idioma de transcrição predefinido",
           "help": "Pré-selecionado no ecrã de carregamento. \"Deteção automática\" deixa o modelo identificar o idioma."
+        },
+        "translation_engine": {
+          "label": "Motor de tradução",
+          "options": {
+            "llm": "Modelo de linguagem (LLM)",
+            "nllb": "NLLB-200 (offline)"
+          },
+          "help": {
+            "llm": "Traduz com o modelo de linguagem configurado (LLM_API_URL), seguindo a norma europeia do português. Precisa do servidor do LLM e é o mais lento.",
+            "nllb": "Traduz no próprio servidor com o NLLB-200 da Meta, sem depender do LLM: mais rápido e mais leve, para cerca de 200 idiomas. Na primeira tradução, o modelo da Meta é descarregado (cerca de 2,5 GB) e convertido para cerca de 600 MB, o que demora alguns minutos e precisa de cerca de 5 GB de memória. O português que produz é genérico (pode seguir a norma brasileira). Licença CC-BY-NC 4.0: apenas uso não comercial."
+          }
         },
         "job_retention_hours": {
           "label": "Retenção (horas)",
@@ -749,6 +766,8 @@
       "unusable": "O modelo de linguagem devolveu uma resposta que não foi possível usar. Tenta novamente ou usa um modelo maior.",
       "transcript_missing": "Este áudio ainda não tem transcrição.",
       "transcript_changed": "A transcrição foi alterada várias vezes durante o processamento. Tenta novamente.",
+      "unsupported_language": "O motor NLLB-200 não traduz o idioma desta transcrição. O administrador pode escolher o motor LLM no painel (Idioma e retenção → Tradução).",
+      "engine_unavailable": "Não foi possível preparar o motor de tradução NLLB-200 (por exemplo, sem acesso ao Hugging Face para o descarregar). O administrador pode ver o detalhe nos registos ou escolher o motor LLM.",
       "internal": "Ocorreu um erro inesperado no servidor."
     }
   }

@@ -9,7 +9,9 @@ time anyway. A proxy in front of the app (Cloudflare cuts requests after
 page can be closed meanwhile.
 
 Translations still go to the model in blocks, each saved as it completes, so
-a failed or interrupted task resumes where it stopped. A transcript edited
+a failed or interrupted task resumes where it stopped. They are made by the
+engine the admin panel selects: the language model, or NLLB-200 offline
+(services/nllb_translator.py); each engine has its own cache. A transcript edited
 while its summary or translation is being produced makes the task start over
 on the new text instead of saving a stale result.
 """
@@ -28,6 +30,15 @@ from fastapi import HTTPException
 from utils.file_utils import get_transcript_path
 from utils.formatters import format_transcript_for_llm
 
+from services.nllb_translator import BLOCK_SIZE as NLLB_BLOCK_SIZE
+from services.nllb_translator import (
+    NllbSegmentTranslator,
+    NllbUnavailableError,
+    UnsupportedLanguageError,
+    get_nllb_engine,
+    nllb_code,
+)
+
 logger = logging.getLogger(__name__)
 
 # Translations always target European Portuguese.
@@ -35,6 +46,8 @@ TRANSLATION_TARGET = "pt-PT"
 # Segments sent to the LLM per call: small enough for a small model on CPU to
 # answer completely and within LLM_TIMEOUT.
 TRANSLATION_BLOCK_SIZE = 15
+# Translation engines: the language model, or NLLB-200 offline.
+ENGINES = ("llm", "nllb")
 # How often a task starts over because its transcript keeps changing.
 MAX_RESTARTS = 5
 # How long an idle worker waits before looking at the queue again, in case a
@@ -84,23 +97,31 @@ async def transcript_digest(settings, job: dict) -> Optional[str]:
         return None
 
 
-def translation_paths(settings, job: dict) -> tuple[str, str]:
+def translation_paths(settings, job: dict, engine: str = "llm") -> tuple[str, str]:
     """The complete translation cache and the partial (per block) one."""
     base = base_name_of(job)
     # Keyed by the variant, so translations cached before European Portuguese
-    # was enforced (`<name>.pt.json`) are not reused.
+    # was enforced (`<name>.pt.json`) are not reused, and by the engine
+    # (`<name>.pt-PT.nllb.json` for NLLB), so switching engines never serves
+    # the other engine's translation as this one's.
+    name = TRANSLATION_TARGET if engine == "llm" else f"{TRANSLATION_TARGET}.{engine}"
     return (
-        os.path.join(settings.translation_dir, f"{base}.{TRANSLATION_TARGET}.json"),
-        os.path.join(settings.translation_dir, f"{base}.{TRANSLATION_TARGET}.partial.json"),
+        os.path.join(settings.translation_dir, f"{base}.{name}.json"),
+        os.path.join(settings.translation_dir, f"{base}.{name}.partial.json"),
     )
 
 
-async def is_portuguese(job_repo, job: dict) -> bool:
+async def transcript_language(job_repo, job: dict) -> Optional[str]:
+    """The language Whisper transcribed the audio in."""
     transcription = await job_repo.get_transcription(str(job["uuid"]))
-    return bool(transcription and transcription.get("language") == "pt")
+    return transcription.get("language") if transcription else None
 
 
-async def available_translation(settings, job_repo, job: dict):
+async def is_portuguese(job_repo, job: dict) -> bool:
+    return await transcript_language(job_repo, job) == "pt"
+
+
+async def available_translation(settings, job_repo, job: dict, engine: str = "llm"):
     """
     The transcript in European Portuguese if it exists without the model:
     ("original", segments) for a Portuguese transcript, ("cached", segments)
@@ -110,7 +131,7 @@ async def available_translation(settings, job_repo, job: dict):
     segments = json.loads(text)
     if await is_portuguese(job_repo, job):
         return "original", segments
-    cache_path, _ = translation_paths(settings, job)
+    cache_path, _ = translation_paths(settings, job, engine)
     if await aiofiles.os.path.exists(cache_path):
         cached = await _read_json(cache_path)
         if len(cached) == len(segments):
@@ -118,9 +139,12 @@ async def available_translation(settings, job_repo, job: dict):
     return None, segments
 
 
-async def translate(settings, job_repo, translator, job: dict, progress) -> None:
+async def translate(
+    settings, job_repo, translator, job: dict, progress,
+    engine: str = "llm", block_size: int = TRANSLATION_BLOCK_SIZE,
+) -> None:
     """
-    Translate the whole transcript into the cache, block by block.
+    Translate the whole transcript into the engine's cache, block by block.
 
     Blocks already translated (a partial cache from an interrupted run) are
     not sent again. ``progress(done, total)`` is awaited after each block.
@@ -135,7 +159,7 @@ async def translate(settings, job_repo, translator, job: dict, progress) -> None
     if await is_portuguese(job_repo, job):
         await progress(total, total)
         return
-    cache_path, partial_path = translation_paths(settings, job)
+    cache_path, partial_path = translation_paths(settings, job, engine)
     if await aiofiles.os.path.exists(cache_path) and len(await _read_json(cache_path)) == total:
         await progress(total, total)
         return
@@ -150,8 +174,8 @@ async def translate(settings, job_repo, translator, job: dict, progress) -> None
     async def unchanged() -> bool:
         return await transcript_digest(settings, job) == digest
 
-    for offset in range(0, len(missing), TRANSLATION_BLOCK_SIZE):
-        block = missing[offset:offset + TRANSLATION_BLOCK_SIZE]
+    for offset in range(0, len(missing), block_size):
+        block = missing[offset:offset + block_size]
         translated = await translator.translate_segments([segments[i] for i in block])
         if not await unchanged():
             raise TranscriptChangedError(job["uuid"])
@@ -209,6 +233,10 @@ def classify_error(error: Exception) -> tuple[str, str]:
         return "transcript_missing", "The audio has no transcript."
     if isinstance(error, TranscriptChangedError):
         return "transcript_changed", "The transcript kept changing while it was processed."
+    if isinstance(error, UnsupportedLanguageError):
+        return "unsupported_language", str(error)
+    if isinstance(error, NllbUnavailableError):
+        return "engine_unavailable", str(error)
     return "internal", str(error) or type(error).__name__
 
 
@@ -222,6 +250,12 @@ def task_info(task: Optional[dict]) -> Optional[dict]:
     )}
 
 
+def task_engine(task: Optional[dict]) -> str:
+    """The engine a translation task translates with."""
+    engine = ((task or {}).get("params") or {}).get("engine")
+    return engine if engine in ENGINES else "llm"
+
+
 def wake_llm_queue(request) -> None:
     """Tell the worker a task was queued (it also looks every IDLE_POLL_SECONDS)."""
     queue = getattr(request.app.state, "llm_queue", None)
@@ -232,11 +266,36 @@ def wake_llm_queue(request) -> None:
 class LlmTaskRunner:
     """Runs one task: its summary or its translation."""
 
-    def __init__(self, settings, tasks, job_repo, summary_service):
+    def __init__(self, settings, tasks, job_repo, summary_service, nllb_engine=None):
         self.settings = settings
         self.tasks = tasks
         self.job_repo = job_repo
         self.summary_service = summary_service
+        self._nllb_engine = nllb_engine
+
+    @property
+    def nllb_engine(self):
+        """The NLLB engine, created on first use (the model loads later still)."""
+        if self._nllb_engine is None:
+            self._nllb_engine = get_nllb_engine(self.settings)
+        return self._nllb_engine
+
+    async def _translate(self, job: dict, engine: str, progress) -> None:
+        if engine != "nllb":
+            await translate(self.settings, self.job_repo, self.summary_service, job, progress)
+            return
+        language = await transcript_language(self.job_repo, job)
+        if language != "pt":
+            nllb_code(language)  # an unsupported language fails before any download
+            nllb = self.nllb_engine
+            if not nllb.loaded:
+                # Shown as "preparing": the first use downloads and converts it.
+                await progress(0, 0)
+                await asyncio.to_thread(nllb.load)
+        await translate(
+            self.settings, self.job_repo, NllbSegmentTranslator(self.nllb_engine, language),
+            job, progress, engine, NLLB_BLOCK_SIZE,
+        )
 
     async def run(self, task: dict) -> None:
         task_id = task["id"]
@@ -257,9 +316,7 @@ class LlmTaskRunner:
                             self.settings, self.summary_service, job, task["params"] or {}
                         )
                     else:
-                        await translate(
-                            self.settings, self.job_repo, self.summary_service, job, progress
-                        )
+                        await self._translate(job, task_engine(task), progress)
                     break
                 except TranscriptChangedError:
                     if attempt == MAX_RESTARTS - 1:

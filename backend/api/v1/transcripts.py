@@ -22,9 +22,11 @@ from services.llm_tasks import (
     TRANSLATION_TARGET,
     TranscriptMissingError,
     available_translation,
+    task_engine,
     task_info,
     wake_llm_queue,
 )
+from services.runtime_settings_service import RuntimeSettingsService
 from services.summary_service import SummaryService
 
 logger = logging.getLogger(__name__)
@@ -161,9 +163,14 @@ async def update_transcript(
         ) from e
 
 
+async def get_translation_engine(settings: Settings = Depends(get_settings)) -> str:
+    """The engine the admin panel selects for new translations."""
+    return (await RuntimeSettingsService(settings).get()).translation_engine
+
+
 def _translation_response(
     uuid: str, status: str, segments: list[dict], request: TranslateRequest,
-    total: int, task: Optional[dict] = None,
+    total: int, engine: str, task: Optional[dict] = None,
 ) -> TranslateResponse:
     start = min(request.start, total)
     end = total if request.limit is None else min(total, start + request.limit)
@@ -172,6 +179,7 @@ def _translation_response(
         status=status,
         status_code=200,
         target_language=TRANSLATION_TARGET,
+        engine=engine,
         segments=segments[start:end],
         start=start,
         total=total,
@@ -179,12 +187,12 @@ def _translation_response(
     )
 
 
-async def _translation_state(uuid, job_repo, settings):
+async def _translation_state(uuid, job_repo, settings, engine):
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
     try:
-        status, segments = await available_translation(settings, job_repo, job)
+        status, segments = await available_translation(settings, job_repo, job, engine)
     except TranscriptMissingError as exc:
         raise HTTPException(status_code=404, detail="Transcript not found") from exc
     return job, status, segments
@@ -200,23 +208,31 @@ async def translate_transcript(
     job_repo: JobRepository = Depends(get_job_repository),
     tasks: LlmTaskRepository = Depends(get_llm_task_repository),
     settings: Settings = Depends(get_settings),
+    engine: str = Depends(get_translation_engine),
 ) -> TranslateResponse:
     """Translate the transcript into European Portuguese, in the background.
 
     A transcript already in Portuguese, or one translated before, is returned
     at once (200; `start`/`limit` select a range). Otherwise a translation
     task is queued, or the one under way returned (202), and the page polls
-    GET .../transcripts/translation. Translations are invalidated whenever
-    the transcript text is edited (see `update_transcript`).
+    GET .../transcripts/translation. The engine is the one the admin panel
+    selects (`engine` in the response); each has its own cache. Translations
+    are invalidated whenever the transcript text is edited (see
+    `update_transcript`).
     """
     request = request or TranslateRequest()
-    _, status, segments = await _translation_state(uuid, job_repo, settings)
+    active = await tasks.latest(uuid, "translation")
+    if active and active["status"] in ("queued", "running"):
+        engine = task_engine(active)  # rejoin the task under way, whatever its engine
+    _, status, segments = await _translation_state(uuid, job_repo, settings, engine)
     if status is not None:
-        return _translation_response(uuid, status, segments, request, len(segments))
-    task = await tasks.enqueue(uuid, "translation", None, principal.username)
+        return _translation_response(uuid, status, segments, request, len(segments), engine)
+    task = await tasks.enqueue(uuid, "translation", {"engine": engine}, principal.username)
     wake_llm_queue(http_request)
     response.status_code = 202
-    return _translation_response(uuid, task["status"], [], request, len(segments), task)
+    return _translation_response(
+        uuid, task["status"], [], request, len(segments), task_engine(task), task
+    )
 
 
 @router.get("/jobs/{uuid}/transcripts/translation", response_model=TranslateResponse)
@@ -225,15 +241,24 @@ async def get_translation(
     job_repo: JobRepository = Depends(get_job_repository),
     tasks: LlmTaskRepository = Depends(get_llm_task_repository),
     settings: Settings = Depends(get_settings),
+    engine: str = Depends(get_translation_engine),
 ) -> TranslateResponse:
-    """The translation if it is ready, else the state of its task ("none" if never asked)."""
-    _, status, segments = await _translation_state(uuid, job_repo, settings)
+    """The translation if it is ready, else the state of its task ("none" if never asked).
+
+    The latest task's engine is the one reported, unless that task failed
+    (the page follows the task it started even if the panel switches engines
+    meanwhile); otherwise the selected engine's.
+    """
     task = await tasks.latest(uuid, "translation")
+    if task and task["status"] != "error":
+        engine = task_engine(task)
+    _, status, segments = await _translation_state(uuid, job_repo, settings, engine)
     if status is not None:
         # A task that finished is not news; one under way or failed still is.
         unfinished = task if task and task["status"] != "done" else None
         return _translation_response(uuid, status, segments, TranslateRequest(),
-                                     len(segments), unfinished)
+                                     len(segments), engine, unfinished)
     return _translation_response(
-        uuid, task["status"] if task else "none", [], TranslateRequest(), len(segments), task
+        uuid, task["status"] if task else "none", [], TranslateRequest(), len(segments),
+        engine, task,
     )

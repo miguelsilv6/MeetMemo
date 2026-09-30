@@ -124,6 +124,7 @@ function App() {
     translatedSegments,
     translating,
     translationProgress,
+    translationEngine,
     showTranslation,
     handleToggleTranslation,
   } = useTranslation(jobId, setError);
@@ -442,6 +443,7 @@ function App() {
                 translatedSegments={translatedSegments}
                 translating={translating}
                 translationProgress={translationProgress}
+                translationEngine={translationEngine}
                 showTranslation={showTranslation}
                 handleToggleTranslation={handleToggleTranslation}
                 canUndo={canUndo}

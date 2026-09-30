@@ -15,8 +15,11 @@ import {
 } from '../../utils/adminValidation';
 import type { FieldError, NumericField, PromptField } from '../../utils/adminValidation';
 import type { AdminSettingsResponse, RuntimeSettings } from '../../types/admin';
+import type { TranslationEngine } from '../../types/api';
 import { SETTINGS_TABS, isSettingsTab } from '../../constants/adminTabs';
 import type { AdminTab, SettingsTab } from '../../constants/adminTabs';
+
+const TRANSLATION_ENGINES: TranslationEngine[] = ['llm', 'nllb'];
 
 /** The tab each setting is edited in. */
 const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
@@ -36,6 +39,7 @@ const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
   audio_highpass: 'transcription',
   audio_loudnorm: 'transcription',
   default_language: 'languageRetention',
+  translation_engine: 'languageRetention',
   job_retention_hours: 'languageRetention',
   project_retention_days: 'languageRetention',
   max_upload_mb: 'uploads',
@@ -420,6 +424,37 @@ export default function AdminSettingsForm({
                 <Col md={6}>{numberField('job_retention_hours')}</Col>
                 <Col md={6}>{numberField('project_retention_days')}</Col>
               </Row>
+            </Section>
+          )}
+
+          {tab === 'languageRetention' && (
+            <Section title={t('admin.settings.sections.translation')}>
+              <Row>
+                <Col md={6}>
+                  <Form.Group controlId="admin-translation_engine" className="mb-3">
+                    <Form.Label>{t('admin.settings.fields.translation_engine.label')}</Form.Label>
+                    <Form.Select
+                      value={draft.translation_engine}
+                      onChange={(e) =>
+                        update('translation_engine', e.target.value as TranslationEngine)
+                      }
+                      aria-describedby="admin-translation_engine-help"
+                    >
+                      {TRANSLATION_ENGINES.map((engine) => (
+                        <option key={engine} value={engine}>
+                          {t(`admin.settings.fields.translation_engine.options.${engine}`)}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+              <FieldHelp
+                id="admin-translation_engine-help"
+                text={t(
+                  `admin.settings.fields.translation_engine.help.${draft.translation_engine}`
+                )}
+              />
             </Section>
           )}
 

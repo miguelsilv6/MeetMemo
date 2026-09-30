@@ -215,26 +215,27 @@ cached translations for this transcript, since both may now be stale.
 
 ### POST /jobs/{uuid}/transcripts/translate
 
-Translate the transcript's segments into another language via the configured
-LLM (default target: Portuguese). Only segment text is translated — speaker
-and timing are preserved so the translation stays aligned with the audio.
-Results are cached on disk per transcript + target language and served from
-cache until the transcript is edited.
+Translate the transcript's segments into European Portuguese with the engine
+the admin panel selects: the configured LLM (`engine: "llm"`) or NLLB-200
+offline (`engine: "nllb"`). Only segment text is translated — speaker and
+timing are preserved so the translation stays aligned with the audio.
 
-**Request:**
-```json
-{
-  "target_language": "pt"
-}
-```
+A transcript already in Portuguese (`status: "original"`) or one translated
+before by that engine (`status: "cached"`) is returned at once (200). Otherwise
+a background task is queued, or the one under way returned (202, with `task`),
+and the page polls `GET /jobs/{uuid}/transcripts/translation` until the status
+is `cached`. Each engine has its own cache on disk, dropped when the
+transcript is edited. A failed task carries an `error_code` (`timeout`,
+`unavailable`, `unusable`, `unsupported_language`, `engine_unavailable`, ...).
 
 **Response:**
 ```json
 {
   "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "status": "generated",
+  "status": "cached",
   "status_code": 200,
-  "target_language": "pt",
+  "target_language": "pt-PT",
+  "engine": "llm",
   "segments": [
     {
       "speaker": "SPEAKER_00",

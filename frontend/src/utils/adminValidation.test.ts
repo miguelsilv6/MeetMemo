@@ -19,6 +19,7 @@ const valid: RuntimeSettings = {
   audio_highpass: true,
   audio_loudnorm: true,
   default_language: null,
+  translation_engine: 'llm',
   job_retention_hours: 12,
   project_retention_days: 7,
   max_upload_mb: 100,

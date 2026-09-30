@@ -1,5 +1,7 @@
 // Types for the admin panel API (mirrors backend runtime_settings.RuntimeSettings).
 
+import type { TranslationEngine } from './api';
+
 export interface RuntimeSettings {
   whisper_model_name: string;
   beam_size: number;
@@ -17,6 +19,7 @@ export interface RuntimeSettings {
   audio_highpass: boolean;
   audio_loudnorm: boolean;
   default_language: string | null;
+  translation_engine: TranslationEngine;
   job_retention_hours: number;
   project_retention_days: number;
   max_upload_mb: number;

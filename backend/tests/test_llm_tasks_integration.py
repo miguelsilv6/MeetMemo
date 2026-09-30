@@ -3,7 +3,8 @@ Background summaries and translations against a real PostgreSQL database:
 asking queues one task per audio and kind (asking again returns it), the
 worker runs them in order with a (fake) language model, the results are then
 served from the caches, failures carry a code the page explains, a restart
-puts interrupted tasks back in the queue, and only the audio's owner (or the
+puts interrupted tasks back in the queue, the NLLB-200 engine selected in the
+admin panel translates into its own cache, and only the audio's owner (or the
 administrator) sees any of it.
 
 Skipped unless MEETMEMO_TEST_DATABASE_URL points at a disposable database, e.g.
@@ -84,6 +85,7 @@ def test_background_llm_tasks_against_real_postgres(monkeypatch, tmp_path):
     from repositories.job_repository import JobRepository
     from repositories.llm_task_repository import LlmTaskRepository
     from services.llm_tasks import LlmTaskQueue, LlmTaskRunner
+    from services.runtime_settings_service import RuntimeSettingsService
     from services.summary_service import SummaryService
     from services.user_service import UserService
 
@@ -155,8 +157,9 @@ def test_background_llm_tasks_against_real_postgres(monkeypatch, tmp_path):
         job = new_job("call.wav")
         other = new_job("other.wav")
         tasks = LlmTaskRepository()
+        job_repo = JobRepository()
         queue = LlmTaskQueue(
-            tasks, LlmTaskRunner(settings, tasks, JobRepository(), summary_service).run
+            tasks, LlmTaskRunner(settings, tasks, job_repo, summary_service).run
         )
         base = f"/api/v1/jobs/{job}"
 
@@ -223,6 +226,38 @@ def test_background_llm_tasks_against_real_postgres(monkeypatch, tmp_path):
         assert retried.json()["task"]["id"] != failed["task"]["id"]
         assert run(queue.run_next()) is True
         assert client.get(f"{base}/summaries", headers=ana).json()["task"] is None
+
+        # --- NLLB-200, selected in the admin panel ---------------------------------
+        settings.whisper_model_name = "turbo"
+        settings.job_retention_hours = 12
+        runtime = RuntimeSettingsService(settings)
+        chosen = run(runtime.get()).model_copy(update={"translation_engine": "nllb"})
+        assert run(runtime.update(chosen, "admin")) == ["translation_engine"]
+
+        class FakeNllb:
+            loaded = True
+
+            def translate_texts(self, texts, language):
+                assert language == "en"
+                return [f"NLLB: {text}" for text in texts]
+
+        # The language model's translation (above) is not served as NLLB's.
+        run(job_repo.save_transcription(job, {"language": "en"}))
+        asked = client.post(f"{base}/transcripts/translate", headers=ana)
+        assert (asked.status_code, asked.json()["engine"]) == (202, "nllb")
+        nllb_queue = LlmTaskQueue(tasks, LlmTaskRunner(
+            settings, tasks, job_repo, summary_service, nllb_engine=FakeNllb()).run)
+        assert run(nllb_queue.run_next()) is True
+        nllb = client.get(f"{base}/transcripts/translation", headers=ana).json()
+        assert (nllb["status"], nllb["engine"]) == ("cached", "nllb")
+        assert nllb["segments"][0]["text"] == "NLLB: line 0"
+        assert Path(settings.translation_dir, "call.pt-PT.nllb.json").exists()
+        assert Path(settings.translation_dir, "call.pt-PT.json").exists()  # both kept
+
+        # Editing the transcript drops the translations of both engines.
+        edited = client.patch(f"{base}/transcripts", headers=ana, json={"transcript": SEGMENTS})
+        assert edited.status_code == 200, edited.text
+        assert not list(Path(settings.translation_dir).glob("call.*"))
 
         # --- A restart puts the task it interrupted back in the queue ----------
         client.post(f"/api/v1/jobs/{other}/transcripts/translate", headers=ana)
