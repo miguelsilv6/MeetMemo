@@ -33,6 +33,7 @@ const settings: RuntimeSettings = {
   audio_highpass: true,
   audio_loudnorm: true,
   default_language: null,
+  translation_engine: 'llm',
   job_retention_hours: 12,
   project_retention_days: 7,
   max_upload_mb: 100,
@@ -401,6 +402,26 @@ describe('AdminView', () => {
     await waitFor(() =>
       expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
         expect.objectContaining({ default_daily_tokens: 5 })
+      )
+    );
+  });
+
+  it('chooses the translation engine, explaining what NLLB-200 implies', async () => {
+    vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
+      settings: { ...settings, translation_engine: 'nllb' },
+      changed: ['translation_engine'],
+    });
+    await renderSignedIn();
+    openTab('Language');
+    const engine = screen.getByLabelText('Translation engine');
+    expect(engine).toHaveValue('llm');
+    expect(screen.getByText(/European Portuguese/)).toBeInTheDocument();
+    fireEvent.change(engine, { target: { value: 'nllb' } });
+    expect(screen.getByText(/CC-BY-NC 4.0: non-commercial use only/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() =>
+      expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ translation_engine: 'nllb' })
       )
     );
   });

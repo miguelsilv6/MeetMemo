@@ -82,6 +82,11 @@
     "translateToPortuguese": "Traduzir para português (PT)",
     "showOriginal": "Mostrar Original",
     "translatingProgress": "A traduzir… {{done}}/{{total}}",
+    "preparingEngine": "A preparar o motor de tradução…",
+    "translatedBy": {
+      "llm": "Tradução feita pelo modelo de linguagem (português europeu).",
+      "nllb": "Tradução feita pelo NLLB-200 (offline). O português pode não seguir a norma europeia."
+    },
     "editSpeakers": "Editar Interlocutores",
     "placeholder": "A transcrição vai aparecer aqui depois do processamento",
     "loadingKanban": "A carregar vista Kanban…",
@@ -346,7 +351,8 @@
         "uploads": "Carregamentos",
         "prompts": "Prompts do LLM (resumos e tradução)",
         "restartOnly": "Configuração que exige reinício (só leitura)",
-        "dailyTokens": "Tokens diários"
+        "dailyTokens": "Tokens diários",
+        "translation": "Tradução"
       },
       "fields": {
         "whisper_model_name": {
@@ -415,6 +421,17 @@
         "default_language": {
           "label": "Idioma de transcrição predefinido",
           "help": "Pré-selecionado no ecrã de carregamento. \"Deteção automática\" deixa o modelo identificar o idioma."
+        },
+        "translation_engine": {
+          "label": "Motor de tradução",
+          "options": {
+            "llm": "Modelo de linguagem (LLM)",
+            "nllb": "NLLB-200 (offline)"
+          },
+          "help": {
+            "llm": "Traduz com o modelo de linguagem configurado (LLM_API_URL), seguindo a norma europeia do português. Precisa do servidor do LLM e é o mais lento.",
+            "nllb": "Traduz no próprio servidor com o NLLB-200 da Meta, sem depender do LLM: mais rápido e mais leve, para cerca de 200 idiomas. Na primeira tradução, o modelo da Meta é descarregado (cerca de 2,5 GB) e convertido para cerca de 600 MB, o que demora alguns minutos e precisa de cerca de 5 GB de memória. O português que produz é genérico (pode seguir a norma brasileira). Licença CC-BY-NC 4.0: apenas uso não comercial."
+          }
         },
         "job_retention_hours": {
           "label": "Retenção (horas)",
@@ -524,7 +541,9 @@
         "user_password_reset": "Palavra-passe de utilizador reposta",
         "user_deleted": "Utilizador eliminado",
         "user_tokens": "Tokens de utilizador alterados",
-        "user_daily_tokens": "Quota diária de utilizador alterada"
+        "user_daily_tokens": "Quota diária de utilizador alterada",
+        "user_unlimited_on": "Tokens ilimitados ativados",
+        "user_unlimited_off": "Tokens ilimitados desativados"
       }
     },
     "users": {
@@ -606,6 +625,7 @@
       "dailyQuotaHelp": "Vazio: usa o valor por omissão (separador Carregamentos). 0: sem quota diária.",
       "defaultPlaceholder": "Por omissão",
       "cell": "{{remaining}}/{{quota}} hoje · +{{extra}}",
+      "cellNoExtra": "{{remaining}}/{{quota}} hoje",
       "dailyToday": "Hoje: {{used}} de {{quota}} usados.",
       "noDailyQuota": "Sem quota diária.",
       "followsDefault": "valor por omissão",
@@ -618,7 +638,12 @@
       "quotaSet_zero": "{{username}} fica sem quota diária.",
       "quotaSet_one": "Quota diária de {{username}}: {{count}} token.",
       "quotaSet_other": "Quota diária de {{username}}: {{count}} tokens.",
-      "quotaDefaultSet": "{{username}} passa a usar a quota diária por omissão."
+      "quotaDefaultSet": "{{username}} passa a usar a quota diária por omissão.",
+      "unlimited": "Tokens ilimitados",
+      "unlimitedHelp": "As transcrições deste utilizador não gastam tokens e os carregamentos nunca ficam bloqueados. A quota diária e o saldo extra ficam guardados e voltam a contar quando se desliga.",
+      "unlimitedActive": "Tokens ilimitados ativos: a quota diária e o saldo extra abaixo não estão a ser usados.",
+      "unlimitedOn": "{{username}} passou a ter tokens ilimitados.",
+      "unlimitedOff": "{{username}} deixou de ter tokens ilimitados."
     }
   },
   "projects": {
@@ -736,7 +761,11 @@
     "tokensHint": "Cada transcrição gasta 1 token. Se o processamento falhar, o token é devolvido.",
     "noTokens": "Não tens tokens disponíveis (1 token = 1 transcrição). Se tens quota diária, volta à meia-noite; para carregares já novos áudios, pede mais ao administrador.",
     "tokensDaily": "{{remaining}} de {{quota}} hoje · +{{extra}}",
-    "tokensDailyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula) e o saldo extra, gasto depois da quota. Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido."
+    "tokensDailyOnly": "{{remaining}} de {{quota}} hoje",
+    "tokensDailyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula) e o saldo extra, gasto depois da quota. Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido.",
+    "tokensDailyOnlyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula). Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido.",
+    "tokensUnlimited": "Tokens ilimitados",
+    "tokensUnlimitedHint": "Tokens ilimitados: as transcrições não gastam tokens."
   },
   "llmTask": {
     "queued_zero": "Em fila: é o próximo",
@@ -749,6 +778,8 @@
       "unusable": "O modelo de linguagem devolveu uma resposta que não foi possível usar. Tenta novamente ou usa um modelo maior.",
       "transcript_missing": "Este áudio ainda não tem transcrição.",
       "transcript_changed": "A transcrição foi alterada várias vezes durante o processamento. Tenta novamente.",
+      "unsupported_language": "O motor NLLB-200 não traduz o idioma desta transcrição. O administrador pode escolher o motor LLM no painel (Idioma e retenção → Tradução).",
+      "engine_unavailable": "Não foi possível preparar o motor de tradução NLLB-200 (por exemplo, sem acesso ao Hugging Face para o descarregar). O administrador pode ver o detalhe nos registos ou escolher o motor LLM.",
       "internal": "Ocorreu um erro inesperado no servidor."
     }
   }

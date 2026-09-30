@@ -117,7 +117,7 @@ async def require_owners() -> None:
 
 TOKENS_SCHEMA_PATHS = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "migrations", name)
-    for name in ("006_tokens.sql", "007_daily_tokens.sql")
+    for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql")
 ]
 
 DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
@@ -125,8 +125,8 @@ DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
 
 async def ensure_tokens_schema(timezone: str = DEFAULT_TOKENS_TIMEZONE):
     """
-    Create the token balances, ledger, daily quota and refund trigger on older
-    databases, and date the daily quota in ``timezone`` (an IANA name).
+    Create the token balances, ledger, daily quota, unlimited mark and refund
+    trigger on older databases, and date the daily quota in ``timezone`` (an IANA name).
     """
     async with get_db() as conn:
         for path in TOKENS_SCHEMA_PATHS:
@@ -170,17 +170,20 @@ class InsufficientTokensError(Exception):
 async def charge_token(conn, user_uuid: str, job_uuid: str) -> str:
     """
     Take one token from the user for a job, inside the caller's transaction:
-    from today's quota while it lasts, otherwise from the extra balance.
+    from today's quota while it lasts, otherwise from the extra balance. An
+    account with unlimited tokens is not charged (nothing to refund either).
 
     Each check and debit is one statement, so concurrent uploads can never
     spend more tokens than the user has.
 
     Returns:
-        Where the token came from: ``"daily"`` or ``"balance"``.
+        Where the token came from: ``"daily"``, ``"balance"`` or ``"unlimited"``.
 
     Raises:
         InsufficientTokensError: If the day's quota and the balance are both used up.
     """
+    if await conn.fetchval("SELECT unlimited_tokens FROM users WHERE uuid = $1", user_uuid):
+        return "unlimited"
     daily = await conn.fetchrow(
         """UPDATE users SET
                daily_tokens_used = CASE WHEN daily_tokens_day = d.today

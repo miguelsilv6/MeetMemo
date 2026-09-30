@@ -25,6 +25,8 @@ cp example.env .env
 |----------|-------------|---------|
 | `LLM_API_KEY` | API key for LLM service | Empty (none) |
 | `LLM_TIMEOUT` | Seconds to wait for each LLM response (summary, translation); raise it for a local model on CPU | `60` |
+| `NLLB_MODEL` | Model of the offline translation engine (NLLB-200, selected in the admin panel): Meta's Hugging Face repository, downloaded on first use and converted locally for CTranslate2 | `facebook/nllb-200-distilled-600M` |
+| `NLLB_DEVICE` | Where NLLB-200 runs: `auto` (the GPU if there is one), `cpu` or `cuda` | `auto` |
 | `POSTGRES_PASSWORD` | PostgreSQL password | `changeme` |
 | `WHISPER_MODEL_NAME` | Whisper model for transcription | `turbo` |
 | `COMPUTE_TYPE` | Inference precision (float16/int8) | `float16` |

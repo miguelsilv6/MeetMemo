@@ -22,4 +22,9 @@ describe('tokens', () => {
       null
     );
   });
+
+  it('never runs out with unlimited tokens', () => {
+    const unlimited = { token_balance: 0, daily_quota: 5, daily_used: 5, unlimited_tokens: true };
+    expect(availableTokens(unlimited)).toBe(Infinity);
+  });
 });

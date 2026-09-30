@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def translation_files(translation_dir: str, base_name: str) -> list[str]:
-    """Cached translations of a transcript (complete and partial, any target)."""
+    """Cached translations of a transcript (complete and partial, any target and engine)."""
     if not base_name or not os.path.isdir(translation_dir):
         return []
     prefix = f"{base_name}."
@@ -25,10 +25,14 @@ def translation_files(translation_dir: str, base_name: str) -> list[str]:
     for entry in os.listdir(translation_dir):
         if not (entry.startswith(prefix) and entry.endswith(".json")):
             continue
-        # "<base>.<target>.json" or "<base>.<target>.partial.json"; a further
-        # dot means the file belongs to another audio, e.g. "<base>.v2.pt-PT.json".
-        target = entry[len(prefix):-len(".json")].removesuffix(".partial")
-        if target and "." not in target:
+        # "<base>.<target>[.nllb][.partial].json" (".nllb": translated by
+        # NLLB-200); a further dot means the file belongs to another audio,
+        # e.g. "<base>.v2.pt-PT.json" to "<base>.v2"; and the caches of "<base>"
+        # ("<base>.pt-PT.nllb.json", "<base>.pt-PT.partial.json") are never
+        # targets "nllb" or "partial" of an audio "<base>.pt-PT".
+        name = entry[len(prefix):-len(".json")].removesuffix(".partial")
+        target = name.removesuffix(".nllb")
+        if target and "." not in target and name not in ("nllb", "partial"):
             matches.append(os.path.join(translation_dir, entry))
     return matches
 

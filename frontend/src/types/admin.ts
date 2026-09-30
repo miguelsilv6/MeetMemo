@@ -1,5 +1,7 @@
 // Types for the admin panel API (mirrors backend runtime_settings.RuntimeSettings).
 
+import type { TranslationEngine } from './api';
+
 export interface RuntimeSettings {
   whisper_model_name: string;
   beam_size: number;
@@ -17,6 +19,7 @@ export interface RuntimeSettings {
   audio_highpass: boolean;
   audio_loudnorm: boolean;
   default_language: string | null;
+  translation_engine: TranslationEngine;
   job_retention_hours: number;
   project_retention_days: number;
   max_upload_mb: number;
@@ -76,6 +79,8 @@ export interface AdminUser {
   project_count: number;
   audio_count: number;
   token_balance: number;
+  /** Never charged for transcriptions (balance and quota then unused). */
+  unlimited_tokens: boolean;
   /** The account's own daily quota, or null to follow the panel's default. */
   daily_token_quota: number | null;
   /** The daily quota in force (own or default) and how much of it today took. */
@@ -86,6 +91,7 @@ export interface AdminUser {
 /** An account's tokens as the admin API returns them. */
 export interface UserTokenState {
   token_balance: number;
+  unlimited_tokens: boolean;
   daily_quota: number;
   daily_used: number;
 }

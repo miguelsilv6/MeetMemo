@@ -45,7 +45,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 | **Export Options** | Professional PDF and Markdown exports for transcripts and summaries |
 | **Multi-language** | Automatic language detection or specify target language, with detected-language confidence shown in the UI |
 | **Kanban Transcript View** | View the transcript as one column per speaker, ordered by timestamp; drag a line to another speaker to correct misattributed segments |
-| **Portuguese Translation** | Translate the transcript to Portuguese on demand (LLM-powered, cached per job), in the background like summaries, block by block with progress; a failed or interrupted translation resumes where it stopped |
+| **Portuguese Translation** | Translate the transcript to Portuguese on demand (cached per job), in the background like summaries, block by block with progress; a failed or interrupted translation resumes where it stopped. Engine chosen in the admin panel: the LLM, or NLLB-200 offline |
 | **User Accounts** | Sign-in required, on one page for users and the administrator; accounts are created by the administrator in the admin panel (temporary password, changed at first sign-in). Each user sees only their own audios and projects; the administrator can open everyone's |
 | **Tokens** | Each transcription costs one token, charged when the audio is accepted and refunded automatically if processing fails. Users can have a daily quota (full again every midnight, not cumulative) spent before the extra balance the administrator grants; the administrator sets a default quota, per-user overrides and sees each user's history |
 | **Projects** | Group several audios of the same case: upload them at once, the server processes them one at a time (the page can be closed), and the project with every file it produced is deleted automatically after its retention (7 days by default, set in the admin panel) |
@@ -165,10 +165,17 @@ charge, refund and adjustment is listed).
 Tokens can also come from a **daily quota**: a number of tokens per day that is
 full again at midnight (in `TOKENS_TIMEZONE`, `Europe/Lisbon` by default) and
 does not accumulate. Uploads spend the day's quota first and the extra balance
-after it; the header shows both (e.g. "2 of 5 today · +8"). The default quota
+after it; the header shows both (e.g. "2 of 5 today · +8", or just "2 of 5
+today" with no extra balance). The default quota
 is set in the admin panel (**Uploads** tab, 0 = none) and each account can have
 its own (**Users** → tokens). A failed audio gives its token back to where it
 came from; a daily token only while it is still the same day.
+
+An account can also have **unlimited tokens** (**Users** → tokens → "Unlimited
+tokens"): its transcriptions use no tokens and its uploads are never blocked,
+and the header shows "∞". Its daily quota and extra balance are kept as they
+are and count again once the option is turned off; each change is in the
+panel's history.
 
 For several audios of the same case, open **Projects** in the header: create a
 project, drop all the audios on it, and they are queued and processed on the
@@ -177,6 +184,27 @@ audio can be retried, and each completed audio opens in the usual transcript
 view. The project's expiry date is fixed when it is created; at expiry the
 project and all its audios, transcripts, summaries, translations and exports
 are deleted.
+
+Translations into Portuguese are made by the engine selected in the admin panel
+(**Language & retention** → **Translation**):
+
+- **Language model (LLM)**, the default: the configured LLM, following European
+  Portuguese. Needs the LLM server and is the slowest option.
+- **NLLB-200 (offline)**: Meta's `facebook/nllb-200-distilled-600M`, run on the
+  server itself with CTranslate2 (like Whisper), for about 200 languages; much
+  faster than a local LLM on CPU and independent of it. The first translation
+  downloads Meta's model (about 2.5 GB) and converts it locally to about
+  600 MB, kept in the Hugging Face cache volume (a few minutes, and about 5 GB
+  of memory while converting); to do it ahead of time:
+  `docker compose exec meetmemo-backend python -m services.nllb_setup`.
+  Its Portuguese is generic (it may follow Brazilian usage), and a transcript
+  in a language NLLB lacks (Latin, Hawaiian, Breton) needs the LLM engine.
+  The model's license is **CC-BY-NC 4.0: non-commercial use only**.
+  `NLLB_MODEL` and `NLLB_DEVICE` (see `example.env`) change the model and where
+  it runs.
+
+The page shows which engine made the translation on screen, and each engine
+keeps its own cached translation.
 
 ### Supported Audio Formats
 

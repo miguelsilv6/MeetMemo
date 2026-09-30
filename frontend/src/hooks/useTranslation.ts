@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation as useI18n } from 'react-i18next';
 import * as api from '../services/api';
-import type { TranscriptSegment, TranslateResponse } from '../types/api';
+import type { TranscriptSegment, TranslateResponse, TranslationEngine } from '../types/api';
 import type { SetError } from '../types/ui';
 import { LLM_POLL_MS, isTaskActive, llmTaskError, sleep } from '../utils/llmTasks';
 
@@ -11,6 +11,8 @@ export interface TranslationProgress {
   /** Still waiting in the server's queue, behind `position` other tasks. */
   queued?: boolean;
   position?: number | null;
+  /** NLLB-200 is being downloaded/loaded before translating (first use). */
+  preparing?: boolean;
 }
 
 const isReady = (response: TranslateResponse) =>
@@ -38,6 +40,7 @@ export default function useTranslation(jobId: string | null, setError: SetError)
   const [showTranslation, setShowTranslation] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translationProgress, setTranslationProgress] = useState<TranslationProgress | null>(null);
+  const [translationEngine, setTranslationEngine] = useState<TranslationEngine | null>(null);
   // Bumped whenever the job changes, so a poll for the previous one stops.
   const generation = useRef(0);
 
@@ -48,6 +51,7 @@ export default function useTranslation(jobId: string | null, setError: SetError)
       total: task?.progress_total || response.total || 0,
       queued: task?.status === 'queued',
       position: task?.queue_position ?? null,
+      preparing: response.engine === 'nllb' && task?.status === 'running' && !task.progress_total,
     };
   };
 
@@ -129,6 +133,7 @@ export default function useTranslation(jobId: string | null, setError: SetError)
       const response = await follow(jobId, await api.translateTranscript(jobId));
       if (!response) return;
       setTranslatedSegments(response.segments ?? []);
+      setTranslationEngine(response.engine ?? 'llm');
       setTranslatedFor(segments);
       setShowTranslation(true);
     } catch (err) {
@@ -142,6 +147,7 @@ export default function useTranslation(jobId: string | null, setError: SetError)
     translatedSegments: showTranslation ? translatedSegments : null,
     translating,
     translationProgress,
+    translationEngine: showTranslation ? translationEngine : null,
     showTranslation,
     handleToggleTranslation,
   };

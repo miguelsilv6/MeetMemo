@@ -8,9 +8,11 @@ import asyncpg
 from database import get_db
 
 # daily_token_quota is the account's own quota (None: the panel's default);
-# daily_quota is the one in force and daily_used what today's uploads took.
+# daily_quota is the one in force and daily_used what today's uploads took;
+# unlimited_tokens: never charged.
 _USER_COLUMNS = """u.uuid, u.username, u.display_name, u.is_active, u.must_change_password,
-                   u.created_at, u.last_login_at, u.token_balance, u.daily_token_quota,
+                   u.created_at, u.last_login_at, u.token_balance, u.unlimited_tokens,
+                   u.daily_token_quota,
                    COALESCE(u.daily_token_quota, default_daily_tokens()) AS daily_quota,
                    CASE WHEN u.daily_tokens_day = tokens_today()
                         THEN u.daily_tokens_used ELSE 0 END AS daily_used"""
@@ -93,6 +95,17 @@ class UserRepository:
                     WHERE uuid = $1
                     RETURNING {_USER_COLUMNS}""",
                 uuid, quota,
+            )
+        return dict(row) if row else None
+
+    async def set_unlimited_tokens(self, uuid: str, unlimited: bool) -> Optional[dict]:
+        """Mark the account as never charged for transcriptions, or not."""
+        async with get_db() as conn:
+            row = await conn.fetchrow(
+                f"""UPDATE users AS u SET unlimited_tokens = $2
+                    WHERE uuid = $1
+                    RETURNING {_USER_COLUMNS}""",
+                uuid, unlimited,
             )
         return dict(row) if row else None
 

@@ -3,6 +3,8 @@ export interface TokenFigures {
   token_balance: number | null;
   daily_quota: number | null;
   daily_used: number | null;
+  /** Never charged: transcriptions do not use tokens. */
+  unlimited_tokens?: boolean | null;
 }
 
 /** What is left of today's quota (0 when there is none). */
@@ -12,10 +14,12 @@ export function dailyRemaining(tokens: TokenFigures): number {
 
 /**
  * How many transcriptions the account can still start now: the rest of
- * today's quota plus the extra balance. Null for the administrator.
+ * today's quota plus the extra balance (Infinity with unlimited tokens).
+ * Null for the administrator.
  */
 export function availableTokens(tokens: TokenFigures): number | null {
   if (tokens.token_balance === null) return null;
+  if (tokens.unlimited_tokens) return Infinity;
   return dailyRemaining(tokens) + tokens.token_balance;
 }
 

@@ -76,12 +76,19 @@ def test_audio_status_distinguishes_queued_processing_done_and_failed():
 
 def test_translation_files_belong_to_exactly_one_audio(tmp_path):
     for name in ("call.pt-PT.json", "call.pt-PT.partial.json", "call.pt.json",
-                 "call.v2.pt-PT.json", "callback.pt-PT.json", "call.txt"):
+                 "call.pt-PT.nllb.json", "call.pt-PT.nllb.partial.json",
+                 "call.v2.pt-PT.json", "call.v2.pt-PT.nllb.json", "callback.pt-PT.json",
+                 "call.txt"):
         _touch(tmp_path / name)
 
     found = sorted(os.path.basename(p) for p in translation_files(str(tmp_path), "call"))
 
-    assert found == ["call.pt-PT.json", "call.pt-PT.partial.json", "call.pt.json"]
+    assert found == [
+        "call.pt-PT.json", "call.pt-PT.nllb.json", "call.pt-PT.nllb.partial.json",
+        "call.pt-PT.partial.json", "call.pt.json",
+    ]
+    # The caches of "call" are not files of an audio named "call.pt-PT".
+    assert translation_files(str(tmp_path), "call.pt-PT") == []
 
 
 def test_removing_a_job_deletes_every_file_it_produced(tmp_path):

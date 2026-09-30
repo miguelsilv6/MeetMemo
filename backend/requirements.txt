@@ -3,6 +3,10 @@ numpy>=2.0
 faster-whisper==1.1.0
 pyannote.audio==4.0.4
 huggingface_hub>=0.28.1
+# NLLB-200 translation engine: its tokenizer, and the model conversion for
+# CTranslate2 (which faster-whisper already brings).
+transformers>=4.44,<5
+sentencepiece>=0.2,<0.3
 soundfile==0.13.1
 speechbrain==1.1.0
 python-dotenv==1.0.1

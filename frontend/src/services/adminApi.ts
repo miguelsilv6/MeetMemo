@@ -156,6 +156,14 @@ export function setUserDailyQuota(
   });
 }
 
+/** Give the account unlimited tokens (never charged), or take them away. */
+export function setUserUnlimitedTokens(uuid: string, unlimited: boolean): Promise<UserTokenState> {
+  return adminRequest(`/users/${uuid}/unlimited-tokens`, {
+    method: 'PUT',
+    body: { unlimited_tokens: unlimited },
+  });
+}
+
 export function getUserTokens(uuid: string): Promise<
   UserTokenState & {
     daily_token_quota: number | null;

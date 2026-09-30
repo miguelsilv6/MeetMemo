@@ -82,6 +82,11 @@
     "translateToPortuguese": "Translate to Portuguese (PT)",
     "showOriginal": "Show Original",
     "translatingProgress": "Translating… {{done}}/{{total}}",
+    "preparingEngine": "Preparing the translation engine…",
+    "translatedBy": {
+      "llm": "Translated by the language model (European Portuguese).",
+      "nllb": "Translated by NLLB-200 (offline). The Portuguese may not follow European usage."
+    },
     "editSpeakers": "Edit Speakers",
     "placeholder": "Transcript will appear here after processing",
     "loadingKanban": "Loading Kanban view…",
@@ -346,7 +351,8 @@
         "uploads": "Uploads",
         "prompts": "LLM prompts (summaries and translation)",
         "restartOnly": "Restart-only configuration (read-only)",
-        "dailyTokens": "Daily tokens"
+        "dailyTokens": "Daily tokens",
+        "translation": "Translation"
       },
       "fields": {
         "whisper_model_name": {
@@ -415,6 +421,17 @@
         "default_language": {
           "label": "Default transcription language",
           "help": "Preselected on the upload screen. \"Auto-detect\" lets the model identify the language."
+        },
+        "translation_engine": {
+          "label": "Translation engine",
+          "options": {
+            "llm": "Language model (LLM)",
+            "nllb": "NLLB-200 (offline)"
+          },
+          "help": {
+            "llm": "Translates with the configured language model (LLM_API_URL), following European Portuguese. Needs the LLM server and is the slowest.",
+            "nllb": "Translates on this server with Meta's NLLB-200, without the LLM: faster and lighter, for about 200 languages. The first translation downloads Meta's model (about 2.5 GB) and converts it to about 600 MB, which takes a few minutes and about 5 GB of memory. Its Portuguese is generic (it may follow Brazilian usage). License CC-BY-NC 4.0: non-commercial use only."
+          }
         },
         "job_retention_hours": {
           "label": "Retention (hours)",
@@ -524,7 +541,9 @@
         "user_password_reset": "User password reset",
         "user_deleted": "User deleted",
         "user_tokens": "User tokens changed",
-        "user_daily_tokens": "User daily quota changed"
+        "user_daily_tokens": "User daily quota changed",
+        "user_unlimited_on": "Unlimited tokens turned on",
+        "user_unlimited_off": "Unlimited tokens turned off"
       }
     },
     "users": {
@@ -606,6 +625,7 @@
       "dailyQuotaHelp": "Empty: use the default (Uploads tab). 0: no daily quota.",
       "defaultPlaceholder": "Default",
       "cell": "{{remaining}}/{{quota}} today · +{{extra}}",
+      "cellNoExtra": "{{remaining}}/{{quota}} today",
       "dailyToday": "Today: {{used}} of {{quota}} used.",
       "noDailyQuota": "No daily quota.",
       "followsDefault": "default",
@@ -618,7 +638,12 @@
       "quotaSet_zero": "{{username}} now has no daily quota.",
       "quotaSet_one": "{{username}}'s daily quota: {{count}} token.",
       "quotaSet_other": "{{username}}'s daily quota: {{count}} tokens.",
-      "quotaDefaultSet": "{{username}} now follows the default daily quota."
+      "quotaDefaultSet": "{{username}} now follows the default daily quota.",
+      "unlimited": "Unlimited tokens",
+      "unlimitedHelp": "This user's transcriptions use no tokens and uploads are never blocked. The daily quota and extra balance are kept and count again once this is turned off.",
+      "unlimitedActive": "Unlimited tokens on: the daily quota and extra balance below are not being used.",
+      "unlimitedOn": "{{username}} now has unlimited tokens.",
+      "unlimitedOff": "{{username}} no longer has unlimited tokens."
     }
   },
   "projects": {
@@ -736,7 +761,11 @@
     "tokensHint": "Each transcription uses 1 token. If processing fails, the token is given back.",
     "noTokens": "You have no tokens left (1 token = 1 transcription). If you have a daily quota, it comes back at midnight; to upload new audios now, ask the administrator for more.",
     "tokensDaily": "{{remaining}} of {{quota}} today · +{{extra}}",
-    "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back."
+    "tokensDailyOnly": "{{remaining}} of {{quota}} today",
+    "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back.",
+    "tokensDailyOnlyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate). Each transcription uses 1 token; if processing fails, the token is given back.",
+    "tokensUnlimited": "Unlimited tokens",
+    "tokensUnlimitedHint": "Unlimited tokens: transcriptions do not use tokens."
   },
   "llmTask": {
     "queued_zero": "Queued: next up",
@@ -749,6 +778,8 @@
       "unusable": "The language model returned an answer that could not be used. Try again or use a larger model.",
       "transcript_missing": "This audio has no transcript yet.",
       "transcript_changed": "The transcript was edited several times while it was being processed. Try again.",
+      "unsupported_language": "The NLLB-200 engine does not translate this transcript's language. The administrator can select the LLM engine in the panel (Language & retention → Translation).",
+      "engine_unavailable": "The NLLB-200 translation engine could not be prepared (for example, no access to Hugging Face to download it). The administrator can find the detail in the logs or select the LLM engine.",
       "internal": "An unexpected error occurred on the server."
     }
   }

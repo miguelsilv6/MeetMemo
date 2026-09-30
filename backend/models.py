@@ -198,6 +198,8 @@ class TranslateResponse(BaseModel):
     status: str
     status_code: int
     target_language: str
+    # The engine that translated (or is translating): "llm" or "nllb".
+    engine: str = "llm"
     # The translated segments for the requested range, starting at `start`,
     # out of `total` segments in the transcript (empty until translated).
     segments: list[dict] = []

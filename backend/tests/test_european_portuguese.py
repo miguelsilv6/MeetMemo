@@ -240,6 +240,7 @@ def _client(tmp_path, language, segments=None, tasks=None):
     )
     app.dependency_overrides[transcripts_api.get_llm_task_repository] = lambda: tasks
     app.dependency_overrides[transcripts_api.get_settings] = lambda: settings
+    app.dependency_overrides[transcripts_api.get_translation_engine] = lambda: "llm"
     sign_in(app)
     return TestClient(app, headers=REQUEST_HEADERS), tasks, settings
 
