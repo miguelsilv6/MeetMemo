@@ -19,7 +19,7 @@ describe('RecentJobsList', () => {
         handleViewSummary={vi.fn()}
       />
     );
-    expect(screen.getByText(/loading recent communications/i)).toBeInTheDocument();
+    expect(screen.getByText(/loading recent transcriptions/i)).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no jobs', () => {
@@ -32,7 +32,7 @@ describe('RecentJobsList', () => {
         handleViewSummary={vi.fn()}
       />
     );
-    expect(screen.getByText(/no recent communications/i)).toBeInTheDocument();
+    expect(screen.getByText(/no recent transcriptions/i)).toBeInTheDocument();
   });
 
   it('renders each job and loads one when its row is clicked', () => {

@@ -52,8 +52,8 @@
     "requiresHttps": "A gravação requer HTTPS. Acede a esta página via HTTPS para ativar o acesso ao microfone"
   },
   "recentJobs": {
-    "title": "Comunicações Recentes",
-    "loading": "A carregar comunicações recentes...",
+    "title": "Transcrições recentes",
+    "loading": "A carregar transcrições recentes...",
     "untitled": "Gravação Sem Título",
     "dateUnknown": "Data desconhecida",
     "statusComplete": "Concluída",
@@ -61,7 +61,7 @@
     "statusFailed": "Falhou",
     "deleteThis": "Eliminar esta comunicação",
     "viewSummary": "Ver resumo com IA",
-    "empty": "Ainda não há comunicações recentes. Carrega a tua primeira comunicação para começar!",
+    "empty": "Ainda não há transcrições recentes. Carrega a tua primeira comunicação para começar!",
     "retentionNotice": "As comunicações são eliminadas automaticamente após 12 horas",
     "deleteModalTitle": "Eliminar Comunicação",
     "deleteModalBody": "Tens a certeza de que queres eliminar esta comunicação? Esta ação não pode ser desfeita."
