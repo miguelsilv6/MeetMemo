@@ -753,7 +753,9 @@
     "tokensHint": "Each transcription uses 1 token. If processing fails, the token is given back.",
     "noTokens": "You have no tokens left (1 token = 1 transcription). If you have a daily quota, it comes back at midnight; to upload new audios now, ask the administrator for more.",
     "tokensDaily": "{{remaining}} of {{quota}} today · +{{extra}}",
-    "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back."
+    "tokensDailyOnly": "{{remaining}} of {{quota}} today",
+    "tokensDailyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate) and the extra balance, used once the quota runs out. Each transcription uses 1 token; if processing fails, the token is given back.",
+    "tokensDailyOnlyHint": "Tokens you still have today (the daily quota is full again at midnight and does not accumulate). Each transcription uses 1 token; if processing fails, the token is given back."
   },
   "llmTask": {
     "queued_zero": "Queued: next up",

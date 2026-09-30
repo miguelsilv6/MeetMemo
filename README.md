@@ -165,7 +165,8 @@ charge, refund and adjustment is listed).
 Tokens can also come from a **daily quota**: a number of tokens per day that is
 full again at midnight (in `TOKENS_TIMEZONE`, `Europe/Lisbon` by default) and
 does not accumulate. Uploads spend the day's quota first and the extra balance
-after it; the header shows both (e.g. "2 of 5 today · +8"). The default quota
+after it; the header shows both (e.g. "2 of 5 today · +8", or just "2 of 5
+today" with no extra balance). The default quota
 is set in the admin panel (**Uploads** tab, 0 = none) and each account can have
 its own (**Users** → tokens). A failed audio gives its token back to where it
 came from; a daily token only while it is still the same day.

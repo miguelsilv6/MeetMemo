@@ -753,7 +753,9 @@
     "tokensHint": "Cada transcrição gasta 1 token. Se o processamento falhar, o token é devolvido.",
     "noTokens": "Não tens tokens disponíveis (1 token = 1 transcrição). Se tens quota diária, volta à meia-noite; para carregares já novos áudios, pede mais ao administrador.",
     "tokensDaily": "{{remaining}} de {{quota}} hoje · +{{extra}}",
-    "tokensDailyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula) e o saldo extra, gasto depois da quota. Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido."
+    "tokensDailyOnly": "{{remaining}} de {{quota}} hoje",
+    "tokensDailyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula) e o saldo extra, gasto depois da quota. Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido.",
+    "tokensDailyOnlyHint": "Tokens que ainda tens hoje (a quota diária volta ao máximo à meia-noite e não se acumula). Cada transcrição gasta 1 token; se o processamento falhar, o token é devolvido."
   },
   "llmTask": {
     "queued_zero": "Em fila: é o próximo",

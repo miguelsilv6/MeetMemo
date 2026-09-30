@@ -129,6 +129,18 @@ describe('Header', () => {
         me={{ ...user, token_balance: 0, daily_quota: 5, daily_used: 5 }}
       />
     );
-    expect(screen.getByText('0 of 5 today · +0')).toHaveClass('bg-danger');
+    // No extra balance: no "+0".
+    const empty = screen.getByText('0 of 5 today');
+    expect(empty).toHaveClass('bg-danger');
+    expect(empty.getAttribute('title')).not.toMatch(/extra balance/);
+
+    rerender(
+      <Header
+        onStartNewMeeting={vi.fn()}
+        me={{ ...user, token_balance: 0, daily_quota: 5, daily_used: 1 }}
+      />
+    );
+    expect(screen.getByText('4 of 5 today')).toHaveClass('bg-secondary');
+    expect(screen.queryByText(/\+0/)).toBeNull();
   });
 });
