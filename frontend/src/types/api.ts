@@ -106,6 +106,10 @@ export interface RecentJob {
   status_code?: number | string;
   created_at?: string;
   has_summary?: boolean;
+  /** What Whisper detected, once transcribed. */
+  detected_language?: string | null;
+  /** Confidence of that detection (0-1); null when the language was chosen. */
+  language_probability?: number | null;
 }
 
 /** A job entry as returned by the backend `/jobs` listing. */
@@ -115,6 +119,8 @@ export interface JobsResponseEntry {
   status_code?: number | string;
   created_at?: string;
   has_summary?: boolean;
+  detected_language?: string | null;
+  language_probability?: number | null;
 }
 
 export interface JobsResponse {

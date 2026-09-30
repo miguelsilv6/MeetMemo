@@ -4,14 +4,16 @@ import { Card, Badge, Button, Modal } from '@govtechsg/sgds-react';
 import { Clock, AlertCircle, Trash2, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { RecentJob } from '../../types/api';
+import DetectedLanguage from '../Common/DetectedLanguage';
+import SortOrderSelect from '../Common/SortOrderSelect';
+import { formatDateTime } from '../../utils/projectDates';
+import { sortByDate, useSortOrder } from '../../utils/sortOrder';
 
-const DATE_TIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-};
+/** How many transcriptions show before "Show all". */
+export const RECENT_JOBS_SHOWN = 5;
+const SORT_STORAGE_KEY = 'meetmemo-recent-sort';
+
+const isComplete = (job: RecentJob) => job.status_code === 200 || job.status_code === '200';
 
 interface RecentJobsListProps {
   recentJobs: RecentJob[];
@@ -28,8 +30,12 @@ export default function RecentJobsList({
   handleDeleteJob,
   handleViewSummary,
 }: RecentJobsListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(null);
+  const [order, setOrder] = useSortOrder(SORT_STORAGE_KEY, 'newest');
+  const [showAll, setShowAll] = useState(false);
+  const sorted = sortByDate(recentJobs, order);
+  const shown = showAll ? sorted : sorted.slice(0, RECENT_JOBS_SHOWN);
 
   const onDeleteClick = (uuid: string, e: MouseEvent) => {
     e.stopPropagation();
@@ -51,11 +57,14 @@ export default function RecentJobsList({
   return (
     <>
       <Card className="mt-4">
-        <Card.Header>
+        <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2">
           <h5 className="mb-0">
             <Clock size={20} className="me-2" />
             {t('recentJobs.title')}
           </h5>
+          {recentJobs.length > 1 && (
+            <SortOrderSelect id="recent-jobs-sort" value={order} onChange={setOrder} />
+          )}
         </Card.Header>
         <Card.Body className="p-0">
           {loadingJobs ? (
@@ -67,15 +76,15 @@ export default function RecentJobsList({
             </div>
           ) : recentJobs.length > 0 ? (
             <div className="list-group list-group-flush">
-              {recentJobs.map((job) => (
+              {shown.map((job) => (
                 <div
                   key={job.uuid}
                   className="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
                   style={{ cursor: 'pointer' }}
                   onClick={() => handleLoadJob(job)}
                 >
-                  <div className="flex-grow-1">
-                    <div className="fw-medium">
+                  <div className="flex-grow-1 recent-job-main">
+                    <div className="fw-medium recent-job-name">
                       {job.filename || t('recentJobs.untitled')}
                       {job.owner && (
                         <span className="text-muted fw-normal small">
@@ -84,11 +93,25 @@ export default function RecentJobsList({
                         </span>
                       )}
                     </div>
-                    <small className="text-muted">
-                      {job.created_at
-                        ? new Date(job.created_at).toLocaleString('en-GB', DATE_TIME_FORMAT_OPTIONS)
-                        : t('recentJobs.dateUnknown')}
-                    </small>
+                    <div className="small text-muted d-flex flex-wrap recent-job-meta">
+                      <span>
+                        {t('recentJobs.imported')}:{' '}
+                        {job.created_at
+                          ? formatDateTime(job.created_at, i18n.language)
+                          : t('recentJobs.dateUnknown')}
+                      </span>
+                      <span
+                        className="d-inline-flex align-items-center gap-1"
+                        data-testid="job-language"
+                      >
+                        {t('recentJobs.language')}:{' '}
+                        <DetectedLanguage
+                          language={job.detected_language}
+                          probability={job.language_probability}
+                          ready={isComplete(job)}
+                        />
+                      </span>
+                    </div>
                   </div>
                   <div className="d-flex gap-2 align-items-center">
                     <Badge
@@ -130,6 +153,15 @@ export default function RecentJobsList({
                   </div>
                 </div>
               ))}
+              {recentJobs.length > RECENT_JOBS_SHOWN && (
+                <div className="list-group-item text-center py-2">
+                  <Button variant="link" size="sm" onClick={() => setShowAll(!showAll)}>
+                    {showAll
+                      ? t('recentJobs.showLess')
+                      : t('recentJobs.showAll', { count: recentJobs.length })}
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center text-muted py-4">
