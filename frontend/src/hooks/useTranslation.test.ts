@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import useTranslation, { TRANSLATION_BLOCK_SIZE } from './useTranslation';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import useTranslation from './useTranslation';
 import * as api from '../services/api';
-import type { TranscriptSegment } from '../types/api';
+import type { LlmTask, TranscriptSegment } from '../types/api';
+import { LLM_POLL_MS } from '../utils/llmTasks';
 
 vi.mock('../services/api');
 
@@ -16,15 +17,32 @@ const translated: TranscriptSegment[] = [
   { speaker: 'SPEAKER_01', start: 2, end: 4, text: 'Ola tambem' },
 ];
 
+const task = (overrides: Partial<LlmTask> = {}): LlmTask => ({
+  id: 7,
+  kind: 'translation',
+  status: 'running',
+  progress_done: 0,
+  progress_total: 20,
+  queue_position: null,
+  error_code: null,
+  error: null,
+  ...overrides,
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(api.getTranslation).mockResolvedValue({ status: 'none', segments: [], task: null });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('useTranslation', () => {
-  it('fetches and shows the translation on first toggle', async () => {
+  it('shows a translation that already exists at once', async () => {
     vi.mocked(api.translateTranscript).mockResolvedValue({
-      status: 'generated',
-      target_language: 'pt',
+      status: 'cached',
+      target_language: 'pt-PT',
       segments: translated,
     });
     const { result } = renderHook(() => useTranslation('job1', vi.fn()));
@@ -33,15 +51,14 @@ describe('useTranslation', () => {
       await result.current.handleToggleTranslation(segments);
     });
 
-    expect(api.translateTranscript).toHaveBeenCalledWith('job1', 0, TRANSLATION_BLOCK_SIZE);
+    expect(api.translateTranscript).toHaveBeenCalledWith('job1');
     expect(result.current.showTranslation).toBe(true);
     expect(result.current.translatedSegments).toEqual(translated);
   });
 
   it('hides the translation on the next toggle without refetching', async () => {
     vi.mocked(api.translateTranscript).mockResolvedValue({
-      status: 'generated',
-      target_language: 'pt',
+      status: 'cached',
       segments: translated,
     });
     const { result } = renderHook(() => useTranslation('job1', vi.fn()));
@@ -65,8 +82,7 @@ describe('useTranslation', () => {
 
   it('refetches when the underlying segments array changed since the last translation', async () => {
     vi.mocked(api.translateTranscript).mockResolvedValue({
-      status: 'generated',
-      target_language: 'pt',
+      status: 'cached',
       segments: translated,
     });
     const { result } = renderHook(() => useTranslation('job1', vi.fn()));
@@ -77,18 +93,16 @@ describe('useTranslation', () => {
     await act(async () => {
       await result.current.handleToggleTranslation(segments);
     });
-
-    const editedSegments = [...segments];
     await act(async () => {
-      await result.current.handleToggleTranslation(editedSegments);
+      await result.current.handleToggleTranslation([...segments]);
     });
 
     expect(api.translateTranscript).toHaveBeenCalledTimes(2);
   });
 
-  it('surfaces an error and does not show a translation on failure', async () => {
+  it('surfaces an error and does not show a translation when the request fails', async () => {
     const setError = vi.fn();
-    vi.mocked(api.translateTranscript).mockRejectedValue(new Error('LLM unavailable'));
+    vi.mocked(api.translateTranscript).mockRejectedValue(new Error('Server error'));
     const { result } = renderHook(() => useTranslation('job1', setError));
 
     await act(async () => {
@@ -96,75 +110,103 @@ describe('useTranslation', () => {
     });
 
     expect(result.current.showTranslation).toBe(false);
-    expect(setError).toHaveBeenCalledWith('LLM unavailable');
+    expect(result.current.translating).toBe(false);
+    expect(setError).toHaveBeenCalledWith('Server error');
   });
 
-  it('translates a long transcript block by block, reporting progress', async () => {
-    const many: TranscriptSegment[] = Array.from({ length: 20 }, (_, i) => ({
-      speaker: 'SPEAKER_00',
-      start: i,
-      end: i + 1,
-      text: `line ${i}`,
-    }));
-    const blockFor = (start: number, limit: number) => ({
-      status: 'generated',
-      start,
-      total: many.length,
-      segments: many.slice(start, start + limit).map((s) => ({ ...s, text: `PT ${s.text}` })),
+  it('follows a background translation, showing its progress, until it is ready', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.translateTranscript).mockResolvedValue({
+      status: 'queued',
+      segments: [],
+      total: 20,
+      task: task({ status: 'queued', progress_total: 0, queue_position: 1 }),
     });
-    // Each block resolves only when the test says so, to observe progress in between.
-    const pending: Array<() => void> = [];
-    vi.mocked(api.translateTranscript).mockImplementation(
-      (_uuid, start = 0, limit = 0) =>
-        new Promise((resolve) => pending.push(() => resolve(blockFor(start, limit))))
-    );
+    vi.mocked(api.getTranslation)
+      .mockResolvedValueOnce({ status: 'none', segments: [], task: null }) // on mount
+      .mockResolvedValueOnce({
+        status: 'running',
+        segments: [],
+        total: 20,
+        task: task({ progress_done: 15 }),
+      })
+      .mockResolvedValueOnce({ status: 'cached', segments: translated, total: 2, task: null });
     const { result } = renderHook(() => useTranslation('job1', vi.fn()));
 
     let done: Promise<void> = Promise.resolve();
-    act(() => {
-      done = result.current.handleToggleTranslation(many);
+    await act(async () => {
+      done = result.current.handleToggleTranslation(segments);
     });
     expect(result.current.translating).toBe(true);
-    expect(result.current.translationProgress).toEqual({ done: 0, total: 20 });
-
-    await act(async () => pending.shift()?.());
-    expect(result.current.translationProgress).toEqual({ done: 15, total: 20 });
+    expect(result.current.translationProgress).toEqual({
+      done: 0,
+      total: 20,
+      queued: true,
+      position: 1,
+    });
 
     await act(async () => {
-      pending.shift()?.();
+      await vi.advanceTimersByTimeAsync(LLM_POLL_MS);
+    });
+    expect(result.current.translationProgress).toEqual({
+      done: 15,
+      total: 20,
+      queued: false,
+      position: null,
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LLM_POLL_MS);
+      await done;
+    });
+    expect(result.current.translatedSegments).toEqual(translated);
+    expect(result.current.showTranslation).toBe(true);
+    expect(result.current.translating).toBe(false);
+    expect(result.current.translationProgress).toBeNull();
+  });
+
+  it('explains why a background translation failed', async () => {
+    vi.useFakeTimers();
+    const setError = vi.fn();
+    vi.mocked(api.translateTranscript).mockResolvedValue({
+      status: 'running',
+      segments: [],
+      task: task(),
+    });
+    vi.mocked(api.getTranslation)
+      .mockResolvedValueOnce({ status: 'none', segments: [], task: null }) // on mount
+      .mockResolvedValueOnce({
+        status: 'error',
+        segments: [],
+        task: task({ status: 'error', error_code: 'timeout', error: 'no answer in 60 s' }),
+      });
+    const { result } = renderHook(() => useTranslation('job1', setError));
+
+    let done: Promise<void> = Promise.resolve();
+    await act(async () => {
+      done = result.current.handleToggleTranslation(segments);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LLM_POLL_MS);
       await done;
     });
 
-    expect(vi.mocked(api.translateTranscript).mock.calls).toEqual([
-      ['job1', 0, TRANSLATION_BLOCK_SIZE],
-      ['job1', TRANSLATION_BLOCK_SIZE, TRANSLATION_BLOCK_SIZE],
-    ]);
-    expect(result.current.translatedSegments?.map((s) => s.text)).toEqual(
-      many.map((s) => `PT ${s.text}`)
-    );
-    expect(result.current.translationProgress).toBeNull();
+    expect(setError).toHaveBeenLastCalledWith(expect.stringMatching(/did not answer in time/i));
+    expect(setError).toHaveBeenLastCalledWith(expect.stringContaining('no answer in 60 s'));
+    expect(result.current.showTranslation).toBe(false);
     expect(result.current.translating).toBe(false);
   });
 
-  it('keeps nothing and reports the error when a later block fails', async () => {
-    const setError = vi.fn();
-    const many: TranscriptSegment[] = Array.from({ length: 20 }, (_, i) => ({
-      speaker: 'SPEAKER_00',
-      start: i,
-      end: i + 1,
-      text: `line ${i}`,
-    }));
-    vi.mocked(api.translateTranscript)
-      .mockResolvedValueOnce({ total: 20, segments: many.slice(0, 15) })
-      .mockRejectedValueOnce(new Error('Translation service unavailable: timeout'));
-    const { result } = renderHook(() => useTranslation('job1', setError));
-
-    await act(async () => {
-      await result.current.handleToggleTranslation(many);
+  it('picks up a translation still being made when the transcript is opened', async () => {
+    vi.mocked(api.getTranslation).mockResolvedValue({
+      status: 'running',
+      segments: [],
+      total: 20,
+      task: task({ progress_done: 5 }),
     });
+    const { result } = renderHook(() => useTranslation('job1', vi.fn()));
 
-    expect(setError).toHaveBeenCalledWith('Translation service unavailable: timeout');
-    expect(result.current.showTranslation).toBe(false);
-    expect(result.current.translationProgress).toBeNull();
+    await waitFor(() => expect(result.current.translating).toBe(true));
+    expect(result.current.translationProgress).toMatchObject({ done: 5, total: 20 });
   });
 });

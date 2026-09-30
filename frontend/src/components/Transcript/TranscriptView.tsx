@@ -18,6 +18,7 @@ import type { AudioPlayerHandle } from './AudioPlayer';
 import { formatTime } from '../../utils/timeFormat';
 import type { TranslationProgress } from '../../hooks/useTranslation';
 import type {
+  LlmTask,
   SelectedFile,
   Summary,
   Transcript,
@@ -43,6 +44,8 @@ interface TranscriptViewProps {
   handleRequestSplitSegment: (segment: TranscriptSegmentType, index: number) => void;
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
+  /** The background summary task while it waits or runs. */
+  summaryTask?: LlmTask | null;
   summary: Summary | null;
   translatedSegments: TranscriptSegmentType[] | null;
   translating: boolean;
@@ -93,6 +96,7 @@ export default function TranscriptView({
   handleRequestSplitSegment,
   handleGenerateSummary,
   generatingSummary,
+  summaryTask = null,
   summary,
   translatedSegments,
   translating,
@@ -235,11 +239,13 @@ export default function TranscriptView({
                   ) : (
                     <Languages size={16} className="me-1" />
                   )}
-                  {translating && translationProgress
-                    ? t('transcript.translatingProgress', { ...translationProgress })
-                    : showTranslation
-                      ? t('transcript.showOriginal')
-                      : t('transcript.translateToPortuguese')}
+                  {translating && translationProgress?.queued
+                    ? t('llmTask.queued', { count: translationProgress.position ?? 0 })
+                    : translating && translationProgress
+                      ? t('transcript.translatingProgress', { ...translationProgress })
+                      : showTranslation
+                        ? t('transcript.showOriginal')
+                        : t('transcript.translateToPortuguese')}
                 </Button>
               )}
               <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
@@ -381,6 +387,7 @@ export default function TranscriptView({
           transcript={transcript}
           handleGenerateSummary={handleGenerateSummary}
           generatingSummary={generatingSummary}
+          summaryTask={summaryTask}
           summary={summary}
           jobId={jobId}
         />

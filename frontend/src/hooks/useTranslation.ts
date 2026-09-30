@@ -1,23 +1,29 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation as useI18n } from 'react-i18next';
 import * as api from '../services/api';
-import type { TranscriptSegment } from '../types/api';
+import type { TranscriptSegment, TranslateResponse } from '../types/api';
 import type { SetError } from '../types/ui';
-
-/** Segments requested per call: each call stays well inside the LLM timeout. */
-export const TRANSLATION_BLOCK_SIZE = 15;
+import { LLM_POLL_MS, isTaskActive, llmTaskError, sleep } from '../utils/llmTasks';
 
 export interface TranslationProgress {
   done: number;
   total: number;
+  /** Still waiting in the server's queue, behind `position` other tasks. */
+  queued?: boolean;
+  position?: number | null;
 }
+
+const isReady = (response: TranslateResponse) =>
+  response.status === 'original' || response.status === 'cached';
 
 /**
  * Custom hook for on-demand transcript translation into European Portuguese.
  *
- * The transcript is translated block by block (TRANSLATION_BLOCK_SIZE segments
- * per request), reporting progress as it goes. The backend keeps finished
- * blocks, so retrying after a failure resumes instead of starting over.
+ * The server translates in the background (a task it runs block by block,
+ * saving each block): asking starts or rejoins that task, and the hook polls
+ * its progress until the translation is ready. No request waits on the
+ * language model, so no proxy timeout can cut it, and leaving the page does
+ * not stop it: opening the transcript again picks the progress back up.
  *
  * Translations are cached in component state keyed by the exact `segments`
  * array they were generated from; if the transcript changes (e.g. a segment is
@@ -32,6 +38,76 @@ export default function useTranslation(jobId: string | null, setError: SetError)
   const [showTranslation, setShowTranslation] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translationProgress, setTranslationProgress] = useState<TranslationProgress | null>(null);
+  // Bumped whenever the job changes, so a poll for the previous one stops.
+  const generation = useRef(0);
+
+  const progressOf = (response: TranslateResponse): TranslationProgress => {
+    const task = response.task;
+    return {
+      done: task?.progress_done ?? 0,
+      total: task?.progress_total || response.total || 0,
+      queued: task?.status === 'queued',
+      position: task?.queue_position ?? null,
+    };
+  };
+
+  /**
+   * Poll the translation task until it ends. Returns the response once the
+   * translation is ready, or null if it failed (the error is shown), ended
+   * without one, or the job changed meanwhile.
+   */
+  const follow = useCallback(
+    async (uuid: string, first: TranslateResponse): Promise<TranslateResponse | null> => {
+      const mine = generation.current;
+      let response = first;
+      setTranslating(true);
+      try {
+        while (isTaskActive(response.task) && !isReady(response)) {
+          setTranslationProgress(progressOf(response));
+          await sleep(LLM_POLL_MS);
+          if (generation.current !== mine) return null;
+          response = await api.getTranslation(uuid);
+          if (generation.current !== mine) return null;
+        }
+        if (isReady(response)) return response;
+        if (response.task?.status === 'error') setError(llmTaskError(response.task, t));
+        return null;
+      } finally {
+        if (generation.current === mine) {
+          setTranslating(false);
+          setTranslationProgress(null);
+        }
+      }
+    },
+    [setError, t]
+  );
+
+  // Opening a transcript whose translation is still being made shows its
+  // progress again (it is not shown by itself when it ends: one click does).
+  // Only the job matters here (follow changes with setError's identity).
+  const followRef = useRef(follow);
+  useEffect(() => {
+    followRef.current = follow;
+  }, [follow]);
+  useEffect(() => {
+    generation.current += 1;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when the job changes
+    setTranslating(false);
+    setTranslationProgress(null);
+    if (!jobId) return;
+    const mine = generation.current;
+    const resume = async () => {
+      try {
+        const response = await api.getTranslation(jobId);
+        if (generation.current === mine && isTaskActive(response?.task)) {
+          await followRef.current(jobId, response);
+        }
+      } catch {
+        // No transcript yet, or no access: nothing to resume.
+      }
+    };
+    resume();
+  }, [jobId]);
 
   const handleToggleTranslation = async (segments: TranscriptSegment[] | undefined) => {
     if (showTranslation) {
@@ -50,27 +126,13 @@ export default function useTranslation(jobId: string | null, setError: SetError)
     try {
       setTranslating(true);
       setError(null);
-      const collected: TranscriptSegment[] = [];
-      let total = segments.length;
-      setTranslationProgress({ done: 0, total });
-      while (collected.length < total) {
-        const result = await api.translateTranscript(
-          jobId,
-          collected.length,
-          TRANSLATION_BLOCK_SIZE
-        );
-        const block = result.segments ?? [];
-        if (typeof result.total === 'number') total = result.total;
-        if (block.length === 0) break;
-        collected.push(...block);
-        setTranslationProgress({ done: Math.min(collected.length, total), total });
-      }
-      setTranslatedSegments(collected);
+      const response = await follow(jobId, await api.translateTranscript(jobId));
+      if (!response) return;
+      setTranslatedSegments(response.segments ?? []);
       setTranslatedFor(segments);
       setShowTranslation(true);
     } catch (err) {
       setError((err as Error).message || t('errors.translateTranscript'));
-    } finally {
       setTranslating(false);
       setTranslationProgress(null);
     }

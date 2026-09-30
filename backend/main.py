@@ -19,28 +19,32 @@ from config import get_settings
 from database import (
     close_database,
     ensure_admin_schema,
+    ensure_llm_tasks_schema,
     ensure_projects_schema,
     ensure_tokens_schema,
     ensure_users_schema,
     init_database,
 )
-from dependencies import close_http_client, init_http_client
+from dependencies import close_http_client, get_http_client, init_http_client
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from repositories.admin_repository import AdminRepository
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
+from repositories.llm_task_repository import LlmTaskRepository
 from repositories.project_repository import ProjectRepository
 from repositories.user_repository import UserRepository
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.cleanup_service import CleanupService
 from services.diarization_service import DiarizationService
+from services.llm_tasks import LlmTaskQueue, LlmTaskRunner
 from services.pipeline import JobPipeline
 from services.project_queue import ProjectQueue
 from services.project_service import ProjectService
 from services.runtime_settings_service import RuntimeSettingsService
+from services.summary_service import SummaryService
 from services.transcription_service import TranscriptionService
 from services.user_service import purge_ownerless
 
@@ -221,6 +225,7 @@ async def lifespan(fastapi_app: FastAPI):
         await ensure_projects_schema()
         await ensure_users_schema()
         await ensure_tokens_schema(app_settings.tokens_timezone)
+        await ensure_llm_tasks_schema()
         # Audios and projects from before user accounts have no owner: they are
         # deleted with their files, once.
         await purge_ownerless(app_settings)
@@ -285,6 +290,21 @@ async def lifespan(fastapi_app: FastAPI):
         fastapi_app.state.project_queue = project_queue
         project_queue.start()
 
+        # Summaries and translations run in the background too, one at a
+        # time, so no request waits on the language model.
+        llm_tasks = LlmTaskRepository()
+        llm_runner = LlmTaskRunner(
+            app_settings,
+            llm_tasks,
+            job_repo,
+            SummaryService(
+                await get_http_client(), app_settings, RuntimeSettingsService(app_settings)
+            ),
+        )
+        llm_queue = LlmTaskQueue(llm_tasks, llm_runner.run)
+        fastapi_app.state.llm_queue = llm_queue
+        llm_queue.start()
+
         logger.info("MeetMemo API startup complete")
 
         yield
@@ -296,6 +316,9 @@ async def lifespan(fastapi_app: FastAPI):
         # Stop the project queue (an audio being processed resumes on restart)
         if 'project_queue' in locals():
             await project_queue.stop()
+        # Stop the summary/translation queue (a task under way resumes on restart)
+        if 'llm_queue' in locals():
+            await llm_queue.stop()
 
         # Stop cleanup scheduler
         if 'cleanup_service' in locals():

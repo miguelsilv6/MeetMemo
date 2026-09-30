@@ -263,21 +263,27 @@ export async function updateTranscript(
   });
 }
 
-// Translate transcript segments into European Portuguese (the only target).
-// `start`/`limit` select a range, so long transcripts can be translated in
-// blocks that each stay inside the LLM and proxy timeouts.
-export async function translateTranscript(
-  uuid: string,
-  start = 0,
-  limit?: number
-): Promise<TranslateResponse> {
+// Ask for the transcript in European Portuguese (the only target): returned
+// at once if it exists, otherwise translated in the background (the response
+// carries the task; follow it with getTranslation).
+export async function translateTranscript(uuid: string): Promise<TranslateResponse> {
   return await apiCall<TranslateResponse>(`/jobs/${uuid}/transcripts/translate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ target_language: 'pt', start, limit }),
+    body: JSON.stringify({ target_language: 'pt' }),
   });
+}
+
+// The translation if ready, else the state of its background task.
+export async function getTranslation(uuid: string): Promise<TranslateResponse> {
+  return await apiCall<TranslateResponse>(`/jobs/${uuid}/transcripts/translation`);
+}
+
+// The cached summary and/or the state of its background task.
+export async function getSummary(uuid: string): Promise<Summary> {
+  return await apiCall<Summary>(`/jobs/${uuid}/summaries`);
 }
 
 // Update summary content
@@ -291,12 +297,18 @@ export async function updateSummary(uuid: string, summary: string): Promise<unkn
   });
 }
 
-// Generate summary
+// Ask for the summary: the cached one at once (unless `regenerate` or a custom
+// prompt asks for a new one), otherwise it is made in the background and the
+// response carries the task (follow it with getSummary).
 export async function generateSummary(
   uuid: string,
-  customPrompt: string | null = null
+  customPrompt: string | null = null,
+  regenerate = false
 ): Promise<Summary> {
-  const body = customPrompt ? { custom_prompt: customPrompt } : {};
+  const body = {
+    ...(customPrompt ? { custom_prompt: customPrompt } : {}),
+    ...(regenerate ? { regenerate: true } : {}),
+  };
 
   return await apiCall<Summary>(`/jobs/${uuid}/summaries`, {
     method: 'POST',
