@@ -12,6 +12,11 @@ const MEDIUM_CONFIDENCE_THRESHOLD = 0.5;
  * getConfidenceVariant(0.65) // 'warning'
  * getConfidenceVariant(0.30) // 'danger'
  */
+/** Below this, the language detection is worth checking (a yellow or red badge). */
+export function isLowConfidence(probability: number): boolean {
+  return probability < HIGH_CONFIDENCE_THRESHOLD;
+}
+
 export function getConfidenceVariant(probability: number): ConfidenceVariant {
   if (probability >= HIGH_CONFIDENCE_THRESHOLD) return 'success';
   if (probability >= MEDIUM_CONFIDENCE_THRESHOLD) return 'warning';

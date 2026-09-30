@@ -782,5 +782,17 @@
       "engine_unavailable": "The NLLB-200 translation engine could not be prepared (for example, no access to Hugging Face to download it). The administrator can find the detail in the logs or select the LLM engine.",
       "internal": "An unexpected error occurred on the server."
     }
+  },
+  "retranscribe": {
+    "lowConfidence": "Low confidence in the detected language. If the language is wrong, the transcript may be incorrect.",
+    "open": "Choose the language and transcribe again",
+    "title": "Transcribe again",
+    "detected": "Detected language: {{language}}.",
+    "languageLabel": "Language of the communication",
+    "choose": "Choose the language…",
+    "warning": "The new transcript replaces the current one. The corrections made to the transcript, the names given to the speakers, the summary, translations and exports of this audio are lost. The audio file is kept and no token is used.",
+    "confirm": "Transcribe again",
+    "starting": "Starting…",
+    "failed": "The new transcription could not be started."
   }
 }

@@ -782,5 +782,17 @@
       "engine_unavailable": "Não foi possível preparar o motor de tradução NLLB-200 (por exemplo, sem acesso ao Hugging Face para o descarregar). O administrador pode ver o detalhe nos registos ou escolher o motor LLM.",
       "internal": "Ocorreu um erro inesperado no servidor."
     }
+  },
+  "retranscribe": {
+    "lowConfidence": "Confiança baixa na deteção do idioma. Se o idioma estiver errado, a transcrição pode sair incorreta.",
+    "open": "Escolher idioma e transcrever de novo",
+    "title": "Transcrever de novo",
+    "detected": "Idioma detetado: {{language}}.",
+    "languageLabel": "Idioma da comunicação",
+    "choose": "Escolhe o idioma…",
+    "warning": "A nova transcrição substitui a atual. Perdem-se as correções feitas à transcrição, os nomes dados aos interlocutores, o resumo, as traduções e as exportações deste áudio. O ficheiro de áudio mantém-se e não é gasto nenhum token.",
+    "confirm": "Transcrever de novo",
+    "starting": "A iniciar…",
+    "failed": "Não foi possível iniciar a nova transcrição."
   }
 }

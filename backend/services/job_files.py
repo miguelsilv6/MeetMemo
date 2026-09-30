@@ -37,6 +37,40 @@ def translation_files(translation_dir: str, base_name: str) -> list[str]:
     return matches
 
 
+def derived_file_paths(
+    settings: Settings,
+    job_uuid: str,
+    file_name: str,
+    export_paths: Iterable[str] = (),
+) -> list[str]:
+    """
+    Paths of what was made from the audio's transcript (existing or not):
+    transcripts, summary, translations and exports. The audio itself and its
+    ASR copy are not among them.
+    """
+    base_name = os.path.splitext(file_name)[0]
+    return [
+        os.path.join(settings.summary_dir, f"{job_uuid}.txt"),
+        os.path.join(settings.transcript_dir, f"{base_name}.json"),
+        os.path.join(settings.transcript_edited_dir, f"{base_name}.json"),
+        *translation_files(settings.translation_dir, base_name),
+        *[path for path in export_paths if path],
+    ]
+
+
+async def remove_files(paths: Iterable[str], job_uuid: str) -> list[str]:
+    """Delete the files that exist, logging (not raising) individual failures."""
+    removed = []
+    for path in paths:
+        try:
+            if await aiofiles.os.path.exists(path):
+                await aiofiles.os.remove(path)
+                removed.append(path)
+        except OSError as e:
+            logger.error("Failed to delete %s of job %s: %s", path, job_uuid, e)
+    return removed
+
+
 def job_file_paths(
     settings: Settings,
     job_uuid: str,
@@ -72,12 +106,6 @@ async def remove_job_files(
     Returns:
         The paths that were deleted.
     """
-    removed = []
-    for path in job_file_paths(settings, job_uuid, file_name, export_paths):
-        try:
-            if await aiofiles.os.path.exists(path):
-                await aiofiles.os.remove(path)
-                removed.append(path)
-        except OSError as e:
-            logger.error("Failed to delete %s of job %s: %s", path, job_uuid, e)
-    return removed
+    return await remove_files(
+        job_file_paths(settings, job_uuid, file_name, export_paths), job_uuid
+    )

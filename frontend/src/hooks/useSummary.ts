@@ -26,6 +26,8 @@ export default function useSummary(
   const [summaryTask, setSummaryTask] = useState<LlmTask | null>(null);
   // Bumped whenever the job changes, so a poll for the previous one stops.
   const generation = useRef(0);
+  // The job the summary on hand belongs to.
+  const summaryJob = useRef<string | null>(null);
 
   /**
    * Poll the summary task until it ends. Returns the summary once it is ready
@@ -72,6 +74,12 @@ export default function useSummary(
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when the job changes
     setGeneratingSummary(false);
     setSummaryTask(null);
+    // Another job's summary (or one of this job before it was transcribed
+    // again) is not this one's.
+    if (summaryJob.current !== jobId) {
+      summaryJob.current = null;
+      setSummary(null);
+    }
     if (!jobId) return;
     const mine = generation.current;
     const resume = async () => {
@@ -79,7 +87,10 @@ export default function useSummary(
         const response = await api.getSummary(jobId);
         if (generation.current !== mine || !isTaskActive(response?.task)) return;
         const ready = await followRef.current(jobId, response);
-        if (ready) setSummary(ready);
+        if (ready) {
+          summaryJob.current = jobId;
+          setSummary(ready);
+        }
       } catch {
         // No transcript yet, or no access: nothing to resume.
       }
@@ -98,6 +109,7 @@ export default function useSummary(
       setGeneratingSummary(true);
       const summaryData = await follow(uuid, await api.generateSummary(uuid));
       if (!summaryData) return;
+      summaryJob.current = uuid;
       setSummary(summaryData);
       setCurrentStep('summary');
     } catch (err) {

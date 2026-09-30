@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Card, Button, Badge } from '@govtechsg/sgds-react';
-import { Sparkles, Download, AlertCircle, Languages, FileText } from 'lucide-react';
+import { Sparkles, Download, AlertCircle, Languages, FileText, RotateCcw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { getLanguageName } from '../../constants/languages';
-import { getConfidenceVariant } from '../../utils/confidence';
+import { getConfidenceVariant, isLowConfidence } from '../../utils/confidence';
+import RetranscribeModal from './RetranscribeModal';
 import * as api from '../../services/api';
 import type { LlmTask, SelectedFile, Summary, Transcript } from '../../types/api';
 
@@ -15,6 +17,10 @@ interface MeetingInfoSidebarProps {
   summaryTask?: LlmTask | null;
   summary: Summary | null;
   jobId: string | null;
+  /** Transcribe the audio again in another language (offered on low confidence). */
+  onRetranscribe?: (language: string) => Promise<void>;
+  /** Pre-selected language for that. */
+  retranscribeLanguage?: string | null;
 }
 
 export default function MeetingInfoSidebar({
@@ -25,8 +31,14 @@ export default function MeetingInfoSidebar({
   summaryTask = null,
   summary,
   jobId,
+  onRetranscribe,
+  retranscribeLanguage = null,
 }: MeetingInfoSidebarProps) {
   const { t } = useTranslation();
+  const [showRetranscribe, setShowRetranscribe] = useState(false);
+  const lowConfidence =
+    typeof transcript?.language_probability === 'number' &&
+    isLowConfidence(transcript.language_probability);
 
   return (
     <Card className="sticky-sidebar">
@@ -62,6 +74,19 @@ export default function MeetingInfoSidebar({
                   </Badge>
                 )}
               </div>
+              {lowConfidence && onRetranscribe && (
+                <div className="low-confidence-note small mt-2" data-testid="low-confidence">
+                  <p className="text-muted mb-1">{t('retranscribe.lowConfidence')}</p>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    onClick={() => setShowRetranscribe(true)}
+                  >
+                    <RotateCcw size={14} className="me-1" />
+                    {t('retranscribe.open')}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
           <div className="info-item mb-3">
@@ -144,6 +169,18 @@ export default function MeetingInfoSidebar({
           </Button>
         </div>
       </Card.Body>
+      {onRetranscribe && (
+        <RetranscribeModal
+          show={showRetranscribe}
+          onHide={() => setShowRetranscribe(false)}
+          onConfirm={async (language) => {
+            await onRetranscribe(language);
+            setShowRetranscribe(false);
+          }}
+          detectedLanguage={transcript?.language ?? null}
+          defaultLanguage={retranscribeLanguage}
+        />
+      )}
     </Card>
   );
 }

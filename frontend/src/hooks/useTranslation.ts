@@ -98,6 +98,12 @@ export default function useTranslation(jobId: string | null, setError: SetError)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when the job changes
     setTranslating(false);
     setTranslationProgress(null);
+    // Another job's translation (or this job's before it was transcribed
+    // again) is not shown over this transcript.
+    setShowTranslation(false);
+    setTranslatedSegments(null);
+    setTranslatedFor(undefined);
+    setTranslationEngine(null);
     if (!jobId) return;
     const mine = generation.current;
     const resume = async () => {

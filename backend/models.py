@@ -57,6 +57,11 @@ class TranslateRequest(BaseModel):
     limit: Optional[int] = Field(None, ge=1, le=100)
 
 
+class RetranscribeRequest(BaseModel):
+    """The language to transcribe an audio in again (a Whisper language code)."""
+    language: str = Field(..., min_length=2, max_length=10)
+
+
 class RenameJobRequest(BaseModel):
     """Model for renaming a job."""
     file_name: str = Field(..., min_length=1, max_length=255)

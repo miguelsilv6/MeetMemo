@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation as useI18n } from 'react-i18next';
 import { Alert, Button, Card, Container, Modal } from '@govtechsg/sgds-react';
 import { ArrowLeft, Shield } from 'lucide-react';
@@ -231,6 +232,27 @@ function App() {
     fetchRecentJobs();
   };
 
+  // Transcribe the open audio again in another language. The server drops
+  // everything made from the old transcript; a project audio goes back to its
+  // project's queue, a single audio is processed here as after an upload.
+  const handleRetranscribe = async (language: string) => {
+    if (!jobId) return;
+    const uuid = jobId;
+    await api.retranscribeJob(uuid, language);
+    if (openedFromProject) {
+      window.location.hash = projectRoute(openedFromProject.uuid);
+      return;
+    }
+    // Leave the job for a moment, so everything kept for it (summary,
+    // translation, undo history) resets before it is processed again.
+    flushSync(() => setJobId(null));
+    setError(null);
+    setProcessingProgress(0);
+    setCurrentStep('processing');
+    setJobId(uuid);
+    startPolling(uuid);
+  };
+
   const openProjects = () => {
     window.location.hash = PROJECTS_ROUTE;
   };
@@ -455,6 +477,8 @@ function App() {
                 handleToggleTranslation={handleToggleTranslation}
                 canUndo={canUndo}
                 handleUndo={handleUndo}
+                handleRetranscribe={handleRetranscribe}
+                retranscribeLanguage={selectedLanguage}
               />
             )}
 

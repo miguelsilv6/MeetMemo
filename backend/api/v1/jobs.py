@@ -37,6 +37,7 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
 )
 from models import (
@@ -47,15 +48,17 @@ from models import (
     JobStatusResponse,
     RenameJobRequest,
     RenameResponse,
+    RetranscribeRequest,
     TranscriptionDataResponse,
     WorkflowActionResponse,
 )
 from repositories.job_repository import JobRepository
 from repositories.user_repository import UserRepository
+from runtime_settings import WHISPER_LANGUAGE_CODES
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
-from services.job_files import remove_job_files
+from services.job_files import derived_file_paths, remove_files, remove_job_files
 from services.pipeline import resolve_transcription_options
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
@@ -285,6 +288,50 @@ async def delete_job(
         uuid=uuid,
         status="success",
         message="Job deleted successfully"
+    )
+
+
+@router.post("/jobs/{uuid}/retranscribe", response_model=WorkflowActionResponse, status_code=202)
+async def retranscribe_job(
+    uuid: str,
+    body: RetranscribeRequest,
+    request: Request,
+    job_repo: JobRepository = Depends(get_job_repository),
+    settings: Settings = Depends(get_settings),
+) -> WorkflowActionResponse:
+    """Transcribe a completed audio again, in the given language.
+
+    For when the language was detected with low confidence (or wrongly).
+    Everything made from the old transcript goes: the transcript and its
+    edits, the summary, translations and exports. The audio then starts over
+    ("uploaded"): a single audio is processed step by step by the page as
+    after an upload, a project audio by the project queue. No new token is
+    charged (and the first one is no longer refundable).
+    """
+    if body.language not in WHISPER_LANGUAGE_CODES:
+        raise HTTPException(status_code=400, detail=f"Unsupported language: {body.language}")
+    job = await job_repo.get(uuid)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    export_paths = await job_repo.reset_for_retranscription(uuid, body.language)
+    if export_paths is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Only an audio whose processing has finished can be transcribed again.",
+        )
+    await remove_files(
+        derived_file_paths(settings, uuid, job["file_name"], export_paths), uuid
+    )
+    if job.get("project_uuid"):
+        queue = getattr(request.app.state, "project_queue", None)
+        if queue is not None:
+            queue.notify()
+    logger.info("Job %s will be transcribed again in %s", uuid, body.language)
+    return WorkflowActionResponse(
+        uuid=uuid,
+        workflow_state="uploaded",
+        status_code=202,
+        message="Transcription restarted",
     )
 
 
