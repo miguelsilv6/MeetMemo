@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within, act } from '@testing-librar
 import ProjectView, { PROJECT_POLL_MS } from './ProjectView';
 import * as projectsApi from '../../services/projectsApi';
 import type { ProjectAudio, ProjectDetail } from '../../types/projects';
+import { formatDateTime } from '../../utils/projectDates';
 
 vi.mock('../../services/api', () => ({
   getPublicConfig: vi.fn().mockResolvedValue({ default_language: null, max_upload_mb: 1 }),
@@ -84,6 +85,36 @@ describe('ProjectView', () => {
     expect(within(row('running')).getByText('Processing · 45%')).toBeInTheDocument();
     expect(within(row('waiting')).getByText('Queued (no. 2)')).toBeInTheDocument();
     expect(within(row('broken')).getByText('Transcription failed: bad file')).toBeInTheDocument();
+  });
+
+  it('shows when each audio was imported and the language detected in it', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValue(
+      project([
+        audio('unsure', 'completed', { detected_language: 'en', language_probability: 0.42 }),
+        audio('sure', 'completed', { detected_language: 'pt', language_probability: 0.97 }),
+        audio('chosen', 'completed', { detected_language: 'es', language_probability: null }),
+        audio('waiting', 'queued', { queue_position: 1 }),
+      ])
+    );
+    renderView();
+    await screen.findByText('Inquiry 12');
+
+    expect(
+      screen.getByText('Imported', { selector: '.project-audio-header *' })
+    ).toBeInTheDocument();
+    const row = (name: string) =>
+      screen.getByText(`${name}.wav`).closest('[data-status]') as HTMLElement;
+    expect(row('unsure').querySelector('.project-audio-date')).toHaveTextContent(
+      formatDateTime('2026-09-27T10:00:00Z', 'en')
+    );
+    const language = (name: string) => within(row(name)).getByTestId('audio-language');
+    expect(language('unsure')).toHaveTextContent('English');
+    expect(within(language('unsure')).getByText('42%')).toHaveClass('bg-danger');
+    expect(within(language('sure')).getByText('97%')).toHaveClass('bg-success');
+    // A language chosen rather than detected has no confidence to show.
+    expect(language('chosen')).toHaveTextContent('Spanish');
+    expect(language('chosen')).not.toHaveTextContent('%');
+    expect(language('waiting')).toHaveTextContent('—');
   });
 
   it('refreshes while audios are waiting and stops once all are done', async () => {

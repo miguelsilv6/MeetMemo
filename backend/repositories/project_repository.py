@@ -16,8 +16,13 @@ INTERRUPTED_STATES = {"transcribing": "uploaded", "diarizing": "transcribed", "a
 
 _PROJECT_COLUMNS = "uuid, name, reference, description, created_at, expires_at, user_uuid"
 
+# detected_language / language_probability: what Whisper detected (None
+# until the audio is transcribed).
 _JOB_COLUMNS = """j.uuid, j.file_name, j.status_code, j.workflow_state, j.current_step_progress,
-                  j.error_message, j.language, j.model_name, j.created_at, j.updated_at"""
+                  j.error_message, j.language, j.model_name, j.created_at, j.updated_at,
+                  j.transcription_data->>'language' AS detected_language,
+                  (j.transcription_data->>'language_probability')::float
+                      AS language_probability"""
 
 
 class ProjectRepository:

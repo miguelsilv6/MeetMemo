@@ -36,7 +36,13 @@ export interface ProjectAudio {
   /** 1 for the audio processed next; null unless queued. */
   queue_position: number | null;
   error_message: string | null;
+  /** The language asked for at upload (null: detect it). */
   language: string | null;
+  /** What Whisper detected, once transcribed. */
+  detected_language?: string | null;
+  /** Confidence of that detection (0-1); null when the language was chosen. */
+  language_probability?: number | null;
+  /** When the audio was imported into the project. */
   created_at: string;
 }
 

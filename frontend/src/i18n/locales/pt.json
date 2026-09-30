@@ -723,7 +723,13 @@
       "delete": "Eliminar áudio",
       "deleteNamed": "Eliminar {{name}}",
       "deleteTitle": "Eliminar áudio",
-      "deleteBody": "Eliminar «{{name}}» deste projeto, com a transcrição, o resumo e as traduções? Esta ação não pode ser desfeita."
+      "deleteBody": "Eliminar «{{name}}» deste projeto, com a transcrição, o resumo e as traduções? Esta ação não pode ser desfeita.",
+      "columns": {
+        "audio": "Áudio",
+        "imported": "Importado em",
+        "language": "Idioma",
+        "status": "Estado"
+      }
     },
     "delete": {
       "button": "Eliminar projeto",

@@ -723,7 +723,13 @@
       "delete": "Delete audio",
       "deleteNamed": "Delete {{name}}",
       "deleteTitle": "Delete audio",
-      "deleteBody": "Delete “{{name}}” from this project, with its transcript, summary and translations? This cannot be undone."
+      "deleteBody": "Delete “{{name}}” from this project, with its transcript, summary and translations? This cannot be undone.",
+      "columns": {
+        "audio": "Audio",
+        "imported": "Imported",
+        "language": "Language",
+        "status": "Status"
+      }
     },
     "delete": {
       "button": "Delete project",

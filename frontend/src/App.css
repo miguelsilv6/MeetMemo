@@ -1220,6 +1220,52 @@ button.kanban-add-column:hover {
   min-width: 9rem;
 }
 
+/* Narrow screens: one line each, with its own label. */
+.project-audio-date,
+.project-audio-language {
+  flex: 1 1 100%;
+}
+
+/* Column titles above the list; on narrow screens each field carries its
+   own label instead. */
+.project-audio-header {
+  display: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--sgds-secondary-color, #6c757d);
+}
+
+@media (min-width: 768px) {
+  .project-audio-header {
+    display: flex;
+  }
+
+  /* The same widths on every row, so the columns line up under their titles. */
+  .project-audio-date {
+    flex: 0 0 9.5rem;
+  }
+
+  .project-audio-language {
+    flex: 0 0 9rem;
+  }
+
+  .project-audio-status {
+    flex: 0 0 9.5rem;
+    min-width: 0;
+  }
+
+  .project-audio-actions {
+    flex: 0 0 11.5rem;
+    justify-content: flex-end;
+  }
+
+  .project-audio-label {
+    display: none;
+  }
+}
+
 .project-audio-actions {
   display: flex;
   align-items: center;
