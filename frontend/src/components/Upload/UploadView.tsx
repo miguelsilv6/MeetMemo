@@ -91,8 +91,8 @@ export default function UploadView({
         )}
 
         {canUpload && tokenBalance !== 0 && (
-          <Row className="g-4 justify-content-center">
-            <Col md={8} lg={6}>
+          <Row className="g-4">
+            <Col xs={12}>
               <FileUploadCard
                 uploading={uploading}
                 fileInputRef={fileInputRef}

@@ -332,6 +332,13 @@ function App() {
     );
   }
 
+  // The transcript and summary use a wider page, so the transcript's toolbar
+  // fits on one line next to its title.
+  const wideLayout =
+    route !== ADMIN_ROUTE &&
+    !projectsRoute &&
+    (currentStep === 'transcript' || currentStep === 'summary');
+
   return (
     <div className="app">
       <Header
@@ -344,7 +351,7 @@ function App() {
       />
       {route !== ADMIN_ROUTE && !projectsRoute && <WorkflowSteps currentStep={currentStep} />}
 
-      <Container className="py-5">
+      <Container className={wideLayout ? 'py-5 app-wide' : 'py-5'}>
         {me?.is_admin && route !== ADMIN_ROUTE && (
           <Alert show variant="info" className="d-flex align-items-start gap-2 admin-browse-banner">
             <Shield size={18} className="flex-shrink-0 mt-1" aria-hidden="true" />

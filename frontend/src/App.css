@@ -242,6 +242,10 @@
    sidebar next to it (player + meeting info) and scrolls inside, so both
    columns end at the same line. Stacked on smaller screens, it keeps the
    600px scroll area above. */
+.transcript-toolbar .btn {
+  white-space: nowrap;
+}
+
 @media (min-width: 992px) {
   .transcript-main-col {
     position: relative;

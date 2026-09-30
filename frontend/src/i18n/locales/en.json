@@ -52,8 +52,8 @@
     "requiresHttps": "Recording requires HTTPS. Please access this page via HTTPS to enable microphone access"
   },
   "recentJobs": {
-    "title": "Recent Communications",
-    "loading": "Loading recent communications...",
+    "title": "Recent transcriptions",
+    "loading": "Loading recent transcriptions...",
     "untitled": "Untitled Recording",
     "dateUnknown": "Date unknown",
     "statusComplete": "Complete",
@@ -61,7 +61,7 @@
     "statusFailed": "Failed",
     "deleteThis": "Delete this communication",
     "viewSummary": "View AI summary",
-    "empty": "No recent communications. Upload your first communication to get started!",
+    "empty": "No recent transcriptions. Upload your first communication to get started!",
     "retentionNotice": "Communications are automatically deleted after 12 hours",
     "deleteModalTitle": "Delete Communication",
     "deleteModalBody": "Are you sure you want to delete this communication? This action cannot be undone."

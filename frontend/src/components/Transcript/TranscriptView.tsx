@@ -198,14 +198,16 @@ export default function TranscriptView({
 
   return (
     <Row>
-      <Col lg={8} className="transcript-main-col">
+      <Col lg={8} xl={9} className="transcript-main-col">
         <Card className="mb-4 transcript-card">
-          <Card.Header className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">
+          {/* Every button stays on one line (all the same height); when they do not
+              fit next to the title, the whole toolbar moves below it. */}
+          <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2 transcript-header">
+            <h5 className="mb-0 text-nowrap">
               <FileText size={20} className="me-2" />
               {t('transcript.title')}
             </h5>
-            <div className="d-flex gap-2 align-items-center">
+            <div className="d-flex flex-wrap gap-2 align-items-center transcript-toolbar">
               <ButtonGroup>
                 <Button
                   variant={displayMode === 'list' ? 'primary' : 'outline-primary'}
@@ -390,7 +392,7 @@ export default function TranscriptView({
         </Card>
       </Col>
 
-      <Col lg={4}>
+      <Col lg={4} xl={3}>
         <AudioPlayer
           jobId={jobId}
           onTimeUpdate={handleTimeUpdate}
