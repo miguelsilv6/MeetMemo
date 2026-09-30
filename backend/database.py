@@ -359,7 +359,10 @@ async def get_all_jobs(
         rows = await conn.fetch(
             """SELECT j.uuid, j.file_name, j.status_code, j.workflow_state,
                       j.current_step_progress, j.processing_stage, j.error_message,
-                      j.created_at, j.user_uuid, u.username AS owner
+                      j.created_at, j.user_uuid, u.username AS owner,
+                      j.transcription_data->>'language' AS detected_language,
+                      (j.transcription_data->>'language_probability')::float
+                          AS language_probability
                FROM jobs j LEFT JOIN users u ON u.uuid = j.user_uuid
                WHERE j.project_uuid IS NULL
                  AND ($3::uuid IS NULL OR j.user_uuid = $3::uuid)

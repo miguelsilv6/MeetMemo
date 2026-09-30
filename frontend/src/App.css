@@ -1204,15 +1204,34 @@ button.kanban-add-column:hover {
   gap: 0.5rem 1rem;
 }
 
+/* Long names without spaces (e.g. "20260930_103512_call.wav") break inside
+   their column instead of running over the next one. */
 .project-audio-name {
   flex: 1 1 14rem;
   min-width: 0;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .project-audio-name .btn-link {
-  overflow-wrap: break-word;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.recent-job-main {
+  min-width: 0;
+}
+
+.recent-job-name {
+  overflow-wrap: anywhere;
+}
+
+.recent-job-meta {
+  gap: 0.25rem 1.25rem;
+}
+
+.sort-order-select .form-select {
+  width: auto;
 }
 
 .project-audio-status {

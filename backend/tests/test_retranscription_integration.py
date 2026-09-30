@@ -49,6 +49,7 @@ def test_retranscription_against_real_postgres(monkeypatch, tmp_path):
 
     _reset_database()
     settings = _settings(tmp_path)
+    settings.summary_path = Path(settings.summary_dir)  # the job list checks for summaries
     monkeypatch.setenv("DATABASE_URL", TEST_DATABASE_URL)
 
     import database
@@ -156,6 +157,12 @@ def test_retranscription_against_real_postgres(monkeypatch, tmp_path):
 
         job, made = new_job("call.wav")
         assert balance() == 2
+        # The recent transcriptions list carries what Whisper detected.
+        listing = client.get("/api/v1/jobs", headers=ana)
+        assert listing.status_code == 200, listing.text
+        listed = listing.json()["jobs"][job]
+        assert (listed["detected_language"], listed["language_probability"]) == ("en", 0.41)
+        assert listed["created_at"]
         url = f"/api/v1/jobs/{job}/retranscribe"
 
         # --- Refused: bad language, someone else's audio, no request header -----

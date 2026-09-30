@@ -64,7 +64,11 @@
     "empty": "Ainda não há transcrições recentes. Carrega a tua primeira comunicação para começar!",
     "retentionNotice": "As comunicações são eliminadas automaticamente após 12 horas",
     "deleteModalTitle": "Eliminar Comunicação",
-    "deleteModalBody": "Tens a certeza de que queres eliminar esta comunicação? Esta ação não pode ser desfeita."
+    "deleteModalBody": "Tens a certeza de que queres eliminar esta comunicação? Esta ação não pode ser desfeita.",
+    "imported": "Importado em",
+    "language": "Idioma",
+    "showAll": "Mostrar todas ({{count}})",
+    "showLess": "Mostrar menos"
   },
   "processing": {
     "title": "A Processar a Tua Comunicação",
@@ -800,5 +804,10 @@
     "confirm": "Transcrever de novo",
     "starting": "A iniciar…",
     "failed": "Não foi possível iniciar a nova transcrição."
+  },
+  "sortOrder": {
+    "label": "Ordenar:",
+    "newest": "Mais recentes primeiro",
+    "oldest": "Mais antigas primeiro"
   }
 }

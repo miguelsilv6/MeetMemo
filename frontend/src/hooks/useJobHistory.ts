@@ -43,12 +43,17 @@ export default function useJobHistory(
         status_code: job.status_code,
         created_at: job.created_at,
         has_summary: job.has_summary ?? false,
+        ...(job.detected_language ? { detected_language: job.detected_language } : {}),
+        ...(typeof job.language_probability === 'number'
+          ? { language_probability: job.language_probability }
+          : {}),
       }));
 
-      // Sort by most recent (newest created_at first) and limit to 5
-      const sortedJobs = jobsArray
-        .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
-        .slice(0, 5);
+      // Newest first; the list shows the first few and can show them all
+      // (up to what the server returns), in either order.
+      const sortedJobs = jobsArray.sort((a, b) =>
+        (b.created_at || '').localeCompare(a.created_at || '')
+      );
       setRecentJobs(sortedJobs);
     } catch (err) {
       console.error('Failed to fetch recent jobs:', err);

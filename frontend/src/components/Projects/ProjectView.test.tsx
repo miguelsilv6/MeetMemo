@@ -117,6 +117,29 @@ describe('ProjectView', () => {
     expect(language('waiting')).toHaveTextContent('—');
   });
 
+  it('lists the audios in import order and can show the newest first', async () => {
+    localStorage.clear();
+    vi.mocked(projectsApi.getProject).mockResolvedValue(
+      project([
+        audio('first', 'completed', { created_at: '2026-09-27T10:00:00Z' }),
+        audio('second', 'completed', { created_at: '2026-09-27T11:00:00Z' }),
+        audio('third', 'completed', { created_at: '2026-09-27T12:00:00Z' }),
+      ])
+    );
+    renderView();
+    await screen.findByText('Inquiry 12');
+    const names = () =>
+      [...document.querySelectorAll('.project-audio-item[data-status] .project-audio-name')].map(
+        (element) => element.textContent
+      );
+
+    expect(names()).toEqual(['first.wav', 'second.wav', 'third.wav']);
+    fireEvent.change(screen.getByLabelText('Sort:'), { target: { value: 'newest' } });
+    expect(names()).toEqual(['third.wav', 'second.wav', 'first.wav']);
+    expect(localStorage.getItem('meetmemo-project-audios-sort')).toBe('newest');
+    localStorage.clear();
+  });
+
   it('refreshes while audios are waiting and stops once all are done', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(projectsApi.getProject)
