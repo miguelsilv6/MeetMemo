@@ -269,3 +269,21 @@ def test_prompts_are_editable_audited_and_reset_by_clearing(client, repo):
         ("llm_summary_system_prompt", "Resume em três tópicos.", default_prompt),
         ("llm_summary_system_prompt", default_prompt, "Resume em três tópicos."),
     ]
+
+
+def test_llm_status_is_for_the_administrator_only(client):
+    assert client.get("/api/v1/admin/llm-status").status_code == 401
+
+    async def fake_status(http_client, settings):
+        return {"reachable": True, "configured_model": "qwen3:1.7b"}
+
+    original = admin_api.llm_status
+    admin_api.llm_status = fake_status
+    try:
+        client.app.dependency_overrides[admin_api.get_http_client] = lambda: None
+        login(client)
+        response = client.get("/api/v1/admin/llm-status")
+    finally:
+        admin_api.llm_status = original
+    assert response.status_code == 200
+    assert response.json() == {"reachable": True, "configured_model": "qwen3:1.7b"}

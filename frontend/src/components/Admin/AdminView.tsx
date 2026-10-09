@@ -3,6 +3,7 @@ import { Alert, Button, Col, Row } from '@govtechsg/sgds-react';
 import { ArrowLeft, LogOut, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import AdminSettingsForm from './AdminSettingsForm';
+import AdminLlmStatus from './AdminLlmStatus';
 import type { SettingsTabStatus } from './AdminSettingsForm';
 import AdminTabs from './AdminTabs';
 import { ADMIN_PANEL_ID, adminTabId, isAdminTab } from '../../constants/adminTabs';
@@ -173,6 +174,9 @@ export default function AdminView({
               onStatusChange={setTabStatus}
               onRequestTab={selectTab}
             />
+            <div hidden={activeTab !== 'system'}>
+              <AdminLlmStatus active={activeTab === 'system'} onUnauthorized={showLogin} />
+            </div>
             <div hidden={activeTab !== 'users'}>
               <AdminUsers
                 onChanged={refreshAudit}

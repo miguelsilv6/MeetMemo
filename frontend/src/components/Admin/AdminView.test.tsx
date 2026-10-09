@@ -13,6 +13,7 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
     getAdminAudit: vi.fn(),
     listUsers: vi.fn(),
     changeAdminPassword: vi.fn(),
+    getLlmStatus: vi.fn(),
   };
 });
 
@@ -74,6 +75,19 @@ beforeEach(() => {
   vi.mocked(adminApi.getAdminSettings).mockResolvedValue(settingsResponse);
   vi.mocked(adminApi.getAdminAudit).mockResolvedValue([]);
   vi.mocked(adminApi.listUsers).mockResolvedValue([]);
+  vi.mocked(adminApi.getLlmStatus).mockResolvedValue({
+    url: 'http://ollama:11434',
+    configured_model: 'qwen3:1.7b',
+    reachable: true,
+    server: 'ollama',
+    version: '0.12.3',
+    latency_ms: 12,
+    model_available: true,
+    model_loaded: false,
+    available_models: [],
+    loaded_models: [],
+    error: null,
+  });
 });
 
 const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}`) });

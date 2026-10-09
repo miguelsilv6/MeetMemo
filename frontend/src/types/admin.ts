@@ -127,3 +127,36 @@ export interface UserContent {
   }[];
   audios: { uuid: string; file_name: string; workflow_state: string; created_at: string }[];
 }
+
+/** A model on the LLM server (Ollama reports sizes; other servers just names). */
+export interface LlmModel {
+  name: string;
+  size: number | null;
+  parameter_size?: string | null;
+  quantization?: string | null;
+}
+
+/** A model Ollama holds in memory right now. */
+export interface LlmLoadedModel {
+  name: string;
+  size: number | null;
+  size_vram: number | null;
+  expires_at: string | null;
+}
+
+/** The LLM server's state, as GET /admin/llm-status reports it. */
+export interface LlmStatus {
+  url: string;
+  configured_model: string;
+  reachable: boolean;
+  /** "ollama", "openai" (another OpenAI-compatible server), or null if unreachable. */
+  server: 'ollama' | 'openai' | null;
+  version: string | null;
+  latency_ms: number | null;
+  model_available: boolean | null;
+  /** Null when the server cannot tell (not Ollama). */
+  model_loaded: boolean | null;
+  available_models: LlmModel[];
+  loaded_models: LlmLoadedModel[] | null;
+  error: string | null;
+}

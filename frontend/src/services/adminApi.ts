@@ -9,6 +9,7 @@ import type {
   UserContent,
   UserTokenState,
   AuditEntry,
+  LlmStatus,
   RuntimeSettings,
   SaveSettingsResponse,
 } from '../types/admin';
@@ -74,6 +75,11 @@ async function adminRequest<T>(
 
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/** Whether the LLM server answers, the configured model and what it has loaded. */
+export function getLlmStatus(): Promise<LlmStatus> {
+  return adminRequest('/llm-status');
 }
 
 export function getAdminSettings(): Promise<AdminSettingsResponse> {
