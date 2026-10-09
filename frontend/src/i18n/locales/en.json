@@ -651,6 +651,33 @@
       "unlimitedActive": "Unlimited tokens on: the daily quota and extra balance below are not being used.",
       "unlimitedOn": "{{username}} now has unlimited tokens.",
       "unlimitedOff": "{{username}} no longer has unlimited tokens."
+    },
+    "llm": {
+      "title": "LLM server (summaries and translations)",
+      "refresh": "Refresh",
+      "checking": "Checking…",
+      "state": "State",
+      "reachable": "Available",
+      "unreachable": "Unavailable",
+      "latency": "answers in {{ms}} ms",
+      "server": "Server",
+      "ollama": "Ollama {{version}}",
+      "openai": "OpenAI-compatible (not Ollama)",
+      "url": "Address",
+      "configuredModel": "Configured model",
+      "installed": "installed",
+      "notInstalled": "not installed",
+      "loaded": "loaded in memory",
+      "notLoaded": "not loaded",
+      "loadedTitle": "Models loaded in memory",
+      "loadedUnknown": "This server does not say which models are loaded.",
+      "noneLoaded": "No model loaded. Ollama loads the model on the next request (the first summary or translation takes longer).",
+      "model": "Model",
+      "size": "Size",
+      "vram": "In VRAM",
+      "expires": "Leaves memory at",
+      "availableTitle_one": "{{count}} model installed on the server",
+      "availableTitle_other": "{{count}} models installed on the server"
     }
   },
   "projects": {

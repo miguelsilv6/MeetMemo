@@ -651,6 +651,33 @@
       "unlimitedActive": "Tokens ilimitados ativos: a quota diária e o saldo extra abaixo não estão a ser usados.",
       "unlimitedOn": "{{username}} passou a ter tokens ilimitados.",
       "unlimitedOff": "{{username}} deixou de ter tokens ilimitados."
+    },
+    "llm": {
+      "title": "Servidor LLM (resumos e traduções)",
+      "refresh": "Atualizar",
+      "checking": "A verificar…",
+      "state": "Estado",
+      "reachable": "Disponível",
+      "unreachable": "Indisponível",
+      "latency": "responde em {{ms}} ms",
+      "server": "Servidor",
+      "ollama": "Ollama {{version}}",
+      "openai": "Compatível com OpenAI (não é Ollama)",
+      "url": "Endereço",
+      "configuredModel": "Modelo configurado",
+      "installed": "instalado",
+      "notInstalled": "não instalado",
+      "loaded": "carregado em memória",
+      "notLoaded": "não carregado",
+      "loadedTitle": "Modelos carregados em memória",
+      "loadedUnknown": "Este servidor não indica que modelos estão carregados.",
+      "noneLoaded": "Nenhum modelo carregado. O Ollama carrega o modelo no próximo pedido (o primeiro resumo ou tradução demora mais).",
+      "model": "Modelo",
+      "size": "Tamanho",
+      "vram": "Na VRAM",
+      "expires": "Sai da memória em",
+      "availableTitle_one": "{{count}} modelo instalado no servidor",
+      "availableTitle_other": "{{count}} modelos instalados no servidor"
     }
   },
   "projects": {

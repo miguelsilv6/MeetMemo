@@ -24,7 +24,12 @@ from admin_auth import (
     verify_password,
 )
 from config import Settings, get_settings
-from dependencies import get_admin_repository, get_token_repository, get_user_repository
+from dependencies import (
+    get_admin_repository,
+    get_http_client,
+    get_token_repository,
+    get_user_repository,
+)
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from llm_prompts import QWEN3_NO_THINK, TRANSLATION_OUTPUT_CONTRACT
 from pydantic import BaseModel, Field, field_validator
@@ -32,6 +37,7 @@ from repositories.admin_repository import AdminRepository
 from repositories.token_repository import NegativeBalanceError, TokenRepository
 from repositories.user_repository import UsernameTakenError, UserRepository
 from runtime_settings import MAX_DAILY_TOKENS, WHISPER_LANGUAGE_CODES, RuntimeSettings
+from services.llm_status import llm_status
 from services.runtime_settings_service import RuntimeSettingsService
 from services.user_service import UserService
 from sessions import close_admin_sessions, open_admin_session
@@ -193,6 +199,21 @@ async def update_runtime_settings(
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     return {"settings": (await service.get()).model_dump(), "changed": changed}
+
+
+@router.get("/llm-status")
+async def get_llm_status(
+    _admin: dict = Depends(require_admin),
+    settings: Settings = Depends(get_settings),
+    client=Depends(get_http_client),
+) -> dict:
+    """Whether the LLM server answers, the configured model and what it has loaded.
+
+    Only status endpoints are asked (short timeouts): checking never makes the
+    server load a model. The URL is reported without credentials and the API
+    key never leaves the backend.
+    """
+    return await llm_status(client, settings)
 
 
 @router.get("/audit")
