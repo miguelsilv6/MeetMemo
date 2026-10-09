@@ -4,6 +4,7 @@ import AdminLlmStatus from './AdminLlmStatus';
 import * as adminApi from '../../services/adminApi';
 import type { LlmStatus } from '../../types/admin';
 import { formatDateTime } from '../../utils/projectDates';
+import i18n from '../../i18n';
 
 vi.mock('../../services/adminApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/adminApi')>();
@@ -32,6 +33,8 @@ const ollama: LlmStatus = {
     },
   ],
   error: null,
+  error_code: null,
+  error_status: null,
 };
 
 beforeEach(() => {
@@ -82,11 +85,33 @@ describe('AdminLlmStatus', () => {
       available_models: [],
       loaded_models: null,
       error: 'Connection refused or host unreachable.',
+      error_code: 'unreachable',
     });
     render(<AdminLlmStatus active onUnauthorized={vi.fn()} />);
 
     expect(await screen.findByText('Unavailable')).toHaveClass('bg-danger');
     expect(screen.getByText('Connection refused or host unreachable.')).toBeInTheDocument();
+  });
+
+  it('shows the problem in the panel language, not the backend English', async () => {
+    vi.mocked(adminApi.getLlmStatus).mockResolvedValue({
+      ...ollama,
+      loaded_models: null,
+      model_loaded: null,
+      error: 'HTTP 502 from the server.',
+      error_code: 'http',
+      error_status: 502,
+    });
+    await i18n.changeLanguage('pt');
+    try {
+      render(<AdminLlmStatus active onUnauthorized={vi.fn()} />);
+      expect(
+        await screen.findByText('O servidor respondeu com o erro HTTP 502.')
+      ).toBeInTheDocument();
+      expect(screen.queryByText('HTTP 502 from the server.')).not.toBeInTheDocument();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('says what an OpenAI-compatible server cannot tell', async () => {

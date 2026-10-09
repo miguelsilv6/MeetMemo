@@ -158,5 +158,9 @@ export interface LlmStatus {
   model_loaded: boolean | null;
   available_models: LlmModel[];
   loaded_models: LlmLoadedModel[] | null;
+  /** What went wrong, in English (for logs); the panel shows error_code translated. */
   error: string | null;
+  error_code: 'timeout' | 'unreachable' | 'http' | 'other' | null;
+  /** The HTTP status when error_code is "http". */
+  error_status: number | null;
 }
