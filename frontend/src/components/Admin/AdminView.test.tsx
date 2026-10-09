@@ -18,6 +18,7 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
 
 const settings: RuntimeSettings = {
   whisper_model_name: 'large-v3',
+  diarization_model: 'pyannote/speaker-diarization-3.1',
   beam_size: 5,
   temperature_fallback: true,
   vad_filter: true,
@@ -49,12 +50,15 @@ const settingsResponse: AdminSettingsResponse = {
   settings,
   defaults: settings,
   allowed_models: ['large-v3', 'turbo'],
+  allowed_diarization_models: [
+    'pyannote/speaker-diarization-3.1',
+    'pyannote/speaker-diarization-community-1',
+  ],
   languages: ['en', 'pt'],
   restart_only: {
     hardware_profile: 'cpu',
     device: 'cpu',
     compute_type: 'int8',
-    diarization_model: 'pyannote/speaker-diarization-3.1',
   },
   fixed_prompts: {
     translation_output_contract: 'Return ONLY a JSON array.',
@@ -298,7 +302,8 @@ describe('AdminView', () => {
     await renderSignedIn();
     openTab('System');
     expect(screen.getByText('int8')).toBeInTheDocument();
-    expect(screen.getByText('pyannote/speaker-diarization-3.1')).toBeInTheDocument();
+    // The diarization model is chosen in the Transcription tab instead.
+    expect(screen.queryByText('pyannote/speaker-diarization-3.1')).toBeNull();
     expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
   });
 
@@ -422,6 +427,34 @@ describe('AdminView', () => {
     await waitFor(() =>
       expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
         expect.objectContaining({ translation_engine: 'nllb' })
+      )
+    );
+  });
+
+  it('chooses the diarization model from the allowed ones, without a restart', async () => {
+    vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
+      settings: { ...settings, diarization_model: 'pyannote/speaker-diarization-community-1' },
+      changed: ['diarization_model'],
+    });
+    await renderSignedIn();
+    openTab('Transcription');
+    const model = screen.getByLabelText('Diarization model');
+    expect(model).toHaveValue('pyannote/speaker-diarization-3.1');
+    expect(
+      [...model.querySelectorAll('option')].map((option) => option.getAttribute('value'))
+    ).toEqual(['pyannote/speaker-diarization-3.1', 'pyannote/speaker-diarization-community-1']);
+    expect(screen.getByText(/without a restart/)).toBeInTheDocument();
+    // No longer listed as restart-only configuration.
+    openTab('System');
+    expect(screen.queryByText(/Diarization model:/)).toBeNull();
+    openTab('Transcription');
+    fireEvent.change(screen.getByLabelText('Diarization model'), {
+      target: { value: 'pyannote/speaker-diarization-community-1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() =>
+      expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ diarization_model: 'pyannote/speaker-diarization-community-1' })
       )
     );
   });

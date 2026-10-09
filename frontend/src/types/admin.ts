@@ -4,6 +4,7 @@ import type { TranslationEngine } from './api';
 
 export interface RuntimeSettings {
   whisper_model_name: string;
+  diarization_model: string;
   beam_size: number;
   temperature_fallback: boolean;
   vad_filter: boolean;
@@ -41,13 +42,13 @@ export interface RestartOnlyConfig {
   hardware_profile: string;
   device: string;
   compute_type: string;
-  diarization_model: string;
 }
 
 export interface AdminSettingsResponse {
   settings: RuntimeSettings;
   defaults: RuntimeSettings;
   allowed_models: string[];
+  allowed_diarization_models: string[];
   languages: string[];
   restart_only: RestartOnlyConfig;
   fixed_prompts: FixedPrompts;

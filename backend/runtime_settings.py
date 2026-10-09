@@ -35,6 +35,14 @@ logger = logging.getLogger(__name__)
 # treats any other string as a Hugging Face repo id or local path to load.
 WHISPER_MODELS = ("tiny", "base", "small", "medium", "large-v2", "large-v3", "turbo")
 
+# Diarization pipelines the panel may select (the same allowlist reason: any
+# other string would be fetched from Hugging Face as a repo id). Both are gated:
+# their conditions must be accepted with the HF_TOKEN account.
+DIARIZATION_MODELS = (
+    "pyannote/speaker-diarization-3.1",
+    "pyannote/speaker-diarization-community-1",
+)
+
 # Language codes accepted by faster-whisper 1.1.0 (faster_whisper.tokenizer).
 WHISPER_LANGUAGE_CODES = frozenset({
     "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs",
@@ -79,6 +87,8 @@ class RuntimeSettings(BaseModel):
 
     # Model and decoding
     whisper_model_name: str = Field(min_length=1, max_length=200)
+    # Speaker diarization (pyannote) pipeline; loaded on the next audio.
+    diarization_model: str = Field(default=DIARIZATION_MODELS[0], min_length=1, max_length=200)
     beam_size: int = Field(default=5, ge=1, le=10)
     temperature_fallback: bool = True
 
@@ -229,12 +239,24 @@ def allowed_whisper_models(env_model_name: str) -> list[str]:
     return models
 
 
+def allowed_diarization_models(env_model_name: Optional[str]) -> list[str]:
+    """Selectable diarization pipelines: the allowlist plus whatever the env configures."""
+    models = list(DIARIZATION_MODELS)
+    if env_model_name and env_model_name not in models:
+        models.append(env_model_name)
+    return models
+
+
 def default_runtime_settings(
-    env_model_name: str, env_retention_hours: int, env_max_file_size: int = 100 * MIB
+    env_model_name: str,
+    env_retention_hours: int,
+    env_max_file_size: int = 100 * MIB,
+    env_diarization_model: Optional[str] = None,
 ) -> RuntimeSettings:
     """Defaults before anything is saved from the panel."""
     return RuntimeSettings(
         whisper_model_name=env_model_name,
+        diarization_model=env_diarization_model or DIARIZATION_MODELS[0],
         job_retention_hours=env_retention_hours,
         max_upload_mb=min(MAX_UPLOAD_MB_LIMIT, max(1, env_max_file_size // MIB)),
     )

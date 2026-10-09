@@ -363,6 +363,10 @@
           "label": "Modelo Whisper",
           "help": "O large-v3 é o mais preciso; o turbo é várias vezes mais rápido. Cada modelo é descarregado na primeira utilização."
         },
+        "diarization_model": {
+          "label": "Modelo de diarização",
+          "help": "Separa os interlocutores. O 3.1 é mais leve; o community-1 é mais preciso, mas precisa de muito mais memória (~12 GB de VRAM recomendados). Aplica-se a partir do próximo áudio, sem reiniciar. Ambos exigem aceitar as condições do modelo no Hugging Face com a conta do HF_TOKEN; cada um é descarregado na primeira utilização."
+        },
         "beam_size": {
           "label": "Beam size",
           "help": "1 = descodificação greedy (a mais rápida). Valores mais altos exploram mais hipóteses: mais preciso, mas mais lento. Recomendado: 5."
@@ -478,7 +482,6 @@
         "hardware_profile": "Perfil de hardware",
         "device": "Dispositivo",
         "compute_type": "Precisão de cálculo",
-        "diarization_model": "Modelo de diarização",
         "hint": "Estas só se alteram no ambiente do backend (.env), seguido de um reinício."
       },
       "errors": {

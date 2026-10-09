@@ -363,6 +363,10 @@
           "label": "Whisper model",
           "help": "large-v3 is the most accurate; turbo is several times faster. A model is downloaded the first time it is used."
         },
+        "diarization_model": {
+          "label": "Diarization model",
+          "help": "Separates the speakers. 3.1 is lighter; community-1 is more accurate but needs much more memory (~12 GB VRAM recommended). Applies from the next audio, without a restart. Both require accepting the model's conditions on Hugging Face with the HF_TOKEN account; each is downloaded on first use."
+        },
         "beam_size": {
           "label": "Beam size",
           "help": "1 = greedy decoding (fastest). Higher values explore more hypotheses: more accurate but slower. Recommended: 5."
@@ -478,7 +482,6 @@
         "hardware_profile": "Hardware profile",
         "device": "Device",
         "compute_type": "Compute precision",
-        "diarization_model": "Diarization model",
         "hint": "These change only in the backend environment (.env), followed by a restart."
       },
       "errors": {

@@ -164,12 +164,12 @@ async def get_runtime_settings(
         "settings": (await service.get()).model_dump(),
         "defaults": service.defaults().model_dump(),
         "allowed_models": service.allowed_models(),
+        "allowed_diarization_models": service.allowed_diarization_models(),
         "languages": sorted(WHISPER_LANGUAGE_CODES),
         "restart_only": {
             "hardware_profile": system["resolved_profile"],
             "device": system["device"],
             "compute_type": system["compute_type"],
-            "diarization_model": system["pyannote_model_name"],
         },
         # Prompt parts the code depends on, shown read-only.
         "fixed_prompts": {

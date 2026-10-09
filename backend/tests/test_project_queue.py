@@ -136,8 +136,9 @@ class _Recorder:
     async def transcribe(self, job_uuid, path, model, language, runtime):
         self.calls.append(("transcribe", path, model, language))
 
-    async def diarize(self, job_uuid, path):
+    async def diarize(self, job_uuid, path, model_name=None):
         self.calls.append(("diarize", path))
+        self.diarization_models = [*getattr(self, "diarization_models", []), model_name]
 
     async def align(self, job_uuid, base_name):
         self.calls.append(("align", base_name))
@@ -172,7 +173,8 @@ def test_the_pipeline_runs_only_the_remaining_steps(state, steps):
     recorder = _Recorder(calls)
     pipeline = JobPipeline(
         _Settings(), recorder, recorder, recorder, recorder,
-        _Runtime(_runtime(audio_loudnorm=False, default_language="pt")),
+        _Runtime(_runtime(audio_loudnorm=False, default_language="pt",
+                          diarization_model="pyannote/speaker-diarization-community-1")),
     )
     job = {"uuid": "u1", "file_name": "call.v2.wav", "workflow_state": state, "language": None}
 
@@ -182,5 +184,8 @@ def test_the_pipeline_runs_only_the_remaining_steps(state, steps):
     if "transcribe" in steps:
         assert ("transcribe", "uploads/call.v2.wav.asr", "large-v3", "pt") in calls
         assert ("asr", "uploads/call.v2.wav", True, False) in calls
+    if "diarize" in steps:
+        # The diarization model chosen in the admin panel.
+        assert recorder.diarization_models == ["pyannote/speaker-diarization-community-1"]
     if "align" in steps:
         assert ("align", "call.v2") in calls
