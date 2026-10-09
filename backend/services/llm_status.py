@@ -33,14 +33,18 @@ def _same_model(configured: str, name: str) -> bool:
     return normal(configured) == normal(name)
 
 
-def _problem(error: Exception) -> str:
+def _problem(error: Exception) -> dict[str, Any]:
+    """What went wrong: a code the panel translates, plus the English text."""
     if isinstance(error, httpx.TimeoutException):
-        return f"No answer within {STATUS_TIMEOUT:.0f} seconds."
+        return {"error_code": "timeout",
+                "error": f"No answer within {STATUS_TIMEOUT:.0f} seconds."}
     if isinstance(error, httpx.ConnectError):
-        return "Connection refused or host unreachable."
+        return {"error_code": "unreachable", "error": "Connection refused or host unreachable."}
     if isinstance(error, httpx.HTTPStatusError):
-        return f"HTTP {error.response.status_code} from the server."
-    return str(error) or type(error).__name__
+        code = error.response.status_code
+        return {"error_code": "http", "error_status": code,
+                "error": f"HTTP {code} from the server."}
+    return {"error_code": "other", "error": str(error) or type(error).__name__}
 
 
 async def llm_status(client, settings) -> dict[str, Any]:
@@ -62,6 +66,8 @@ async def llm_status(client, settings) -> dict[str, Any]:
         "available_models": [],
         "loaded_models": None,
         "error": None,
+        "error_code": None,  # timeout | unreachable | http | other
+        "error_status": None,  # the HTTP status, for "http"
     }
 
     async def get(path: str) -> Any:
@@ -118,5 +124,5 @@ async def llm_status(client, settings) -> dict[str, Any]:
             for model in status["available_models"]
         )
     except Exception as e:  # pylint: disable=broad-exception-caught
-        status["error"] = _problem(e)
+        status.update(_problem(e))
     return status

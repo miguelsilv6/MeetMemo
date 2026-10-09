@@ -62,7 +62,7 @@ def test_ollama_reports_version_models_and_what_is_loaded():
         "expires_at": "2026-10-09T01:10:00Z",
     }]
     assert isinstance(status["latency_ms"], int)
-    assert status["error"] is None
+    assert (status["error"], status["error_code"], status["error_status"]) == (None, None, None)
 
 
 def test_a_model_without_tag_matches_latest_and_a_missing_one_is_flagged():
@@ -86,18 +86,27 @@ def test_a_server_that_is_down_or_slow_is_reported():
                  "/v1/models": httpx.ConnectError("refused")}, _settings())
     assert (down["reachable"], down["server"]) == (False, None)
     assert "refused" in down["error"].lower()
+    assert (down["error_code"], down["error_status"]) == ("unreachable", None)
 
     slow = _run({"/api/version": httpx.ReadTimeout("slow"),
                  "/v1/models": httpx.ReadTimeout("slow")}, _settings())
     assert slow["reachable"] is False
     assert "5 seconds" in slow["error"]
+    assert slow["error_code"] == "timeout"
+
+
+def test_an_http_error_carries_its_status():
+    status = _run({"/api/version": {"version": "0.12.3"}, "/api/tags": {"models": []}}, _settings())
+    assert status["reachable"] is True  # /api/ps answers 404 below
+    assert (status["error_code"], status["error_status"]) == ("http", 404)
+    assert status["error"] == "HTTP 404 from the server."
 
 
 def test_ollama_answering_but_failing_a_listing_is_still_reachable():
     routes = {**OLLAMA, "/api/ps": httpx.ReadTimeout("slow")}
     status = _run(routes, _settings())
     assert status["reachable"] is True
-    assert status["error"]
+    assert status["error_code"] == "timeout"
 
 
 def test_no_credentials_are_shown_and_the_key_is_only_sent_to_the_server():

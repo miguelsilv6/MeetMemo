@@ -677,7 +677,13 @@
       "vram": "Na VRAM",
       "expires": "Sai da memória em",
       "availableTitle_one": "{{count}} modelo instalado no servidor",
-      "availableTitle_other": "{{count}} modelos instalados no servidor"
+      "availableTitle_other": "{{count}} modelos instalados no servidor",
+      "errors": {
+        "timeout": "O servidor não respondeu em 5 segundos.",
+        "unreachable": "Ligação recusada ou servidor inacessível.",
+        "http": "O servidor respondeu com o erro HTTP {{status}}.",
+        "other": "Erro inesperado: {{detail}}"
+      }
     }
   },
   "projects": {

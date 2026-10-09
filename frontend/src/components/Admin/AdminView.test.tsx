@@ -87,6 +87,8 @@ beforeEach(() => {
     available_models: [],
     loaded_models: [],
     error: null,
+    error_code: null,
+    error_status: null,
   });
 });
 

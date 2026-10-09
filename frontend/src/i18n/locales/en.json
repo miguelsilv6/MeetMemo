@@ -677,7 +677,13 @@
       "vram": "In VRAM",
       "expires": "Leaves memory at",
       "availableTitle_one": "{{count}} model installed on the server",
-      "availableTitle_other": "{{count}} models installed on the server"
+      "availableTitle_other": "{{count}} models installed on the server",
+      "errors": {
+        "timeout": "No answer within 5 seconds.",
+        "unreachable": "Connection refused or host unreachable.",
+        "http": "The server answered with HTTP error {{status}}.",
+        "other": "Unexpected error: {{detail}}"
+      }
     }
   },
   "projects": {

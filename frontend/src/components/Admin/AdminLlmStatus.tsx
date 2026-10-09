@@ -26,6 +26,22 @@ export default function AdminLlmStatus({ active, onUnauthorized }: AdminLlmStatu
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** The server's problem in the panel's language (the English text as a fallback). */
+  const problem = (s: LlmStatus): string => {
+    switch (s.error_code) {
+      case 'timeout':
+        return t('admin.llm.errors.timeout');
+      case 'unreachable':
+        return t('admin.llm.errors.unreachable');
+      case 'http':
+        return t('admin.llm.errors.http', { status: s.error_status });
+      case 'other':
+        return t('admin.llm.errors.other', { detail: s.error });
+      default:
+        return s.error ?? '';
+    }
+  };
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -83,7 +99,7 @@ export default function AdminLlmStatus({ active, onUnauthorized }: AdminLlmStatu
                     {t('admin.llm.latency', { ms: status.latency_ms })}
                   </span>
                 )}
-                {status.error && <div className="text-danger small mt-1">{status.error}</div>}
+                {status.error && <div className="text-danger small mt-1">{problem(status)}</div>}
               </dd>
               <dt className="col-sm-4">{t('admin.llm.server')}</dt>
               <dd className="col-sm-8">
