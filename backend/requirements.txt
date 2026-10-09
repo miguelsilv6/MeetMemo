@@ -1,4 +1,6 @@
-setuptools==59.5.0
+# >=78.1.1 fixes CVE-2022-40897, CVE-2024-6345 and CVE-2025-47273; <82 keeps
+# pkg_resources (removed in 82), in case a package in the base image imports it.
+setuptools>=78.1.1,<82
 numpy>=2.0
 faster-whisper==1.1.0
 pyannote.audio==4.0.4
@@ -9,13 +11,16 @@ transformers>=4.44,<5
 sentencepiece>=0.2,<0.3
 soundfile==0.13.1
 speechbrain==1.1.0
-python-dotenv==1.0.1
-fastapi==0.110.1
+python-dotenv==1.2.3
+fastapi==0.141.1
+# FastAPI leaves Starlette unbounded above: pinned to a release without the
+# multipart DoS and request URL issues (CVE-2024-47874, CVE-2025-54121, ...).
+starlette==1.7.0
 uvicorn==0.29.0
-pydantic==2.7.1
-pydantic-settings==2.2.1
+pydantic==2.13.5
+pydantic-settings==2.15.0
 numba>=0.60.0
-python-multipart==0.0.9
+python-multipart==0.0.32
 httpx==0.27.0
 aiofiles==23.2.1
 asyncpg==0.29.0
