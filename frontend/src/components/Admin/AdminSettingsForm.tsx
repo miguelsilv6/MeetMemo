@@ -24,6 +24,7 @@ const TRANSLATION_ENGINES: TranslationEngine[] = ['llm', 'nllb'];
 /** The tab each setting is edited in. */
 const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
   whisper_model_name: 'transcription',
+  diarization_model: 'transcription',
   beam_size: 'transcription',
   temperature_fallback: 'transcription',
   vad_filter: 'transcription',
@@ -330,6 +331,26 @@ export default function AdminSettingsForm({
                     </Form.Group>
                   </Col>
                   <Col md={6}>{numberField('beam_size')}</Col>
+                  <Col md={6}>
+                    <Form.Group controlId="admin-diarization_model" className="mb-3">
+                      <Form.Label>{t('admin.settings.fields.diarization_model.label')}</Form.Label>
+                      <Form.Select
+                        value={draft.diarization_model}
+                        onChange={(e) => update('diarization_model', e.target.value)}
+                        aria-describedby="admin-diarization_model-help"
+                      >
+                        {data.allowed_diarization_models.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <FieldHelp
+                        id="admin-diarization_model-help"
+                        text={t('admin.settings.fields.diarization_model.help')}
+                      />
+                    </Form.Group>
+                  </Col>
                 </Row>
                 {switchField('temperature_fallback')}
               </Section>

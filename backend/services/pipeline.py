@@ -86,7 +86,9 @@ class JobPipeline:
         audio_path = await self.audio_service.ensure_asr_audio(
             str(job["uuid"]), self._audio_path(job), runtime.audio_highpass, runtime.audio_loudnorm
         )
-        await self.diarization_service.diarize(str(job["uuid"]), audio_path)
+        await self.diarization_service.diarize(
+            str(job["uuid"]), audio_path, runtime.diarization_model
+        )
 
     async def align(self, job: dict) -> None:
         """Alignment step: speakers onto the transcript, saved as the transcript file."""

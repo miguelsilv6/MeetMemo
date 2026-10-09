@@ -253,16 +253,16 @@ async def lifespan(fastapi_app: FastAPI):
             JobRepository()
         )
 
+        runtime = await RuntimeSettingsService(app_settings).get()
         try:
-            runtime = await RuntimeSettingsService(app_settings).get()
             transcription_service.get_model(runtime.whisper_model_name)
             logger.info("Whisper model %s preloaded successfully", runtime.whisper_model_name)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to preload Whisper model: %s", e)
 
         try:
-            diarization_service.get_pipeline()
-            logger.info("PyAnnote pipeline preloaded successfully")
+            diarization_service.get_pipeline(runtime.diarization_model)
+            logger.info("PyAnnote pipeline %s preloaded successfully", runtime.diarization_model)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to preload PyAnnote pipeline: %s", e)
 

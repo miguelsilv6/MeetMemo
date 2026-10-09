@@ -430,7 +430,7 @@ async def start_diarization(
         audio_path = await audio_service.ensure_asr_audio(
             uuid, file_path, runtime.audio_highpass, runtime.audio_loudnorm
         )
-        await diarization_service.diarize(uuid, audio_path)
+        await diarization_service.diarize(uuid, audio_path, runtime.diarization_model)
 
     background_tasks.add_task(run)
 

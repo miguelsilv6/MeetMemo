@@ -4,6 +4,7 @@ import type { RuntimeSettings } from '../types/admin';
 
 const valid: RuntimeSettings = {
   whisper_model_name: 'large-v3',
+  diarization_model: 'pyannote/speaker-diarization-3.1',
   beam_size: 5,
   temperature_fallback: true,
   vad_filter: true,

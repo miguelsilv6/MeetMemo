@@ -29,6 +29,7 @@ async def system_info(settings: Settings = Depends(get_settings)):
         info = settings.system_info()
         runtime = await RuntimeSettingsService(settings).get()
         info["whisper_model_name"] = runtime.whisper_model_name
+        info["pyannote_model_name"] = runtime.diarization_model
         return info
     except Exception as e:
         logger.error("System info lookup failed: %s", e, exc_info=True)
