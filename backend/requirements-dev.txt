@@ -10,11 +10,12 @@
 # If a test is added that needs the full ML stack, install requirements.txt
 # alongside this file for that job.
 pytest>=8.0
-pydantic==2.7.1
-pydantic-settings==2.2.1
+pydantic==2.13.5
+pydantic-settings==2.15.0
 httpx==0.27.0
 aiofiles==23.2.1
-fastapi==0.110.1
+fastapi==0.141.1
+starlette==1.7.0
 python-docx==1.2.0
 numpy>=2.0
 pydub==0.25.1
