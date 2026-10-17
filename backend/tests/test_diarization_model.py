@@ -92,7 +92,8 @@ class _FakePipeline:
         self.device = device
         return self
 
-    def __call__(self, audio):
+    def __call__(self, audio, **options):
+        self.options = options
         turn = SimpleNamespace(start=0.0, end=1.5)
         annotation = SimpleNamespace(itertracks=lambda yield_label: [(turn, None, "SPEAKER_00")])
         return SimpleNamespace(speaker_diarization=annotation)
@@ -217,3 +218,14 @@ def test_a_call_transcribed_per_channel_takes_its_speakers_from_the_channels(dia
     ]}
     assert _FakePipeline.instances == []  # pyannote was not loaded
     assert repo.saved == data and repo.states[-1] == "diarized"
+
+
+def test_the_number_of_speakers_given_at_upload_reaches_pyannote(diarization):
+    service = _make(diarization, _JobRepo())
+
+    asyncio.run(service.diarize("job", "call.wav", COMMUNITY, 3))
+    pipeline = service.get_pipeline(COMMUNITY)
+    assert pipeline.options == {"num_speakers": 3}
+
+    asyncio.run(service.diarize("job", "call.wav", COMMUNITY))  # not given: pyannote decides
+    assert pipeline.options == {}

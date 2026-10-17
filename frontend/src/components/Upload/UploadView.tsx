@@ -21,6 +21,9 @@ interface UploadViewProps {
   handleViewSummary: (job: RecentJob) => void;
   selectedLanguage: string | null;
   onLanguageChange: (language: string | null) => void;
+  /** How many people speak in the next upload (null = diarization decides). */
+  selectedSpeakers?: number | null;
+  onSpeakersChange?: (count: number | null) => void;
   /** Receives the admin-configured default language each time this view opens. */
   onDefaultLanguage: (language: string | null) => void;
   /** Largest file accepted, in MB (null until known). */
@@ -48,6 +51,8 @@ export default function UploadView({
   handleViewSummary,
   selectedLanguage,
   onLanguageChange,
+  selectedSpeakers = null,
+  onSpeakersChange = () => {},
   onDefaultLanguage,
   maxUploadMb = null,
   onUploadLimit,
@@ -101,6 +106,8 @@ export default function UploadView({
                 handleDrop={handleDrop}
                 selectedLanguage={selectedLanguage}
                 onLanguageChange={onLanguageChange}
+                selectedSpeakers={selectedSpeakers}
+                onSpeakersChange={onSpeakersChange}
                 maxUploadMb={maxUploadMb}
               />
             </Col>

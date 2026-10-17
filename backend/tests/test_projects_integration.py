@@ -173,7 +173,8 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
             ("files", ("notas.txt", b"text", "text/plain")),
         ]
         response = client.post(
-            f"/api/v1/projects/{pid}/audios", files=files, data={"language": "pt"}
+            f"/api/v1/projects/{pid}/audios", files=files,
+            data={"language": "pt", "num_speakers": "2"},
         )
         assert response.status_code == 200, response.text
         results = response.json()["results"]
@@ -183,6 +184,9 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         assert client.post(
             f"/api/v1/projects/{pid}/audios", files=files[:1], data={"language": "zz"}
         ).status_code == 400
+        assert client.post(  # 2 to 6 speakers
+            f"/api/v1/projects/{pid}/audios", files=files[:1], data={"num_speakers": "7"}
+        ).status_code == 422
 
         detail = client.get(f"/api/v1/projects/{pid}").json()
         assert [(a["status"], a["queue_position"], a["language"]) for a in detail["audios"]] == [
@@ -196,6 +200,7 @@ def test_projects_against_real_postgres(monkeypatch, tmp_path):
         assert str(job["project_uuid"]) == pid
         assert run(database.get_job_by_hash(job["file_hash"], owner["uuid"])) is None
         assert str(job["user_uuid"]) == owner["uuid"]
+        assert job["num_speakers"] == 2  # given at upload, for diarization
 
         # --- The queue processes them in order -------------------------------------
         pipeline.fail.add(run(database.get_job(second))["file_name"])

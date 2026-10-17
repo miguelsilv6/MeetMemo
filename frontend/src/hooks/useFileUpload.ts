@@ -32,6 +32,7 @@ export default function useFileUpload(
   const [selectedFile, setSelectedFile] = useState<SelectedFile>(null);
   const [uploading, setUploading] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null); // null = auto-detect
+  const [selectedSpeakers, setSelectedSpeakers] = useState<number | null>(null); // null = diarization decides
   // Once the user picks a language, the admin-configured default no longer overrides it.
   const languageChosenByUser = useRef(false);
 
@@ -117,7 +118,12 @@ export default function useFileUpload(
       // Upload new file
       // Send 'auto' explicitly so the backend doesn't apply its default language
       // over a deliberate "Auto-detect" choice.
-      const response = await api.uploadAudio(file, null, selectedLanguage ?? AUTO_DETECT_LANGUAGE);
+      const response = await api.uploadAudio(
+        file,
+        null,
+        selectedLanguage ?? AUTO_DETECT_LANGUAGE,
+        selectedSpeakers
+      );
       setJobId(response.uuid);
 
       // Backend returns 202 immediately and processes in background
@@ -163,6 +169,8 @@ export default function useFileUpload(
     setSelectedFile,
     selectedLanguage,
     setSelectedLanguage: changeLanguage,
+    selectedSpeakers,
+    setSelectedSpeakers,
     applyDefaultLanguage,
     maxUploadMb,
     applyUploadLimit: setMaxUploadMb,

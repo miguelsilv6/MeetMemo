@@ -156,6 +156,8 @@ function App() {
     setSelectedFile,
     selectedLanguage,
     setSelectedLanguage,
+    selectedSpeakers,
+    setSelectedSpeakers,
     applyDefaultLanguage,
     maxUploadMb,
     applyUploadLimit,
@@ -438,6 +440,8 @@ function App() {
                 handleViewSummary={handleViewRecentSummary}
                 selectedLanguage={selectedLanguage}
                 onLanguageChange={setSelectedLanguage}
+                selectedSpeakers={selectedSpeakers}
+                onSpeakersChange={setSelectedSpeakers}
                 onDefaultLanguage={applyDefaultLanguage}
                 maxUploadMb={maxUploadMb}
                 onUploadLimit={applyUploadLimit}

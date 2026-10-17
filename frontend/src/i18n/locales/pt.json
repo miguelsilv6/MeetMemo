@@ -35,6 +35,9 @@
   "fileUpload": {
     "title": "Carregar Ficheiro Áudio",
     "languageLabel": "Idioma da Transcrição",
+    "speakersLabel": "Número de interlocutores",
+    "speakersAuto": "Automático",
+    "speakersHint": "Se souberes quantas pessoas falam, a separação dos interlocutores fica mais fiável. Nas chamadas estéreo com um interlocutor por canal, os canais já o indicam.",
     "clickToBrowse": "Clica para escolher",
     "orDragDrop": "ou arrasta e larga",
     "supportedFormats": "Suporta MP3, WAV, M4A, WEBM, FLAC, OGG, AAC",
@@ -107,7 +110,8 @@
     "selectSegments": "Selecionar vários segmentos",
     "selectSegment": "Selecionar este segmento",
     "lowConfidence": "Rever",
-    "lowConfidenceHint": "Baixa confiança: confirma esta frase com o áudio"
+    "lowConfidenceHint": "Baixa confiança: confirma esta frase com o áudio",
+    "wordConfidence": "Confiança do modelo nesta palavra: {{percent}}%. Confirma com o áudio."
   },
   "kanban": {
     "dropHere": "Larga aqui",

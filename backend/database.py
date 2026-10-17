@@ -118,7 +118,9 @@ async def require_owners() -> None:
 TOKENS_SCHEMA_PATHS = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "migrations", name)
     for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql",
-                 "010_retranscription.sql")
+                 "010_retranscription.sql",
+                 # Not about tokens, but a jobs column every install needs at startup.
+                 "011_num_speakers.sql")
 ]
 
 DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
@@ -276,6 +278,7 @@ async def add_job(
     language: Optional[str] = None,
     user_uuid: Optional[str] = None,
     charge: bool = False,
+    num_speakers: Optional[int] = None,
 ) -> None:
     """
     Add new job to database with workflow state.
@@ -289,10 +292,10 @@ async def add_job(
                 await charge_token(conn, user_uuid, uuid)
             await conn.execute(
                 """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
-                                     model_name, language, user_uuid)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)""",
+                                     model_name, language, user_uuid, num_speakers)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)""",
                 uuid, file_name, status_code, file_hash, workflow_state, model_name, language,
-                user_uuid
+                user_uuid, num_speakers
             )
     hash_preview = file_hash[:16] if file_hash else 'None'
     logger.info(
@@ -344,7 +347,7 @@ async def get_job(uuid: str) -> Optional[dict]:
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, workflow_state, current_step_progress,
                       transcription_data, diarization_data, model_name, language, created_at,
-                      project_uuid, user_uuid
+                      project_uuid, user_uuid, num_speakers
                FROM jobs WHERE uuid = $1""",
             uuid
         )

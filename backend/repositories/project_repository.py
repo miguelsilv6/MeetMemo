@@ -20,6 +20,7 @@ _PROJECT_COLUMNS = "uuid, name, reference, description, created_at, expires_at, 
 # until the audio is transcribed).
 _JOB_COLUMNS = """j.uuid, j.file_name, j.status_code, j.workflow_state, j.current_step_progress,
                   j.error_message, j.language, j.model_name, j.created_at, j.updated_at,
+                  j.num_speakers,
                   j.transcription_data->>'language' AS detected_language,
                   (j.transcription_data->>'language_probability')::float
                       AS language_probability"""
@@ -159,6 +160,7 @@ class ProjectRepository:
         file_name: str,
         file_hash: str,
         language: Optional[str],
+        num_speakers: Optional[int] = None,
     ) -> None:
         """
         Add an uploaded audio to the project (and its owner), paid with one of
@@ -175,9 +177,9 @@ class ProjectRepository:
                 await charge_token(conn, owner, uuid)
                 await conn.execute(
                     """INSERT INTO jobs (uuid, file_name, status_code, file_hash, workflow_state,
-                                         language, project_uuid, user_uuid)
-                       VALUES ($1, $2, 202, $3, 'uploaded', $4, $5, $6)""",
-                    uuid, file_name, file_hash, language, project_uuid, owner,
+                                         language, project_uuid, user_uuid, num_speakers)
+                       VALUES ($1, $2, 202, $3, 'uploaded', $4, $5, $6, $7)""",
+                    uuid, file_name, file_hash, language, project_uuid, owner, num_speakers,
                 )
 
     async def delete_job(self, project_uuid: str, job_uuid: str) -> bool:

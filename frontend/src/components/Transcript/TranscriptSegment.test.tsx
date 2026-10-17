@@ -135,4 +135,37 @@ describe('TranscriptSegment', () => {
     renderSegment();
     expect(screen.queryByText('Review')).not.toBeInTheDocument();
   });
+
+  it('underlines the words the model was unsure of, with their confidence', () => {
+    renderSegment({
+      segment: {
+        ...segment,
+        text: 'Welcome everyone',
+        words: [
+          { start: 65, end: 66, word: ' Welcome', probability: 0.97 },
+          { start: 66, end: 67, word: ' everyone', probability: 0.32 },
+        ],
+      },
+    });
+    const doubtful = screen.getByText('everyone');
+    expect(doubtful).toHaveClass('low-confidence-word');
+    expect(doubtful).toHaveAttribute('title', expect.stringContaining('32%'));
+    expect(doubtful.closest('p')).toHaveTextContent('Welcome everyone');
+    expect(document.querySelectorAll('.low-confidence-word')).toHaveLength(1);
+  });
+
+  it('shows plain text once the words no longer match (edited)', () => {
+    renderSegment({
+      segment: {
+        ...segment,
+        text: 'Welcome all',
+        words: [
+          { start: 65, end: 66, word: ' Welcome', probability: 0.97 },
+          { start: 66, end: 67, word: ' everyone', probability: 0.32 },
+        ],
+      },
+    });
+    expect(screen.getByText('Welcome all')).toBeInTheDocument();
+    expect(document.querySelector('.low-confidence-word')).toBeNull();
+  });
 });

@@ -1334,3 +1334,11 @@ button.kanban-add-column:hover {
 .admin-user-content {
   padding-left: 1.1rem;
 }
+
+/* A word the speech model was unsure of: check it against the audio. */
+.low-confidence-word {
+  text-decoration: underline dotted var(--mm-warning, #d39e00);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: help;
+}

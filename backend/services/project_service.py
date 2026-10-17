@@ -114,7 +114,11 @@ class ProjectService:
         return project
 
     async def add_audios(
-        self, project_uuid: str, files: list[UploadFile], language: Optional[str]
+        self,
+        project_uuid: str,
+        files: list[UploadFile],
+        language: Optional[str],
+        num_speakers: Optional[int] = None,
     ) -> list[dict]:
         """
         Store each file and queue it, skipping files already in the project.
@@ -131,7 +135,9 @@ class ProjectService:
                                 "detail": "Unsupported file type"})
                 continue
             try:
-                results.append(await self._add_audio(project_uuid, upload, language))
+                results.append(
+                    await self._add_audio(project_uuid, upload, language, num_speakers)
+                )
             except HTTPException as e:
                 results.append({"file_name": name, "status": "rejected", "detail": e.detail})
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -142,7 +148,11 @@ class ProjectService:
         return results
 
     async def _add_audio(
-        self, project_uuid: str, upload: UploadFile, language: Optional[str]
+        self,
+        project_uuid: str,
+        upload: UploadFile,
+        language: Optional[str],
+        num_speakers: Optional[int] = None,
     ) -> dict:
         job_uuid = str(uuid_lib.uuid4())
         file_name, file_hash = await self.audio_service.upload_audio(job_uuid, upload)
@@ -164,7 +174,9 @@ class ProjectService:
             file_name = wav_name
 
         try:
-            await self.repo.add_job(job_uuid, project_uuid, file_name, file_hash, language)
+            await self.repo.add_job(
+                job_uuid, project_uuid, file_name, file_hash, language, num_speakers
+            )
         except InsufficientTokensError:
             stored = os.path.join(self.settings.upload_dir, file_name)
             if await aiofiles.os.path.exists(stored):

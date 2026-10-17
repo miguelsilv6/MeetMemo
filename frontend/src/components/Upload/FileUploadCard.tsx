@@ -3,6 +3,7 @@ import { Card, Form } from '@govtechsg/sgds-react';
 import { Upload as UploadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WHISPER_LANGUAGES } from '../../constants/languages';
+import SpeakerCountSelect from './SpeakerCountSelect';
 
 interface FileUploadCardProps {
   uploading: boolean;
@@ -12,6 +13,9 @@ interface FileUploadCardProps {
   handleDrop: (e: DragEvent<HTMLDivElement>) => void;
   selectedLanguage: string | null;
   onLanguageChange: (language: string | null) => void;
+  /** How many people speak (null = diarization decides). */
+  selectedSpeakers?: number | null;
+  onSpeakersChange?: (count: number | null) => void;
   /** Largest file accepted, in MB (null until known). */
   maxUploadMb?: number | null;
 }
@@ -24,6 +28,8 @@ export default function FileUploadCard({
   handleDrop,
   selectedLanguage,
   onLanguageChange,
+  selectedSpeakers = null,
+  onSpeakersChange = () => {},
   maxUploadMb = null,
 }: FileUploadCardProps) {
   const { t } = useTranslation();
@@ -55,6 +61,14 @@ export default function FileUploadCard({
               ))}
             </Form.Select>
           </Form.Group>
+          <div className="text-start mt-2">
+            <SpeakerCountSelect
+              id="upload-num-speakers"
+              value={selectedSpeakers}
+              onChange={onSpeakersChange}
+              disabled={uploading}
+            />
+          </div>
         </div>
 
         <div

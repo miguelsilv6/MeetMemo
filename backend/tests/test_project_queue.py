@@ -142,8 +142,9 @@ class _Recorder:
         self.calls.append(("transcribe", path, model, language))
         self.transcribed_channels = channels
 
-    async def diarize(self, job_uuid, path, model_name=None):
+    async def diarize(self, job_uuid, path, model_name=None, num_speakers=None):
         self.calls.append(("diarize", path))
+        self.num_speakers = num_speakers
         self.diarization_models = [*getattr(self, "diarization_models", []), model_name]
 
     async def align(self, job_uuid, base_name):
@@ -226,3 +227,12 @@ def test_the_admin_panel_can_keep_mixing_stereo():
     calls, recorder = _transcribe_with({"mode": "split", "paths": ["x"]}, stereo_mode="mix")
     assert not any(c[0] == "channels" for c in calls)
     assert recorder.transcribed_channels is None
+
+
+def test_the_number_of_speakers_of_the_job_reaches_diarization():
+    calls = []
+    recorder = _Recorder(calls)
+    pipeline = JobPipeline(_Settings(), recorder, recorder, recorder, recorder,
+                           _Runtime(_runtime()))
+    asyncio.run(pipeline.diarize({"uuid": "u1", "file_name": "call.wav", "num_speakers": 2}))
+    assert recorder.num_speakers == 2

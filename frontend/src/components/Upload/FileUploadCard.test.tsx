@@ -27,7 +27,7 @@ describe('FileUploadCard', () => {
 
   it('reports a chosen language (and maps the empty option to null)', () => {
     const onLanguageChange = renderCard().onLanguageChange;
-    const select = screen.getByRole('combobox');
+    const select = screen.getAllByRole('combobox')[0];
 
     fireEvent.change(select, { target: { value: 'es' } });
     expect(onLanguageChange).toHaveBeenCalledWith('es');
@@ -50,5 +50,18 @@ describe('FileUploadCard', () => {
     expect(
       screen.getByText('Supports MP3, WAV, M4A, WEBM, FLAC, OGG, AAC (max 250 MB)')
     ).toBeInTheDocument();
+  });
+
+  it('reports how many people speak, or automatic', () => {
+    const onSpeakersChange = vi.fn();
+    renderCard({ onSpeakersChange });
+    const select = screen.getByLabelText('Number of speakers');
+    expect(select).toHaveValue('');
+    expect(screen.getByRole('option', { name: 'Automatic' })).toBeInTheDocument();
+
+    fireEvent.change(select, { target: { value: '2' } });
+    expect(onSpeakersChange).toHaveBeenCalledWith(2);
+    fireEvent.change(select, { target: { value: '' } });
+    expect(onSpeakersChange).toHaveBeenCalledWith(null);
   });
 });

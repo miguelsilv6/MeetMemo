@@ -7,6 +7,7 @@ initiation (transcription, diarization, alignment).
 import logging
 import os
 import uuid as uuid_lib
+from typing import Optional
 
 import aiofiles
 import aiofiles.os as aioos
@@ -83,6 +84,9 @@ async def create_job(
     file: UploadFile = File(...),
     model: str = Form(None),
     language: str = Form(None),
+    # How many people speak, if known: helps diarization (ignored for a call
+    # transcribed per channel, whose channels are the speakers).
+    num_speakers: Optional[int] = Form(None, ge=2, le=6),
     principal: Principal = Depends(require_user),
     audio_service: AudioService = Depends(get_audio_service),
     job_repo: JobRepository = Depends(get_job_repository),
@@ -146,7 +150,7 @@ async def create_job(
         try:
             await job_repo.create(
                 job_uuid, file_name, file_hash, 'uploaded', model, language,
-                principal.user_uuid, charge=True,
+                principal.user_uuid, charge=True, num_speakers=num_speakers,
             )
         except InsufficientTokensError as e:
             stored = os.path.join(settings.upload_dir, file_name)
@@ -428,7 +432,9 @@ async def start_diarization(
         audio_path = await audio_service.ensure_asr_audio(
             uuid, file_path, runtime.audio_highpass, runtime.audio_loudnorm
         )
-        await diarization_service.diarize(uuid, audio_path, runtime.diarization_model)
+        await diarization_service.diarize(
+            uuid, audio_path, runtime.diarization_model, job.get("num_speakers")
+        )
 
     background_tasks.add_task(run)
 

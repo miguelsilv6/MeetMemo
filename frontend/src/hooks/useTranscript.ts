@@ -74,8 +74,10 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
           : (transcript.segments ?? []);
 
       const updatedSegments = [...(transcript.segments ?? [])];
+      const { words, ...unedited } = updatedSegments[editingSegment.index];
       updatedSegments[editingSegment.index] = {
-        ...updatedSegments[editingSegment.index],
+        // The words (and their confidence) only describe the text as heard.
+        ...(editingSegment.text === unedited.text ? { ...unedited, words } : unedited),
         text: editingSegment.text,
         speaker: editingSegment.speaker,
         start: editingSegment.start,
@@ -175,7 +177,12 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     const end = Number(original.end);
     const splitTime = start + (end - start) * ratio;
 
-    const firstSegment: TranscriptSegment = { ...original, text: firstText, end: splitTime };
+    const { words: _words, ...originalWithoutWords } = original;
+    const firstSegment: TranscriptSegment = {
+      ...originalWithoutWords,
+      text: firstText,
+      end: splitTime,
+    };
     const secondSegment: TranscriptSegment = {
       speaker: secondSpeaker,
       text: secondText,

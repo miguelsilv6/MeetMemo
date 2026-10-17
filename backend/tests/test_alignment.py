@@ -60,3 +60,30 @@ def test_other_segments_take_the_speaker_that_overlaps_most(monkeypatch, tmp_pat
                                 {"start": 1.0, "end": 4.0, "speaker": "SPEAKER_01"}]}
     aligned = _align(monkeypatch, tmp_path, transcription, diarization)
     assert aligned[0]["speaker"] == "SPEAKER_01"
+
+
+def test_a_segment_with_a_change_of_speaker_is_split_and_keeps_its_words(monkeypatch,
+                                                                         tmp_path):
+    words = [{"start": 0.2, "end": 0.8, "word": " Está", "probability": 0.4},
+             {"start": 0.8, "end": 1.4, "word": " lá?", "probability": 0.9},
+             {"start": 2.2, "end": 2.8, "word": " Sim,", "probability": 0.95},
+             {"start": 2.8, "end": 3.6, "word": " estou.", "probability": 0.97}]
+    transcription = {"segments": [{"start": 0.2, "end": 3.6, "text": " Está lá? Sim, estou.",
+                                   "words": words}]}
+    diarization = {"segments": [{"start": 0.0, "end": 2.0, "speaker": "SPEAKER_00"},
+                                {"start": 2.0, "end": 4.0, "speaker": "SPEAKER_01"}]}
+
+    aligned = _align(monkeypatch, tmp_path, transcription, diarization)
+
+    assert [(s["speaker"], s["text"], s["start"], s["end"]) for s in aligned] == [
+        ("SPEAKER_00", "Está lá?", "0.20", "1.40"), ("SPEAKER_01", "Sim, estou.", "2.20", "3.60")]
+    assert aligned[0]["words"] == words[:2] and aligned[1]["words"] == words[2:]
+
+
+def test_channel_segments_keep_their_words(monkeypatch, tmp_path):
+    words = [{"start": 0.0, "end": 1.0, "word": " Olá", "probability": 0.3}]
+    transcription = {"segments": [{"start": 0.0, "end": 1.0, "text": " Olá",
+                                   "speaker": "SPEAKER_01", "words": words}]}
+    aligned = _align(monkeypatch, tmp_path, transcription, {"segments": []})
+    assert aligned == [{"speaker": "SPEAKER_01", "text": "Olá", "start": "0.00", "end": "1.00",
+                        "words": words}]

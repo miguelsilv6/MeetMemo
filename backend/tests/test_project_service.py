@@ -140,9 +140,11 @@ class FakeProjectRepo:
                 return job
         return None
 
-    async def add_job(self, uuid, project_uuid, file_name, file_hash, language):
+    async def add_job(self, uuid, project_uuid, file_name, file_hash, language,
+                      num_speakers=None):
         self.jobs[uuid] = {"uuid": uuid, "project_uuid": project_uuid, "file_name": file_name,
-                           "file_hash": file_hash, "language": language}
+                           "file_hash": file_hash, "language": language,
+                           "num_speakers": num_speakers}
 
     async def files(self, project_uuid):
         return [{"uuid": j["uuid"], "file_name": j["file_name"], "export_paths": []}

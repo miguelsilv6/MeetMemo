@@ -40,8 +40,10 @@ def transcribe_options(runtime: RuntimeSettings) -> dict:
             if runtime.vad_filter
             else None
         ),
-        # hallucination_silence_threshold only works with word timestamps.
-        "word_timestamps": runtime.hallucination_silence_threshold is not None,
+        # Always on: each word's timing and probability are kept with the
+        # transcript (word-level confidence and speaker alignment), and
+        # hallucination_silence_threshold needs them too.
+        "word_timestamps": True,
         "hallucination_silence_threshold": runtime.hallucination_silence_threshold,
         "condition_on_previous_text": False,
         **DECODER_GATES,

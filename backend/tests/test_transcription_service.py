@@ -37,11 +37,16 @@ class _FakeWhisper:
         _FakeWhisper.calls.append((audio, language, options))
         segments = [
             SimpleNamespace(id=1, start=0.0, end=4.0, text=" Bom dia.", avg_logprob=-0.2,
-                            no_speech_prob=0.01, compression_ratio=1.1),
+                            no_speech_prob=0.01, compression_ratio=1.1,
+                            words=[SimpleNamespace(start=0.0, end=1.2345, word=" Bom",
+                                                   probability=0.98765),
+                                   SimpleNamespace(start=1.2345, end=4.0, word=" dia.",
+                                                   probability=0.41)]),
             SimpleNamespace(id=2, start=4.0, end=8.0, text=" Obrigado por assistir.",
-                            avg_logprob=-0.3, no_speech_prob=0.1, compression_ratio=1.2),
+                            avg_logprob=-0.3, no_speech_prob=0.1, compression_ratio=1.2,
+                            words=None),
             SimpleNamespace(id=3, start=8.0, end=10.0, text=" hum", avg_logprob=-1.6,
-                            no_speech_prob=0.2, compression_ratio=1.0),
+                            no_speech_prob=0.2, compression_ratio=1.0, words=None),
         ]
         # faster-whisper reports a given language with probability 1.
         info = SimpleNamespace(language=language or "en",
@@ -101,6 +106,11 @@ def test_a_file_is_transcribed_and_filtered_without_the_database(service_module)
     assert data["model_name"] == "large-v3"
     assert data["settings"]["beam_size"] == 5
     assert progress == [42, 74, 90]
+    # Each word's timing and probability is kept (word-level confidence).
+    assert data["segments"][0]["words"] == [
+        {"start": 0.0, "end": 1.23, "word": " Bom", "probability": 0.988},
+        {"start": 1.23, "end": 4.0, "word": " dia.", "probability": 0.41}]
+    assert data["segments"][1]["words"] == []
     audio, language, options = _FakeWhisper.calls[0]
     assert (len(audio), language, options["beam_size"]) == (10 * SECONDS, "pt", 5)
 
