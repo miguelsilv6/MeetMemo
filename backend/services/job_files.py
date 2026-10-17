@@ -11,7 +11,12 @@ from collections.abc import Iterable
 
 import aiofiles.os
 from config import Settings
-from utils.asr_audio import asr_audio_path
+from utils.asr_audio import (
+    CHANNELS,
+    asr_audio_path,
+    channel_analysis_path,
+    channel_asr_path,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +85,8 @@ def job_file_paths(
     """Paths of every file the job may have created (existing or not)."""
     paths = [
         asr_audio_path(settings.upload_dir, str(job_uuid)),
+        channel_analysis_path(settings.upload_dir, str(job_uuid)),
+        *(channel_asr_path(settings.upload_dir, str(job_uuid), n) for n in range(CHANNELS)),
         os.path.join(settings.summary_dir, f"{job_uuid}.txt"),
     ]
     if file_name:

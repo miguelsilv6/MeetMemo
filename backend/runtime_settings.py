@@ -109,6 +109,9 @@ class RuntimeSettings(BaseModel):
     # Audio preprocessing
     audio_highpass: bool = True
     audio_loudnorm: bool = True
+    # Stereo recordings with one speaker per channel: transcribe each channel
+    # on its own ("auto") or mix them into mono first ("mix", as before).
+    stereo_mode: Literal["auto", "mix"] = "auto"
 
     # Language and retention
     default_language: Optional[str] = None

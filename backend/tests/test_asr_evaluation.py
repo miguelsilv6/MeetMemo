@@ -137,3 +137,15 @@ def test_the_language_candidates_and_flags_are_reported():
     assert "pt (93%) ⚠ uncertain" in report
     row = next(csv.DictReader(io.StringIO(render_csv([result]))))
     assert (row["language_candidates"], row["language_flags"]) == ("pt:0.45;es:0.3", "uncertain")
+
+
+def test_a_call_transcribed_per_channel_is_checked_channel_by_channel():
+    data = {**TRANSCRIPT, "channel_mode": "split", "language_detection": {
+        "channels": [{"language": "pt"}, {"language": "ro"}]}}
+    both = evaluate_sample(Sample("c.wav", None, expected_language="pt ro"), lambda s: data)
+    wrong = evaluate_sample(Sample("c.wav", None, expected_language="pt,pt"), lambda s: data)
+    one = evaluate_sample(Sample("c.wav", None, expected_language="pt"), lambda s: data)
+    assert (both.language_correct, wrong.language_correct, one.language_correct) == (
+        True, False, True)
+    row = next(csv.DictReader(io.StringIO(render_csv([both]))))
+    assert (row["channel_mode"], row["channel_languages"]) == ("split", "pt;ro")

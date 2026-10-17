@@ -35,7 +35,7 @@ from runtime_settings import (  # noqa: E402
     allowed_whisper_models,
     resolve_language,
 )
-from utils.asr_audio import prepare_asr_audio  # noqa: E402
+from utils.asr_audio import prepare_asr_audio, prepare_channel_asr_audio  # noqa: E402
 from utils.asr_evaluation import (  # noqa: E402
     Sample,
     discover_samples,
@@ -132,12 +132,22 @@ def main(argv=None) -> int:  # pylint: disable=too-many-locals
     with tempfile.TemporaryDirectory(prefix="meetmemo-eval-") as tmp:
 
         def transcribe(sample: Sample) -> dict:
-            # The same 16 kHz derivative the pipeline transcribes.
+            # The same derivatives the pipeline transcribes: one per channel
+            # for a call with one speaker per channel, the mixed one otherwise.
+            source = str(sample.audio_path)
+            highpass, loudnorm = runtime.audio_highpass, runtime.audio_loudnorm
+            if runtime.stereo_mode == "auto":
+                paths = [os.path.join(tmp, f"ch{n}.wav") for n in range(2)]
+                channels = prepare_channel_asr_audio(
+                    source, paths, os.path.join(tmp, "channels.json"), highpass, loudnorm
+                )
+                if channels["mode"] == "split":
+                    data = service.transcribe_channels(paths, model_name, language, runtime)
+                    return {**data, "channel_mode": "split"}
             asr_path = os.path.join(tmp, "asr.wav")
-            prepare_asr_audio(
-                str(sample.audio_path), asr_path, runtime.audio_highpass, runtime.audio_loudnorm
-            )
-            return service.transcribe_file(asr_path, model_name, language, runtime)
+            prepare_asr_audio(source, asr_path, highpass, loudnorm)
+            data = service.transcribe_file(asr_path, model_name, language, runtime)
+            return {**data, "channel_mode": "mono"}
 
         results = []
         for index, sample in enumerate(samples, start=1):
@@ -156,7 +166,8 @@ def main(argv=None) -> int:  # pylint: disable=too-many-locals
                     f"{'on' if runtime.temperature_fallback else 'off'}, VAD "
                     f"{'on' if runtime.vad_filter else 'off'}",
         "Audio": f"high-pass {'on' if runtime.audio_highpass else 'off'}, loudnorm "
-                 f"{'on' if runtime.audio_loudnorm else 'off'}",
+                 f"{'on' if runtime.audio_loudnorm else 'off'}, stereo "
+                 f"{'per channel when one speaker per channel' if runtime.stereo_mode == 'auto' else 'mixed'}",
         "Versions": f"faster-whisper {package_version('faster-whisper')}, "
                     f"ctranslate2 {package_version('ctranslate2')}, Python "
                     f"{platform.python_version()}",

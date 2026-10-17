@@ -158,9 +158,13 @@ def test_a_pipeline_that_cannot_load_leaves_the_current_one(diarization):
 
 
 class _JobRepo:
-    def __init__(self):
+    def __init__(self, transcription=None):
         self.saved = None
         self.states = []
+        self.transcription = transcription
+
+    async def get_transcription(self, job_uuid):
+        return self.transcription
 
     async def update_workflow_state(self, job_uuid, state, progress):
         self.states.append(state)
@@ -197,3 +201,19 @@ def test_a_model_that_cannot_load_fails_the_audio_with_the_reason(diarization, m
 
     assert repo.states[-1] == "error"
     assert "Hugging Face" in errors[0]
+
+
+def test_a_call_transcribed_per_channel_takes_its_speakers_from_the_channels(diarization):
+    repo = _JobRepo({"channel_mode": "split", "segments": [
+        {"start": 0.0, "end": 2.0, "text": " Estou?", "speaker": "SPEAKER_00"},
+        {"start": 2.5, "end": 4.0, "text": " Sim.", "speaker": "SPEAKER_01"},
+    ]})
+
+    data = asyncio.run(_make(diarization, repo).diarize("job", "call.wav", COMMUNITY))
+
+    assert data == {"model": "channels", "segments": [
+        {"start": 0.0, "end": 2.0, "speaker": "SPEAKER_00"},
+        {"start": 2.5, "end": 4.0, "speaker": "SPEAKER_01"},
+    ]}
+    assert _FakePipeline.instances == []  # pyannote was not loaded
+    assert repo.saved == data and repo.states[-1] == "diarized"

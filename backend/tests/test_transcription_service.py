@@ -52,6 +52,7 @@ class _FakeWhisper:
 class _Fakes:
     audio_seconds = 10
     speech = None  # None: all of it
+    decoded = []
 
 
 @pytest.fixture(name="service_module")
@@ -59,8 +60,11 @@ def _service_module(monkeypatch):
     faster_whisper = ModuleType("faster_whisper")
     faster_whisper.WhisperModel = _FakeWhisper
     audio = ModuleType("faster_whisper.audio")
-    audio.decode_audio = lambda path, sampling_rate: np.zeros(
-        _Fakes.audio_seconds * SECONDS, dtype=np.float32)
+    def decode_audio(path, sampling_rate):
+        _Fakes.decoded.append(path)
+        return np.zeros(_Fakes.audio_seconds * SECONDS, dtype=np.float32)
+
+    audio.decode_audio = decode_audio
     vad = ModuleType("faster_whisper.vad")
     vad.VadOptions = lambda **options: SimpleNamespace(**options)
     vad.get_speech_timestamps = lambda samples, options: (
@@ -72,7 +76,7 @@ def _service_module(monkeypatch):
     module = importlib.import_module("services.transcription_service")
     module._loaded_model = None  # pylint: disable=protected-access
     _FakeWhisper.calls, _FakeWhisper.detections, _FakeWhisper.detected_chunks = [], [], []
-    _Fakes.audio_seconds, _Fakes.speech = 10, None
+    _Fakes.audio_seconds, _Fakes.speech, _Fakes.decoded = 10, None, []
     yield module
     monkeypatch.delitem(sys.modules, "services.transcription_service", raising=False)
 
@@ -165,6 +169,49 @@ def test_without_speech_faster_whispers_own_detection_is_kept(service_module):
     assert data["language_detection"] is None
 
 
+def test_each_channel_is_transcribed_with_its_own_language(service_module):
+    # Left side Portuguese, right side Romanian.
+    _FakeWhisper.detections = [[("pt", 0.96)], [("ro", 0.9), ("pt", 0.05)]]
+    progress = []
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_channels(["l.wav", "r.wav"], "large-v3", None, _runtime(),
+                                       progress.append)
+
+    assert _Fakes.decoded == ["l.wav", "r.wav"]
+    assert [c[1] for c in _FakeWhisper.calls] == ["pt", "ro"]  # each side in its language
+    assert [(s["start"], s["speaker"]) for s in data["segments"]] == [
+        (0.0, "SPEAKER_00"), (0.0, "SPEAKER_01"), (8.0, "SPEAKER_00"), (8.0, "SPEAKER_01")]
+    channels = data["language_detection"]["channels"]
+    assert [(c["speaker"], c["language"]) for c in channels] == [
+        ("SPEAKER_00", "pt"), ("SPEAKER_01", "ro")]
+    # One progress bar over both channels.
+    assert progress == [26, 42, 50, 66, 82, 90]
+
+
+def test_the_pipeline_step_records_how_the_channels_were_used(service_module):
+    repo = _JobRepo()
+    service = service_module.TranscriptionService(SETTINGS, repo)
+    split = {"mode": "split", "reason": "one speaker per channel", "correlation": 0.02,
+             "paths": ["/srv/asr/j.ch0.wav", "/srv/asr/j.ch1.wav"]}
+
+    split_data = asyncio.run(service.transcribe("job", "call.wav", "large-v3", None, _runtime(),
+                                                split))
+    mono_data = asyncio.run(service.transcribe("job", "call.wav", "large-v3", None, _runtime(),
+                                               {"mode": "mono", "reason": "silent"}))
+    plain = asyncio.run(service.transcribe("job", "call.wav", "large-v3", None, _runtime()))
+
+    assert split_data["channel_mode"] == "split"
+    assert {s["speaker"] for s in split_data["segments"]} == {"SPEAKER_00", "SPEAKER_01"}
+    # The decision is kept for review, not the server's file paths.
+    assert split_data["channel_analysis"] == {
+        "mode": "split", "reason": "one speaker per channel", "correlation": 0.02}
+    assert (mono_data["channel_mode"], mono_data["channel_analysis"]["reason"]) == ("mono",
+                                                                                    "silent")
+    assert "speaker" not in mono_data["segments"][0]
+    assert plain["channel_mode"] == "mono" and "channel_analysis" not in plain
+
+
 class _JobRepo:
     def __init__(self):
         self.saved = None
@@ -210,6 +257,8 @@ def test_the_evaluation_script_writes_a_report(service_module, monkeypatch, tmp_
         max_file_size=100 * 1024 * 1024, pyannote_model_name=None))
     monkeypatch.setattr(evaluate_asr, "prepare_asr_audio",
                         lambda src, dst, highpass, loudnorm: shutil.copy(src, dst))
+    monkeypatch.setattr(evaluate_asr, "prepare_channel_asr_audio",
+                        lambda src, paths, analysis, highpass, loudnorm: {"mode": "mono"})
     bench = tmp_path / "bench"
     bench.mkdir()
     (bench / "call.wav").write_bytes(b"RIFF")
@@ -228,3 +277,28 @@ def test_the_evaluation_script_writes_a_report(service_module, monkeypatch, tmp_
     assert "call.wav" in (out / "results.csv").read_text(encoding="utf-8")
     assert evaluate_asr.main([str(bench), "--defaults", "--model", "evil/repo"]) == 2
     assert evaluate_asr.main([str(tmp_path / "missing"), "--defaults"]) == 2
+
+
+def test_the_evaluation_script_checks_each_channels_language(service_module, monkeypatch,
+                                                              tmp_path):
+    # pylint: disable=import-outside-toplevel
+    from scripts import evaluate_asr
+
+    monkeypatch.setattr(evaluate_asr, "get_settings", lambda: SimpleNamespace(
+        **vars(SETTINGS), whisper_model_name="large-v3", job_retention_hours=12,
+        max_file_size=100 * 1024 * 1024, pyannote_model_name=None))
+    monkeypatch.setattr(evaluate_asr, "prepare_channel_asr_audio",
+                        lambda src, paths, analysis, highpass, loudnorm: {"mode": "split",
+                                                                          "paths": paths})
+    _FakeWhisper.detections = [[("pt", 0.96)], [("ro", 0.9)]]
+    bench = tmp_path / "bench"
+    bench.mkdir()
+    (bench / "call.wav").write_bytes(b"RIFF")
+    (bench / "call.lang").write_text("pt ro", encoding="utf-8")
+
+    assert evaluate_asr.main([str(bench), "--defaults", "--out", str(tmp_path / "out")]) == 0
+
+    report = (tmp_path / "out" / "report.md").read_text(encoding="utf-8")
+    assert "| pt ro | pt / ro | ✓ |" in report
+    assert report.rstrip().endswith("| split |")
+    assert [path.rsplit("/", 1)[-1] for path in _Fakes.decoded] == ["ch0.wav", "ch1.wav"]

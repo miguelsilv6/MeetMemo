@@ -13,6 +13,8 @@ interface RetranscribeModalProps {
   detectedLanguage?: string | null;
   /** Pre-selected choice, e.g. the default language set in the admin panel. */
   defaultLanguage?: string | null;
+  /** The call was transcribed per channel with a different language on each side. */
+  channelsDiffer?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export default function RetranscribeModal({
   onConfirm,
   detectedLanguage = null,
   defaultLanguage = null,
+  channelsDiffer = false,
 }: RetranscribeModalProps) {
   const { t } = useTranslation();
   const choices = WHISPER_LANGUAGES.filter(
@@ -82,6 +85,11 @@ export default function RetranscribeModal({
             ))}
           </Form.Select>
         </Form.Group>
+        {channelsDiffer && (
+          <Alert show variant="info" className="mb-3" data-testid="channels-differ">
+            {t('retranscribe.channelsDiffer')}
+          </Alert>
+        )}
         <Alert show variant="warning" className="mb-0">
           {t('retranscribe.warning')}
         </Alert>

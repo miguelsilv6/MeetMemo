@@ -138,6 +138,10 @@
     "confidenceTitle": "Confiança reportada pelo modelo de reconhecimento de voz",
     "languageForced": "Idioma definido (não detetado).",
     "otherCandidates": "Outros candidatos: {{list}}",
+    "channels": {
+      "left": "Canal esquerdo ({{speaker}})",
+      "right": "Canal direito ({{speaker}})"
+    },
     "languageFlags": {
       "mixed_languages": "O idioma parece mudar ao longo da gravação (podem ser interlocutores em idiomas diferentes).",
       "uncertain": "A deteção do idioma é pouco segura.",
@@ -433,6 +437,14 @@
         "audio_loudnorm": {
           "label": "Normalização de volume",
           "help": "Eleva gravações baixas a um nível de voz consistente, para que chamadas baixas não sejam confundidas com silêncio."
+        },
+        "stereo_mode": {
+          "label": "Chamadas estéreo",
+          "help": "Quando cada interlocutor está no seu canal (esquerdo/direito), transcreve cada canal em separado: cada lado fica com o seu idioma, a fala sobreposta não se mistura e os interlocutores vêm dos canais, sem diarização. Gravações mono, ou estéreo com o mesmo som nos dois canais, são misturadas como antes.",
+          "options": {
+            "auto": "Um canal por interlocutor (recomendado)",
+            "mix": "Misturar os canais"
+          }
         },
         "default_language": {
           "label": "Idioma de transcrição predefinido",
@@ -849,6 +861,7 @@
     "languageLabel": "Idioma da comunicação",
     "choose": "Escolhe o idioma…",
     "warning": "A nova transcrição substitui a atual. Perdem-se as correções feitas à transcrição, os nomes dados aos interlocutores, o resumo, as traduções e as exportações deste áudio. O ficheiro de áudio mantém-se e não é gasto nenhum token.",
+    "channelsDiffer": "Esta chamada foi transcrita por canal e cada lado tem um idioma diferente. O idioma que escolheres aplica-se aos dois canais.",
     "confirm": "Transcrever de novo",
     "starting": "A iniciar…",
     "failed": "Não foi possível iniciar a nova transcrição."

@@ -126,15 +126,21 @@ def test_transcription_options_reject_unknown_models_and_languages(job, requeste
 
 
 class _Recorder:
-    def __init__(self, calls):
+    def __init__(self, calls, channels=None):
         self.calls = calls
+        self.channels = channels  # what the channel analysis decides
 
     async def ensure_asr_audio(self, job_uuid, source, highpass, loudnorm):
         self.calls.append(("asr", source, highpass, loudnorm))
         return f"{source}.asr"
 
-    async def transcribe(self, job_uuid, path, model, language, runtime):
+    async def ensure_channel_audio(self, job_uuid, source, highpass, loudnorm):
+        self.calls.append(("channels", source))
+        return self.channels
+
+    async def transcribe(self, job_uuid, path, model, language, runtime, channels=None):
         self.calls.append(("transcribe", path, model, language))
+        self.transcribed_channels = channels
 
     async def diarize(self, job_uuid, path, model_name=None):
         self.calls.append(("diarize", path))
@@ -180,7 +186,7 @@ def test_the_pipeline_runs_only_the_remaining_steps(state, steps):
 
     asyncio.run(pipeline.run_remaining(job))
 
-    assert [c[0] for c in calls if c[0] != "asr"] == steps
+    assert [c[0] for c in calls if c[0] not in ("asr", "channels")] == steps
     if "transcribe" in steps:
         assert ("transcribe", "uploads/call.v2.wav.asr", "large-v3", "pt") in calls
         assert ("asr", "uploads/call.v2.wav", True, False) in calls
@@ -189,3 +195,34 @@ def test_the_pipeline_runs_only_the_remaining_steps(state, steps):
         assert recorder.diarization_models == ["pyannote/speaker-diarization-community-1"]
     if "align" in steps:
         assert ("align", "call.v2") in calls
+
+
+def _transcribe_with(channels, **runtime_changes):
+    calls = []
+    recorder = _Recorder(calls, channels)
+    pipeline = JobPipeline(_Settings(), recorder, recorder, recorder, recorder,
+                           _Runtime(_runtime(**runtime_changes)))
+    job = {"uuid": "u1", "file_name": "call.wav", "workflow_state": "uploaded", "language": None}
+    asyncio.run(pipeline.transcribe(job))
+    return calls, recorder
+
+
+def test_a_call_with_one_speaker_per_channel_is_transcribed_per_channel():
+    split = {"mode": "split", "paths": ["a.ch0.wav", "a.ch1.wav"]}
+    calls, recorder = _transcribe_with(split)
+    assert ("channels", "uploads/call.wav") in calls
+    assert not any(c[0] == "asr" for c in calls)  # no mixed derivative needed
+    assert recorder.transcribed_channels == split
+
+
+def test_other_recordings_are_mixed_with_the_decision_kept():
+    mono = {"mode": "mono", "reason": "both channels carry the same signal"}
+    calls, recorder = _transcribe_with(mono)
+    assert ("transcribe", "uploads/call.wav.asr", "large-v3", None) in calls
+    assert recorder.transcribed_channels == mono
+
+
+def test_the_admin_panel_can_keep_mixing_stereo():
+    calls, recorder = _transcribe_with({"mode": "split", "paths": ["x"]}, stereo_mode="mix")
+    assert not any(c[0] == "channels" for c in calls)
+    assert recorder.transcribed_channels is None

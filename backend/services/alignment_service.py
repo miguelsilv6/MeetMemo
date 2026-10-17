@@ -75,11 +75,12 @@ class AlignmentService:
                 seg_end = text_seg.get("end", 0)
                 seg_text = text_seg.get("text", "").strip()
 
-                # Find overlapping speaker
-                assigned_speaker = "SPEAKER_00"  # default
+                # A segment transcribed from one channel already knows its
+                # speaker; otherwise take the speaker that overlaps it most.
+                assigned_speaker = text_seg.get("speaker") or "SPEAKER_00"
                 max_overlap = 0
 
-                for spk_seg in speaker_segments:
+                for spk_seg in speaker_segments if not text_seg.get("speaker") else ():
                     spk_start = spk_seg["start"]
                     spk_end = spk_seg["end"]
 

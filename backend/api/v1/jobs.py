@@ -59,7 +59,7 @@ from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
 from services.job_files import derived_file_paths, remove_files, remove_job_files
-from services.pipeline import resolve_transcription_options
+from services.pipeline import prepare_audio, resolve_transcription_options
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
 from utils.file_utils import get_unique_filename
@@ -369,11 +369,9 @@ async def start_transcription(  # pylint: disable=too-many-arguments,too-many-po
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     async def run() -> None:
-        audio_path = await audio_service.ensure_asr_audio(
-            uuid, file_path, runtime.audio_highpass, runtime.audio_loudnorm
-        )
+        audio_path, channels = await prepare_audio(audio_service, uuid, file_path, runtime)
         await transcription_service.transcribe(
-            uuid, audio_path, effective_model, effective_language, runtime
+            uuid, audio_path, effective_model, effective_language, runtime, channels
         )
 
     background_tasks.add_task(run)

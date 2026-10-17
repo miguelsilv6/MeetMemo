@@ -45,6 +45,29 @@ def resolve_transcription_options(
     return model, language
 
 
+async def prepare_audio(
+    audio_service: Any, job_uuid: str, source_path: str, runtime: RuntimeSettings
+) -> tuple[str, Optional[dict]]:
+    """
+    The audio a job is transcribed from, and how its channels are used.
+
+    A stereo call with one speaker per channel gets one derivative per
+    channel (and no mixed one); any other recording gets the mixed 16 kHz
+    derivative. ``stereo_mode = "mix"`` in the admin panel always mixes.
+    """
+    channels = None
+    if runtime.stereo_mode == "auto":
+        channels = await audio_service.ensure_channel_audio(
+            job_uuid, source_path, runtime.audio_highpass, runtime.audio_loudnorm
+        )
+    if channels and channels.get("mode") == "split":
+        return source_path, channels
+    audio_path = await audio_service.ensure_asr_audio(
+        job_uuid, source_path, runtime.audio_highpass, runtime.audio_loudnorm
+    )
+    return audio_path, channels
+
+
 class JobPipeline:
     """Runs the processing steps of an audio with the admin-panel settings."""
 
@@ -73,15 +96,15 @@ class JobPipeline:
         model, language = resolve_transcription_options(
             job, runtime, self.runtime_settings.allowed_models()
         )
-        audio_path = await self.audio_service.ensure_asr_audio(
-            str(job["uuid"]), self._audio_path(job), runtime.audio_highpass, runtime.audio_loudnorm
+        audio_path, channels = await prepare_audio(
+            self.audio_service, str(job["uuid"]), self._audio_path(job), runtime
         )
         await self.transcription_service.transcribe(
-            str(job["uuid"]), audio_path, model, language, runtime
+            str(job["uuid"]), audio_path, model, language, runtime, channels
         )
 
     async def diarize(self, job: dict) -> None:
-        """Speaker diarization step."""
+        """Speaker diarization step (from the channels for a split recording)."""
         runtime = await self.runtime_settings.get()
         audio_path = await self.audio_service.ensure_asr_audio(
             str(job["uuid"]), self._audio_path(job), runtime.audio_highpass, runtime.audio_loudnorm

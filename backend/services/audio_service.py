@@ -5,6 +5,7 @@ This service handles audio file uploads, format conversion, duplicate detection,
 and file management operations.
 """
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -16,7 +17,14 @@ from fastapi import HTTPException, UploadFile
 from repositories.job_repository import JobRepository
 from runtime_settings import MIB
 from security import sanitize_filename
-from utils.asr_audio import asr_audio_path, prepare_asr_audio
+from utils.asr_audio import (
+    CHANNELS,
+    asr_audio_path,
+    channel_analysis_path,
+    channel_asr_path,
+    prepare_asr_audio,
+    prepare_channel_asr_audio,
+)
 from utils.file_utils import calculate_file_hash, convert_to_wav, get_unique_filename
 
 from services.runtime_settings_service import RuntimeSettingsService
@@ -160,6 +168,51 @@ class AudioService:
                 stderr.decode(errors="replace").strip(),
             )
             return source_path
+
+    async def ensure_channel_audio(
+        self,
+        job_uuid: str,
+        source_path: str,
+        highpass: bool = True,
+        loudnorm: bool = True,
+    ) -> Optional[dict]:
+        """
+        How the job's channels are to be transcribed, preparing one ASR
+        derivative per channel when the recording has one speaker per channel.
+
+        Returns the saved decision (``utils.channels.analyze_channels``, with
+        ``"paths"`` for a split recording), computed once per job. Returns
+        None if it cannot be made, so a problem degrades to the mono path
+        instead of failing the job.
+        """
+        analysis_path = channel_analysis_path(self.settings.upload_dir, job_uuid)
+        paths = [channel_asr_path(self.settings.upload_dir, job_uuid, n) for n in range(CHANNELS)]
+        if os.path.exists(analysis_path):
+            try:
+                with open(analysis_path, encoding="utf-8") as f:
+                    analysis = json.load(f)
+                if analysis.get("mode") != "split" or all(os.path.exists(p) for p in paths):
+                    return analysis
+            except (OSError, ValueError) as e:
+                logger.warning("Unreadable channel analysis for job %s: %s", job_uuid, e)
+
+        loop = asyncio.get_running_loop()
+        try:
+            analysis = await loop.run_in_executor(
+                None, prepare_channel_asr_audio, source_path, paths, analysis_path,
+                highpass, loudnorm,
+            )
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            stderr = getattr(e, "stderr", b"") or b""
+            logger.warning(
+                "Channel analysis failed for job %s, transcribing the mixed audio: %s %s",
+                job_uuid,
+                e,
+                stderr.decode(errors="replace").strip() if isinstance(stderr, bytes) else stderr,
+            )
+            return None
+        logger.info("Channels of job %s: %s (%s)", job_uuid, analysis["mode"], analysis["reason"])
+        return analysis
 
     async def check_duplicate(self, file_hash: str, user_uuid: str) -> Optional[dict]:
         """

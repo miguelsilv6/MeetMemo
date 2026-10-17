@@ -43,6 +43,21 @@ export interface LanguageDetection {
   /** Share of the speech whose window agrees with the chosen language. */
   agreement?: number;
   flags?: LanguageDetectionFlag[];
+  /** A stereo call transcribed channel by channel: each channel's language. */
+  channels?: ChannelLanguage[];
+}
+
+/** The language of one channel (one speaker) of a call transcribed per channel. */
+export interface ChannelLanguage {
+  /** 0 = left, 1 = right. */
+  channel: number;
+  /** The speaker label its segments carry (e.g. `SPEAKER_00`). */
+  speaker: string;
+  language: string;
+  probability: number | null;
+  flags: LanguageDetectionFlag[];
+  forced: boolean;
+  speech_seconds: number;
 }
 
 /** Mapping of speaker label (e.g. `SPEAKER_00`) to a display name. */
