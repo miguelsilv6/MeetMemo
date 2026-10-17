@@ -28,6 +28,7 @@ benchmark/
   - Without a reference, the file still gets a language check and timings.
 - **Language (`.lang`):** the code Whisper would use, for example `pt` for European and Brazilian Portuguese alike.
   - Languages Whisper does not support, such as Cape Verdean or Guinean creole, can still be listed to see what they get detected as.
+  - For a stereo call with one speaker per channel, list one code per channel, left first (for example `pt ro`). Each channel is then checked against its own code.
 - **Size:** 10–20 recordings that resemble your real material (phone quality, accents, languages) say more than many clean ones.
 
 ## Running it
@@ -35,10 +36,13 @@ benchmark/
 Run it inside the backend container, ideally while no transcription is running, since it uses the same CPU threads:
 
 ```bash
-docker cp ./benchmark meetmemo-backend:/app/benchmark
+docker exec meetmemo-backend mkdir -p /app/benchmark
+docker cp ./benchmark/. meetmemo-backend:/app/benchmark/
 docker exec meetmemo-backend python scripts/evaluate_asr.py /app/benchmark
 docker cp meetmemo-backend:/app/benchmark/results ./results
 ```
+
+`benchmark/.` copies the folder's contents. With `docker cp ./benchmark …`, a second copy would land in `/app/benchmark/benchmark`. The folder is not on a volume, so it disappears when the container is recreated. Copy the `results` out after each run.
 
 ### Options
 
@@ -57,7 +61,8 @@ Each run writes:
   - duration, processing time and real-time factor (RTF: below 1 is faster than real time);
   - expected and detected language, with its probability;
   - WER and CER;
-  - how many segments were flagged as low confidence or removed as hallucinations.
+  - how many segments were flagged as low confidence or removed as hallucinations;
+  - whether the call was transcribed per channel (`split`) or mixed (`mono`).
 - **`results.csv`**: the same per-file data, for a spreadsheet or for comparing runs.
 - **`transcripts/<name>.txt`**: what MeetMemo transcribed, to compare with the reference by hand.
 

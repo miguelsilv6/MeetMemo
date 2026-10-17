@@ -17,6 +17,7 @@ from config import Settings
 from database import update_error
 from pyannote.audio import Pipeline
 from repositories.job_repository import JobRepository
+from utils.channels import channel_diarization
 
 logger = logging.getLogger(__name__)
 
@@ -114,37 +115,44 @@ class DiarizationService:
 
             model_name = model_name or self.settings.pyannote_model_name
 
-            # Diarize audio - run in executor to avoid blocking event loop.
-            # Loading the pipeline (a download the first time), torchaudio.load
-            # and the pipeline are all blocking; bundle them together so none
-            # runs on the event loop thread. Passing the waveform dict
-            # bypasses torchcodec, which fails on CUDA 12.8.
-            await self.job_repo.update_step_progress(job_uuid, 10)
-            loop = asyncio.get_event_loop()
-            def _load_and_diarize():
-                pipeline = self.get_pipeline(model_name)
-                waveform, sample_rate = torchaudio.load(file_path)
-                return pipeline({"waveform": waveform, "sample_rate": sample_rate})
-            diarization = await loop.run_in_executor(None, _load_and_diarize)
+            transcription = await self.job_repo.get_transcription(job_uuid)
+            if transcription and transcription.get("channel_mode") == "split":
+                # One speaker per channel: the channels are the diarization,
+                # with no pyannote guesswork.
+                diarization_data = channel_diarization(transcription)
+                logger.info("Diarization of job %s taken from its channels", job_uuid)
+            else:
+                # Diarize audio - run in executor to avoid blocking event loop.
+                # Loading the pipeline (a download the first time), torchaudio.load
+                # and the pipeline are all blocking; bundle them together so none
+                # runs on the event loop thread. Passing the waveform dict
+                # bypasses torchcodec, which fails on CUDA 12.8.
+                await self.job_repo.update_step_progress(job_uuid, 10)
+                loop = asyncio.get_event_loop()
+                def _load_and_diarize():
+                    pipeline = self.get_pipeline(model_name)
+                    waveform, sample_rate = torchaudio.load(file_path)
+                    return pipeline({"waveform": waveform, "sample_rate": sample_rate})
+                diarization = await loop.run_in_executor(None, _load_and_diarize)
 
-            await self.job_repo.update_step_progress(job_uuid, 90)
-            logger.info("Diarization complete for job %s", job_uuid)
+                await self.job_repo.update_step_progress(job_uuid, 90)
+                logger.info("Diarization complete for job %s", job_uuid)
 
-            # Convert diarization to serializable format
-            # pyannote 4.x returns a DiarizeOutput; itertracks is on the inner Annotation
-            # The model is kept with the result, so it is known which
-            # pipeline made each diarization.
-            diarization_data = {
-                "model": model_name,
-                "segments": [],
-            }
+                # Convert diarization to serializable format
+                # pyannote 4.x returns a DiarizeOutput; itertracks is on the inner Annotation
+                # The model is kept with the result, so it is known which
+                # pipeline made each diarization.
+                diarization_data = {
+                    "model": model_name,
+                    "segments": [],
+                }
 
-            for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
-                diarization_data["segments"].append({
-                    "start": turn.start,
-                    "end": turn.end,
-                    "speaker": speaker
-                })
+                for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
+                    diarization_data["segments"].append({
+                        "start": turn.start,
+                        "end": turn.end,
+                        "speaker": speaker
+                    })
 
             # Save diarization data to database
             await self.job_repo.save_diarization(job_uuid, diarization_data)

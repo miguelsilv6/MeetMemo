@@ -189,3 +189,53 @@ describe('MeetingInfoSidebar language detection details', () => {
     expect(screen.queryByTestId('low-confidence')).not.toBeInTheDocument();
   });
 });
+
+describe('MeetingInfoSidebar calls transcribed per channel', () => {
+  const channelTranscript = {
+    segments: [],
+    language: 'pt',
+    language_probability: 0.96,
+    language_detection: {
+      language: 'pt',
+      probability: 0.96,
+      candidates: [['pt', 0.96]] as [string, number][],
+      flags: [],
+      channels: [
+        {
+          channel: 0,
+          speaker: 'SPEAKER_00',
+          language: 'pt',
+          probability: 0.96,
+          flags: [],
+          forced: false,
+          speech_seconds: 40,
+        },
+        {
+          channel: 1,
+          speaker: 'SPEAKER_01',
+          language: 'ro',
+          probability: 0.55,
+          flags: ['uncertain' as const],
+          forced: false,
+          speech_seconds: 20,
+        },
+      ],
+    },
+  };
+
+  it("shows each side's language and the doubts about either", async () => {
+    renderSidebar({ transcript: channelTranscript, onRetranscribe: vi.fn() });
+
+    const list = screen.getByTestId('channel-languages');
+    expect(list).toHaveTextContent('Left channel (SPEAKER_00)Portuguese96%');
+    expect(list).toHaveTextContent('Right channel (SPEAKER_01)Romanian55%');
+    // The right side's doubt is shown and offers a new transcription…
+    expect(screen.getByTestId('language-flag-uncertain')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: /choose the language and transcribe again/i })
+    );
+    // …warning that the choice applies to both sides.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('channels-differ')).toHaveTextContent(/both channels/);
+  });
+});

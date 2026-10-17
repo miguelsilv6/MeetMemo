@@ -138,6 +138,10 @@
     "confidenceTitle": "Confidence reported by the speech recognition model",
     "languageForced": "Language set (not detected).",
     "otherCandidates": "Other candidates: {{list}}",
+    "channels": {
+      "left": "Left channel ({{speaker}})",
+      "right": "Right channel ({{speaker}})"
+    },
     "languageFlags": {
       "mixed_languages": "The language seems to change during the recording (speakers may use different languages).",
       "uncertain": "The language detection is not very sure.",
@@ -433,6 +437,14 @@
         "audio_loudnorm": {
           "label": "Loudness normalization",
           "help": "Brings quiet recordings up to a consistent speech level, so quiet calls aren't mistaken for silence."
+        },
+        "stereo_mode": {
+          "label": "Stereo calls",
+          "help": "When each speaker is on their own channel (left/right), each channel is transcribed on its own: each side gets its own language, overlapping speech is not blended and the speakers come from the channels, without diarization. Mono recordings, or stereo with the same sound on both channels, are mixed as before.",
+          "options": {
+            "auto": "One channel per speaker (recommended)",
+            "mix": "Mix the channels"
+          }
         },
         "default_language": {
           "label": "Default transcription language",
@@ -849,6 +861,7 @@
     "languageLabel": "Language of the communication",
     "choose": "Choose the language…",
     "warning": "The new transcript replaces the current one. The corrections made to the transcript, the names given to the speakers, the summary, translations and exports of this audio are lost. The audio file is kept and no token is used.",
+    "channelsDiffer": "This call was transcribed per channel and each side has a different language. The language you choose applies to both channels.",
     "confirm": "Transcribe again",
     "starting": "Starting…",
     "failed": "The new transcription could not be started."

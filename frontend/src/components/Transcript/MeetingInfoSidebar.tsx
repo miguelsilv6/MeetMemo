@@ -37,7 +37,9 @@ export default function MeetingInfoSidebar({
   const { t } = useTranslation();
   const [showRetranscribe, setShowRetranscribe] = useState(false);
   const detection = transcript?.language_detection ?? null;
-  const flags = detection?.flags ?? [];
+  const channels = detection?.channels ?? [];
+  // A call transcribed per channel: any side's doubts count.
+  const flags = [...new Set([...(detection?.flags ?? []), ...channels.flatMap((c) => c.flags)])];
   const otherCandidates = (detection?.candidates ?? []).slice(1).filter(([, p]) => p >= 0.01);
   // Suggest the runner-up language, else the admin's default.
   const retranscribeSuggestion = otherCandidates[0]?.[0] ?? retranscribeLanguage;
@@ -93,6 +95,27 @@ export default function MeetingInfoSidebar({
                       .join(' · '),
                   })}
                 </div>
+              )}
+              {channels.length > 0 && (
+                <ul className="list-unstyled small mt-2 mb-0" data-testid="channel-languages">
+                  {channels.map((channel) => (
+                    <li key={channel.channel} className="mb-1">
+                      <div className="text-muted">
+                        {t(`meetingInfo.channels.${channel.channel === 0 ? 'left' : 'right'}`, {
+                          speaker: channel.speaker,
+                        })}
+                      </div>
+                      <div className="d-flex align-items-center gap-1">
+                        <span>{getLanguageName(channel.language)}</span>
+                        {typeof channel.probability === 'number' && (
+                          <Badge bg={getConfidenceVariant(channel.probability)}>
+                            {Math.round(channel.probability * 100)}%
+                          </Badge>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
               {flags.map((flag) => (
                 <div
@@ -211,6 +234,7 @@ export default function MeetingInfoSidebar({
           }}
           detectedLanguage={transcript?.language ?? null}
           defaultLanguage={retranscribeSuggestion}
+          channelsDiffer={new Set(channels.map((c) => c.language)).size > 1}
         />
       )}
     </Card>

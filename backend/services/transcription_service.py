@@ -18,6 +18,7 @@ from faster_whisper.audio import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 from repositories.job_repository import JobRepository
 from runtime_settings import RuntimeSettings
+from utils.channels import merge_channels
 from utils.cpu import available_cpu_count
 from utils.hallucination_filter import filter_segments
 from utils.language_detection import SAMPLE_RATE, aggregate, speech_windows
@@ -230,13 +231,41 @@ class TranscriptionService:
             "settings": runtime.model_dump(),
         }
 
-    async def transcribe(
+    def transcribe_channels(
+        self,
+        paths: list[str],
+        model_name: str,
+        language: str | None,
+        runtime: RuntimeSettings,
+        on_progress: Callable[[int], None] | None = None,
+    ) -> dict:
+        """
+        Transcribe each channel of a recording on its own (one speaker per
+        channel) and merge them: every channel gets its own language detection
+        and its speaker. Runs in a worker thread.
+        """
+        span = (PROGRESS_END - PROGRESS_START) / len(paths)
+        parts = []
+        for n, path in enumerate(paths):
+
+            def channel_progress(progress: int, n: int = n) -> None:
+                if on_progress:
+                    done = (progress - PROGRESS_START) / (PROGRESS_END - PROGRESS_START)
+                    on_progress(int(PROGRESS_START + span * (n + done)))
+
+            parts.append(
+                self.transcribe_file(path, model_name, language, runtime, channel_progress)
+            )
+        return merge_channels(parts)
+
+    async def transcribe(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         job_uuid: str,
         file_path: str,
         model_name: str,
         language: str = None,
         runtime: RuntimeSettings | None = None,
+        channels: dict | None = None,
     ) -> dict:
         """
         Transcribe audio file with progress tracking using faster-whisper.
@@ -247,6 +276,9 @@ class TranscriptionService:
             model_name: Whisper model to use
             language: Language code (ISO 639-1) or None for auto-detection
             runtime: Admin-panel settings to apply (loaded if not given)
+            channels: How the recording's channels are to be transcribed
+                (``AudioService.ensure_channel_audio``); "split" transcribes
+                each channel's derivative on its own
 
         Returns:
             Transcription data dict with text, segments, and language
@@ -273,15 +305,22 @@ class TranscriptionService:
                     self.job_repo.update_step_progress(job_uuid, progress), loop
                 )
 
+            split = bool(channels and channels.get("mode") == "split" and channels.get("paths"))
             transcription_data = await loop.run_in_executor(
                 None,
-                self.transcribe_file,
-                file_path,
+                self.transcribe_channels if split else self.transcribe_file,
+                channels["paths"] if split else file_path,
                 model_name,
                 language,
                 runtime,
                 on_progress,
             )
+            transcription_data["channel_mode"] = "split" if split else "mono"
+            if channels:
+                # The decision and its numbers, for review (not the server paths).
+                transcription_data["channel_analysis"] = {
+                    k: v for k, v in channels.items() if k != "paths"
+                }
             if transcription_data["removed_segments"]:
                 logger.info(
                     "Removed %d hallucinated/empty segment(s) for job %s",

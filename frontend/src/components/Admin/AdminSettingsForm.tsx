@@ -14,12 +14,13 @@ import {
   withDefaultPrompts,
 } from '../../utils/adminValidation';
 import type { FieldError, NumericField, PromptField } from '../../utils/adminValidation';
-import type { AdminSettingsResponse, RuntimeSettings } from '../../types/admin';
+import type { AdminSettingsResponse, RuntimeSettings, StereoMode } from '../../types/admin';
 import type { TranslationEngine } from '../../types/api';
 import { SETTINGS_TABS, isSettingsTab } from '../../constants/adminTabs';
 import type { AdminTab, SettingsTab } from '../../constants/adminTabs';
 
 const TRANSLATION_ENGINES: TranslationEngine[] = ['llm', 'nllb'];
+const STEREO_MODES: StereoMode[] = ['auto', 'mix'];
 
 /** The tab each setting is edited in. */
 const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
@@ -39,6 +40,7 @@ const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
   hallucination_phrases: 'transcription',
   audio_highpass: 'transcription',
   audio_loudnorm: 'transcription',
+  stereo_mode: 'transcription',
   default_language: 'languageRetention',
   language_detection_windows: 'languageRetention',
   translation_engine: 'languageRetention',
@@ -415,6 +417,24 @@ export default function AdminSettingsForm({
               <Section title={t('admin.settings.sections.audio')}>
                 {switchField('audio_highpass')}
                 {switchField('audio_loudnorm')}
+                <Form.Group controlId="admin-stereo_mode" className="mb-3">
+                  <Form.Label>{t('admin.settings.fields.stereo_mode.label')}</Form.Label>
+                  <Form.Select
+                    value={draft.stereo_mode}
+                    onChange={(e) => update('stereo_mode', e.target.value as StereoMode)}
+                    aria-describedby="admin-stereo_mode-help"
+                  >
+                    {STEREO_MODES.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {t(`admin.settings.fields.stereo_mode.options.${mode}`)}
+                      </option>
+                    ))}
+                  </Form.Select>
+                  <FieldHelp
+                    id="admin-stereo_mode-help"
+                    text={t('admin.settings.fields.stereo_mode.help')}
+                  />
+                </Form.Group>
               </Section>
             </>
           )}

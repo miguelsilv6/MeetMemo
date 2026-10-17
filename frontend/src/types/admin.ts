@@ -2,6 +2,8 @@
 
 import type { TranslationEngine } from './api';
 
+export type StereoMode = 'auto' | 'mix';
+
 export interface RuntimeSettings {
   whisper_model_name: string;
   diarization_model: string;
@@ -19,6 +21,8 @@ export interface RuntimeSettings {
   hallucination_phrases: string[];
   audio_highpass: boolean;
   audio_loudnorm: boolean;
+  /** Stereo calls with one speaker per channel: per channel ("auto") or mixed ("mix"). */
+  stereo_mode: StereoMode;
   default_language: string | null;
   language_detection_windows: number;
   translation_engine: TranslationEngine;

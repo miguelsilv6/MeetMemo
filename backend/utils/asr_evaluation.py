@@ -50,6 +50,8 @@ class SampleResult:  # pylint: disable=too-many-instance-attributes
     expected_language: Optional[str] = None
     candidates: list = field(default_factory=list)
     language_flags: list = field(default_factory=list)
+    channel_mode: Optional[str] = None
+    channel_languages: list = field(default_factory=list)  # per channel, when split
     segments: int = 0
     low_confidence: int = 0
     removed: int = 0
@@ -77,10 +79,18 @@ class SampleResult:  # pylint: disable=too-many-instance-attributes
 
     @property
     def language_correct(self) -> Optional[bool]:
-        """Whether the detected language is the expected one (None if unknown)."""
+        """
+        Whether the detected language is the expected one (None if unknown).
+
+        The expected language may list one code per channel ("pt ro"): a call
+        transcribed per channel is then checked channel by channel.
+        """
         if not self.expected_language or self.error:
             return None
-        return self.language == self.expected_language
+        expected = self.expected_language.replace(",", " ").split()
+        if len(expected) > 1 and self.channel_languages:
+            return self.channel_languages == expected
+        return self.language == expected[0]
 
     @property
     def real_time_factor(self) -> Optional[float]:
@@ -175,6 +185,8 @@ def evaluate_sample(
     detection = data.get("language_detection") or {}
     result.candidates = detection.get("candidates") or []
     result.language_flags = detection.get("flags") or []
+    result.channel_mode = data.get("channel_mode")
+    result.channel_languages = [c["language"] for c in detection.get("channels") or []]
     result.segments = len(segments)
     result.low_confidence = sum(1 for s in segments if s.get("low_confidence"))
     result.removed = len(data.get("removed_segments") or [])
@@ -236,16 +248,18 @@ def render_markdown(
         "## Files",
         "",
         "| File | Duration | Time | RTF | Expected | Detected | OK | WER | CER "
-        "| Low confidence | Removed |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Low confidence | Removed | Channels |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in results:
         if r.error:
             lines.append(f"| {r.name} | | {_seconds(r.seconds)} | | {r.expected_language or ''} "
-                         f"| **error:** {r.error} | | | | | |")
+                         f"| **error:** {r.error} | | | | | | |")
             continue
         detected = r.language or "—"
-        if r.language_probability is not None:
+        if r.channel_languages:
+            detected = " / ".join(r.channel_languages)
+        elif r.language_probability is not None:
             detected += f" ({r.language_probability * 100:.0f}%)"
         if r.language_flags:
             detected += " ⚠ " + ", ".join(r.language_flags)
@@ -254,7 +268,8 @@ def render_markdown(
         lines.append(
             f"| {r.name} | {_seconds(r.duration)} | {_seconds(r.seconds)} | {rtf} "
             f"| {r.expected_language or ''} | {detected} | {ok} | {_percent(r.wer)} "
-            f"| {_percent(r.cer)} | {r.low_confidence}/{r.segments} | {r.removed} |"
+            f"| {_percent(r.cer)} | {r.low_confidence}/{r.segments} | {r.removed} "
+            f"| {r.channel_mode or ''} |"
         )
     return "\n".join(lines) + "\n"
 
@@ -263,7 +278,7 @@ CSV_COLUMNS = (
     "file", "duration_s", "processing_s", "rtf", "expected_language", "language",
     "language_probability", "language_candidates", "language_flags", "language_correct",
     "wer", "cer", "ref_words", "word_errors",
-    "segments", "low_confidence", "removed", "error",
+    "segments", "low_confidence", "removed", "channel_mode", "channel_languages", "error",
 )
 
 
@@ -280,6 +295,6 @@ def render_csv(results: list[SampleResult]) -> str:
             ";".join(r.language_flags),
             "" if r.language_correct is None else int(r.language_correct),
             r.wer, r.cer, r.ref_words, r.word_errors, r.segments, r.low_confidence,
-            r.removed, r.error or "",
+            r.removed, r.channel_mode or "", ";".join(r.channel_languages), r.error or "",
         ])
     return out.getvalue()

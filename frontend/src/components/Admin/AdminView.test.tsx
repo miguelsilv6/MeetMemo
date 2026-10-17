@@ -34,6 +34,7 @@ const settings: RuntimeSettings = {
   hallucination_phrases: ['Obrigado por assistir'],
   audio_highpass: true,
   audio_loudnorm: true,
+  stereo_mode: 'auto',
   default_language: null,
   language_detection_windows: 4,
   translation_engine: 'llm',
