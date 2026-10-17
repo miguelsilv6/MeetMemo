@@ -235,6 +235,7 @@ Comprehensive documentation is available in the [`docs/`](docs/) directory:
 | **[Database](docs/DATABASE.md)** | Schema, queries, backup/restore, maintenance |
 | **[Deployment](docs/DEPLOYMENT.md)** | Production deployment with HTTPS options |
 | **[Development](docs/DEVELOPMENT.md)** | Developer guide for contributing |
+| **[Evaluation](docs/EVALUATION.md)** | Measuring transcription and language-detection reliability (WER, CER) |
 | **[Troubleshooting](docs/TROUBLESHOOTING.md)** | Common issues and solutions |
 
 ## Common Tasks
