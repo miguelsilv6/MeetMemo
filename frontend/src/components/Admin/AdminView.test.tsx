@@ -35,6 +35,7 @@ const settings: RuntimeSettings = {
   audio_highpass: true,
   audio_loudnorm: true,
   default_language: null,
+  language_detection_windows: 4,
   translation_engine: 'llm',
   job_retention_hours: 12,
   project_retention_days: 7,

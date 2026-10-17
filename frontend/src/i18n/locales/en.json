@@ -133,8 +133,16 @@
     "title": "Communication Info",
     "fileName": "File Name",
     "duration": "Duration",
+    "language": "Language",
     "detectedLanguage": "Detected Language",
     "confidenceTitle": "Confidence reported by the speech recognition model",
+    "languageForced": "Language set (not detected).",
+    "otherCandidates": "Other candidates: {{list}}",
+    "languageFlags": {
+      "mixed_languages": "The language seems to change during the recording (speakers may use different languages).",
+      "uncertain": "The language detection is not very sure.",
+      "possibly_unsupported": "This may be a language the model does not know (e.g. a creole). Check the language and the transcript against the audio."
+    },
     "speakers": "Speakers",
     "speakerHint": "Speakers are only named by hand. Use \"Edit Speakers\" to replace a label with a name.",
     "nextSteps": "Next Steps",
@@ -429,6 +437,10 @@
         "default_language": {
           "label": "Default transcription language",
           "help": "Preselected on the upload screen. \"Auto-detect\" lets the model identify the language."
+        },
+        "language_detection_windows": {
+          "label": "Language detection windows",
+          "help": "How many 30-second stretches of speech, spread from the start to the end of the recording, the language is detected from (Whisper alone only uses the first). More windows make detection more reliable, at a few extra seconds per audio. Recommended: 4."
         },
         "translation_engine": {
           "label": "Translation engine",

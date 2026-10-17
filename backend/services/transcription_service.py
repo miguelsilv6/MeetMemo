@@ -8,14 +8,19 @@ improvement over openai-whisper.
 import asyncio
 import logging
 import threading
+from typing import Callable
 
+import numpy as np
 from config import Settings
 from database import update_error
 from faster_whisper import WhisperModel
+from faster_whisper.audio import decode_audio
+from faster_whisper.vad import VadOptions, get_speech_timestamps
 from repositories.job_repository import JobRepository
 from runtime_settings import RuntimeSettings
 from utils.cpu import available_cpu_count
 from utils.hallucination_filter import filter_segments
+from utils.language_detection import SAMPLE_RATE, aggregate, speech_windows
 from utils.whisper_options import model_options, transcribe_options
 
 from services.runtime_settings_service import RuntimeSettingsService
@@ -96,14 +101,13 @@ class TranscriptionService:
             )
             return model
 
-    def _decode(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def _decode(
         self,
-        job_uuid: str,
-        file_path: str,
+        audio,
         model_name: str,
         language: str | None,
         options: dict,
-        loop: asyncio.AbstractEventLoop,
+        on_progress: Callable[[int], None] | None = None,
     ):
         """
         Load the model and fully decode the audio. Runs in a worker thread.
@@ -113,7 +117,7 @@ class TranscriptionService:
         loop would block every other request for the whole transcription.
         """
         model = self.get_model(model_name)
-        segments_gen, info = model.transcribe(file_path, language=language, **options)
+        segments_gen, info = model.transcribe(audio, language=language, **options)
 
         segments = []
         duration = info.duration or 0
@@ -131,12 +135,100 @@ class TranscriptionService:
             if duration > 0:
                 fraction = min(segment.end / duration, 1.0)
                 progress = PROGRESS_START + int((PROGRESS_END - PROGRESS_START) * fraction)
-                if progress >= last_reported + PROGRESS_REPORT_STEP:
+                if on_progress and progress >= last_reported + PROGRESS_REPORT_STEP:
                     last_reported = progress
-                    asyncio.run_coroutine_threadsafe(
-                        self.job_repo.update_step_progress(job_uuid, progress), loop
-                    )
+                    on_progress(progress)
         return segments, info
+
+    def detect_language(
+        self, audio: np.ndarray, model_name: str, runtime: RuntimeSettings
+    ) -> dict | None:
+        """
+        Detect the language from windows of speech spread over the recording.
+
+        Returns None when no speech is found (the transcription then falls
+        back to faster-whisper's own detection).
+        """
+        model = self.get_model(model_name)
+        if runtime.vad_filter:
+            speech = get_speech_timestamps(audio, VadOptions(
+                onset=runtime.vad_onset,
+                offset=runtime.vad_offset,
+                min_silence_duration_ms=runtime.vad_min_silence_ms,
+                speech_pad_ms=runtime.vad_speech_pad_ms,
+            ))
+        else:
+            speech = [{"start": 0, "end": len(audio)}]
+
+        windows = []
+        for spans in speech_windows(speech, runtime.language_detection_windows):
+            chunk = np.concatenate([audio[start:end] for start, end in spans])
+            _, _, probabilities = model.detect_language(audio=chunk)
+            windows.append({
+                "start": spans[0][0] / SAMPLE_RATE,
+                "end": spans[-1][1] / SAMPLE_RATE,
+                "speech": len(chunk) / SAMPLE_RATE,
+                "probs": probabilities,
+            })
+        detection = aggregate(windows)
+        if detection:
+            logger.info(
+                "Detected language %s (%.2f) from %d window(s); flags: %s",
+                detection["language"],
+                detection["probability"],
+                len(windows),
+                ", ".join(detection["flags"]) or "none",
+            )
+        return detection
+
+    def transcribe_file(
+        self,
+        file_path: str,
+        model_name: str,
+        language: str | None,
+        runtime: RuntimeSettings,
+        on_progress: Callable[[int], None] | None = None,
+    ) -> dict:
+        """
+        Transcribe an audio file and filter the result, without touching the
+        database (the pipeline saves it; the evaluation script compares it).
+        Runs in a worker thread.
+
+        Without a ``language``, it is detected over the whole recording (see
+        ``utils.language_detection``) and the transcription uses that choice.
+        A given ``language`` (picked by the user or the admin's default) has no
+        detection probability: it was not detected.
+        """
+        audio = decode_audio(file_path, sampling_rate=SAMPLE_RATE)
+        detection = None
+        if language is None:
+            detection = self.detect_language(audio, model_name, runtime)
+        chosen = language or (detection["language"] if detection else None)
+
+        raw_segments, info = self._decode(
+            audio, model_name, chosen, transcribe_options(runtime), on_progress
+        )
+        segments, removed = filter_segments(raw_segments, runtime.filter_rules())
+        if language:
+            detected, probability, detection = language, None, {"forced": True}
+        elif detection:
+            detected, probability = detection["language"], detection["probability"]
+        else:  # no speech found: what faster-whisper made of it, if anything
+            detected = info.language or "auto"
+            probability = info.language_probability if info.language else None
+        return {
+            "text": "".join(s["text"] for s in segments),
+            "segments": segments,
+            "language": detected,
+            "language_probability": probability,
+            "language_detection": detection,
+            "duration": info.duration,
+            # Kept for auditability: what was dropped and why, and exactly
+            # which model and settings produced this transcript.
+            "removed_segments": removed,
+            "model_name": model_name,
+            "settings": runtime.model_dump(),
+        }
 
     async def transcribe(
         self,
@@ -175,38 +267,27 @@ class TranscriptionService:
 
             await self.job_repo.update_step_progress(job_uuid, PROGRESS_START)
             loop = asyncio.get_running_loop()
-            raw_segments, info = await loop.run_in_executor(
+
+            def on_progress(progress: int) -> None:
+                asyncio.run_coroutine_threadsafe(
+                    self.job_repo.update_step_progress(job_uuid, progress), loop
+                )
+
+            transcription_data = await loop.run_in_executor(
                 None,
-                self._decode,
-                job_uuid,
+                self.transcribe_file,
                 file_path,
                 model_name,
                 language,
-                transcribe_options(runtime),
-                loop,
+                runtime,
+                on_progress,
             )
-
-            segments, removed = filter_segments(raw_segments, runtime.filter_rules())
-            if removed:
+            if transcription_data["removed_segments"]:
                 logger.info(
                     "Removed %d hallucinated/empty segment(s) for job %s",
-                    len(removed),
+                    len(transcription_data["removed_segments"]),
                     job_uuid,
                 )
-
-            transcription_data = {
-                "text": "".join(s["text"] for s in segments),
-                "segments": segments,
-                "language": info.language if info.language else (language or "auto"),
-                "language_probability": (
-                    info.language_probability if info.language else None
-                ),
-                # Kept for auditability: what was dropped and why, and exactly
-                # which model and settings produced this transcript.
-                "removed_segments": removed,
-                "model_name": model_name,
-                "settings": runtime.model_dump(),
-            }
             await self.job_repo.save_transcription(job_uuid, transcription_data)
 
             # Update state to transcribed

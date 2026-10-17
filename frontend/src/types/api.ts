@@ -22,8 +22,27 @@ export interface Transcript {
   full_transcript?: string;
   /** ISO 639-1 code of the language detected by Whisper (e.g. `en`, `pt`), if known. */
   language?: string;
-  /** Whisper's confidence in the detected language, from 0 to 1. */
-  language_probability?: number;
+  /** Confidence in the detected language, from 0 to 1; null when it was given, not detected. */
+  language_probability?: number | null;
+  /** How the language was found (backend utils/language_detection.py). */
+  language_detection?: LanguageDetection | null;
+}
+
+/** Why the detected language deserves a second look. */
+export type LanguageDetectionFlag = 'mixed_languages' | 'uncertain' | 'possibly_unsupported';
+
+/** The language found over windows of speech spread across the recording. */
+export interface LanguageDetection {
+  /** True when the language was given (by the user or the admin default), not detected. */
+  forced?: boolean;
+  language?: string;
+  probability?: number;
+  /** The most likely languages, best first: [code, probability]. */
+  candidates?: [string, number][];
+  windows?: { start: number; end: number; language: string; probability: number }[];
+  /** Share of the speech whose window agrees with the chosen language. */
+  agreement?: number;
+  flags?: LanguageDetectionFlag[];
 }
 
 /** Mapping of speaker label (e.g. `SPEAKER_00`) to a display name. */

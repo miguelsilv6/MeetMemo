@@ -20,6 +20,7 @@ export interface RuntimeSettings {
   audio_highpass: boolean;
   audio_loudnorm: boolean;
   default_language: string | null;
+  language_detection_windows: number;
   translation_engine: TranslationEngine;
   job_retention_hours: number;
   project_retention_days: number;
