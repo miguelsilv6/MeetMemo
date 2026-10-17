@@ -8,7 +8,8 @@ scored against ``<name>.txt`` (reference transcript) and ``<name>.lang``
 
 Run inside the backend container, ideally while it is idle:
 
-    docker cp ./benchmark meetmemo-backend:/app/benchmark
+    docker exec meetmemo-backend mkdir -p /app/benchmark
+    docker cp ./benchmark/. meetmemo-backend:/app/benchmark/
     docker exec meetmemo-backend python scripts/evaluate_asr.py /app/benchmark
     docker cp meetmemo-backend:/app/benchmark/results ./results
 """
@@ -102,6 +103,10 @@ def main(argv=None) -> int:  # pylint: disable=too-many-locals
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     args = parse_args(argv)
     folder = args.folder.resolve()
+    if not folder.is_dir():
+        logger.error("Folder not found: %s (copy it into the container first, "
+                     "see docs/EVALUATION.md)", folder)
+        return 2
     samples = discover_samples(folder)
     if not samples:
         logger.error("No audio files in %s", folder)

@@ -35,10 +35,13 @@ benchmark/
 Run it inside the backend container, ideally while no transcription is running, since it uses the same CPU threads:
 
 ```bash
-docker cp ./benchmark meetmemo-backend:/app/benchmark
+docker exec meetmemo-backend mkdir -p /app/benchmark
+docker cp ./benchmark/. meetmemo-backend:/app/benchmark/
 docker exec meetmemo-backend python scripts/evaluate_asr.py /app/benchmark
 docker cp meetmemo-backend:/app/benchmark/results ./results
 ```
+
+`benchmark/.` copies the folder's contents. With `docker cp ./benchmark …`, a second copy would land in `/app/benchmark/benchmark`. The folder is not on a volume, so it disappears when the container is recreated. Copy the `results` out after each run.
 
 ### Options
 

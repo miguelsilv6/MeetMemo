@@ -227,3 +227,4 @@ def test_the_evaluation_script_writes_a_report(service_module, monkeypatch, tmp_
     assert (out / "transcripts" / "call.txt").read_text(encoding="utf-8") == "Bom dia. hum\n"
     assert "call.wav" in (out / "results.csv").read_text(encoding="utf-8")
     assert evaluate_asr.main([str(bench), "--defaults", "--model", "evil/repo"]) == 2
+    assert evaluate_asr.main([str(tmp_path / "missing"), "--defaults"]) == 2
