@@ -36,7 +36,8 @@ def test_disabling_options_maps_to_their_off_values():
     assert options["temperature"] == 0.0
     assert options["vad_filter"] is False
     assert options["vad_parameters"] is None
-    assert options["word_timestamps"] is False
+    # Kept for word-level confidence and alignment even without the threshold.
+    assert options["word_timestamps"] is True
     assert options["hallucination_silence_threshold"] is None
     assert options["beam_size"] == 1
 

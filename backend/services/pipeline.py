@@ -110,7 +110,7 @@ class JobPipeline:
             str(job["uuid"]), self._audio_path(job), runtime.audio_highpass, runtime.audio_loudnorm
         )
         await self.diarization_service.diarize(
-            str(job["uuid"]), audio_path, runtime.diarization_model
+            str(job["uuid"]), audio_path, runtime.diarization_model, job.get("num_speakers")
         )
 
     async def align(self, job: dict) -> None:

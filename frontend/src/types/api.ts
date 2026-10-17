@@ -8,6 +8,18 @@ export interface TranscriptSegment {
   text: string;
   /** Set by the backend when the speech model's own quality signals mark this line as doubtful. */
   low_confidence?: boolean;
+  /** Each word with its timing and the speech model's confidence (absent once edited). */
+  words?: TranscriptWord[];
+}
+
+/** One word of a segment, as the speech model heard it. */
+export interface TranscriptWord {
+  start: number;
+  end: number;
+  /** The word with its leading space, as it joins into the segment's text. */
+  word: string;
+  /** The model's confidence in the word, from 0 to 1. */
+  probability: number;
 }
 
 /**

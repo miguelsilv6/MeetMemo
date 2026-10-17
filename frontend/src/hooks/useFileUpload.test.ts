@@ -40,9 +40,24 @@ describe('useFileUpload.handleUpload', () => {
       await hook.result.current.handleUpload(file);
     });
 
-    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'auto');
+    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'auto', null);
     expect(setJobId).toHaveBeenCalledWith('new-job');
     expect(startPolling).toHaveBeenCalledWith('new-job');
+  });
+
+  it('sends how many people speak when the user said', async () => {
+    vi.mocked(api.uploadAudio).mockResolvedValue({ uuid: 'j', status_code: 202 });
+    const { hook } = setup();
+    const file = new File(['x'], 'call.wav', { type: 'audio/wav' });
+
+    act(() => {
+      hook.result.current.setSelectedSpeakers(2);
+    });
+    await act(async () => {
+      await hook.result.current.handleUpload(file);
+    });
+
+    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'auto', 2);
   });
 
   it('resumes an existing job without re-uploading', async () => {
@@ -69,7 +84,7 @@ describe('useFileUpload.handleUpload', () => {
       await hook.result.current.handleUpload(file);
     });
 
-    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'es');
+    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'es', null);
   });
 
   it('preselects the admin default language until the user picks one', async () => {
@@ -88,7 +103,7 @@ describe('useFileUpload.handleUpload', () => {
     await act(async () => {
       await hook.result.current.handleUpload(file);
     });
-    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'auto');
+    expect(api.uploadAudio).toHaveBeenCalledWith(file, null, 'auto', null);
   });
 
   it('normalizes the transcript on immediate completion (200)', async () => {

@@ -132,6 +132,15 @@ class TranscriptionService:
                 "avg_logprob": segment.avg_logprob,
                 "no_speech_prob": segment.no_speech_prob,
                 "compression_ratio": segment.compression_ratio,
+                "words": [
+                    {
+                        "start": round(word.start, 2),
+                        "end": round(word.end, 2),
+                        "word": word.word,
+                        "probability": round(word.probability, 3),
+                    }
+                    for word in (segment.words or [])
+                ],
             })
             if duration > 0:
                 fraction = min(segment.end / duration, 1.0)

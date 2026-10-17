@@ -12,6 +12,7 @@ import aiofiles
 from config import Settings
 from database import update_error, update_status
 from repositories.job_repository import JobRepository
+from utils.word_alignment import split_by_speaker
 
 logger = logging.getLogger(__name__)
 
@@ -71,37 +72,32 @@ class AlignmentService:
             speaker_segments = diarization_data.get("segments", [])
 
             for text_seg in text_segments:
-                seg_start = text_seg.get("start", 0)
-                seg_end = text_seg.get("end", 0)
-                seg_text = text_seg.get("text", "").strip()
+                if text_seg.get("speaker"):
+                    # Transcribed from one channel: its speaker is known.
+                    parts = [{
+                        "speaker": text_seg["speaker"],
+                        "start": text_seg.get("start", 0),
+                        "end": text_seg.get("end", 0),
+                        "text": (text_seg.get("text") or "").strip(),
+                        "words": text_seg.get("words") or [],
+                        **({"low_confidence": True} if text_seg.get("low_confidence") else {}),
+                    }]
+                else:
+                    # Word by word, split where the speaker changes.
+                    parts = split_by_speaker(text_seg, speaker_segments)
 
-                # A segment transcribed from one channel already knows its
-                # speaker; otherwise take the speaker that overlaps it most.
-                assigned_speaker = text_seg.get("speaker") or "SPEAKER_00"
-                max_overlap = 0
-
-                for spk_seg in speaker_segments if not text_seg.get("speaker") else ():
-                    spk_start = spk_seg["start"]
-                    spk_end = spk_seg["end"]
-
-                    # Calculate overlap
-                    overlap_start = max(seg_start, spk_start)
-                    overlap_end = min(seg_end, spk_end)
-                    overlap = max(0, overlap_end - overlap_start)
-
-                    if overlap > max_overlap:
-                        max_overlap = overlap
-                        assigned_speaker = spk_seg["speaker"]
-
-                aligned_segment = {
-                    "speaker": assigned_speaker,
-                    "text": seg_text,
-                    "start": f"{seg_start:.2f}",
-                    "end": f"{seg_end:.2f}"
-                }
-                if text_seg.get("low_confidence"):
-                    aligned_segment["low_confidence"] = True
-                aligned_transcript.append(aligned_segment)
+                for part in parts:
+                    aligned_segment = {
+                        "speaker": part["speaker"],
+                        "text": part["text"],
+                        "start": f"{part['start']:.2f}",
+                        "end": f"{part['end']:.2f}",
+                    }
+                    if part.get("low_confidence"):
+                        aligned_segment["low_confidence"] = True
+                    if part["words"]:
+                        aligned_segment["words"] = part["words"]
+                    aligned_transcript.append(aligned_segment)
 
             await self.job_repo.update_step_progress(job_uuid, 80)
 

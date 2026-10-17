@@ -139,6 +139,7 @@ async def add_audios(  # pylint: disable=too-many-arguments,too-many-positional-
     request: Request,
     files: list[UploadFile] = File(...),
     language: Optional[str] = Form(default=None),
+    num_speakers: Optional[int] = Form(default=None, ge=2, le=6),
     _user: Principal = Depends(require_user),
     repo: ProjectRepository = Depends(get_project_repository),
     service: ProjectService = Depends(get_project_service),
@@ -156,7 +157,7 @@ async def add_audios(  # pylint: disable=too-many-arguments,too-many-positional-
     if language not in (None, AUTO_DETECT) and language not in WHISPER_LANGUAGE_CODES:
         raise HTTPException(status_code=400, detail=f"Unsupported language: {language}")
 
-    results = await service.add_audios(str(project_uuid), files, language)
+    results = await service.add_audios(str(project_uuid), files, language, num_speakers)
     queue = _queue(request)
     if queue and any(r["status"] == "queued" for r in results):
         queue.notify()

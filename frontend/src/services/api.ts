@@ -186,7 +186,8 @@ export async function apiCall<T = unknown>(
 export async function uploadAudio(
   file: File,
   model: string | null = null,
-  language: string | null = null
+  language: string | null = null,
+  numSpeakers: number | null = null
 ): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
@@ -195,6 +196,9 @@ export async function uploadAudio(
   }
   if (language) {
     formData.append('language', language);
+  }
+  if (numSpeakers) {
+    formData.append('num_speakers', String(numSpeakers));
   }
 
   // Reuse the shared apiCall for error categorization + logging. The browser

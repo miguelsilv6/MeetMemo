@@ -92,7 +92,11 @@ class DiarizationService:
             return pipeline
 
     async def diarize(
-        self, job_uuid: str, file_path: str, model_name: Optional[str] = None
+        self,
+        job_uuid: str,
+        file_path: str,
+        model_name: Optional[str] = None,
+        num_speakers: Optional[int] = None,
     ) -> dict:
         """
         Perform speaker diarization with progress tracking.
@@ -102,6 +106,7 @@ class DiarizationService:
             file_path: Path to audio file
             model_name: The pyannote pipeline (the admin panel's choice);
                 None for the env's PYANNOTE_MODEL_NAME
+            num_speakers: How many people speak, if the uploader said
 
         Returns:
             Diarization data dict with speaker segments
@@ -129,10 +134,14 @@ class DiarizationService:
                 # bypasses torchcodec, which fails on CUDA 12.8.
                 await self.job_repo.update_step_progress(job_uuid, 10)
                 loop = asyncio.get_event_loop()
+                # The number of speakers, when the uploader gave it, keeps
+                # pyannote from splitting one voice into two (or merging two).
+                options = {"num_speakers": num_speakers} if num_speakers else {}
+
                 def _load_and_diarize():
                     pipeline = self.get_pipeline(model_name)
                     waveform, sample_rate = torchaudio.load(file_path)
-                    return pipeline({"waveform": waveform, "sample_rate": sample_rate})
+                    return pipeline({"waveform": waveform, "sample_rate": sample_rate}, **options)
                 diarization = await loop.run_in_executor(None, _load_and_diarize)
 
                 await self.job_repo.update_step_progress(job_uuid, 90)

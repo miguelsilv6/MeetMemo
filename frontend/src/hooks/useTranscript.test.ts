@@ -429,4 +429,55 @@ describe('useTranscript', () => {
 
     expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
   });
+
+  it('drops the word confidences of a segment whose text is edited or split', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const words = [
+      { start: 0, end: 1, word: ' Bom', probability: 0.4 },
+      { start: 1, end: 2, word: ' dia', probability: 0.9 },
+    ];
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({
+        segments: [
+          { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'Bom dia', words },
+          { speaker: 'SPEAKER_01', start: 2, end: 4, text: 'Olá', words },
+        ],
+      });
+    });
+
+    // Only the speaker changes: the words still describe the text.
+    act(() => {
+      result.current.setEditingSegment({
+        speaker: 'SPEAKER_01',
+        start: 0,
+        end: 2,
+        text: 'Bom dia',
+        index: 0,
+      });
+    });
+    await act(async () => {
+      await result.current.handleSaveSegmentText();
+    });
+    expect(result.current.transcript?.segments?.[0].words).toEqual(words);
+
+    act(() => {
+      result.current.setEditingSegment({
+        speaker: 'SPEAKER_01',
+        start: 0,
+        end: 2,
+        text: 'Bom dia a todos',
+        index: 0,
+      });
+    });
+    await act(async () => {
+      await result.current.handleSaveSegmentText();
+    });
+    expect(result.current.transcript?.segments?.[0].words).toBeUndefined();
+
+    await act(async () => {
+      await result.current.handleSplitSegment(1, 'O', 'lá', 'SPEAKER_00');
+    });
+    expect(result.current.transcript?.segments?.[1].words).toBeUndefined();
+  });
 });

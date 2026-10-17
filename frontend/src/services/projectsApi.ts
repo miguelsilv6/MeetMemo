@@ -43,11 +43,13 @@ export async function deleteProject(uuid: string): Promise<void> {
 export async function uploadProjectAudios(
   uuid: string,
   files: File[],
-  language: string | null
+  language: string | null,
+  numSpeakers: number | null = null
 ): Promise<UploadResult[]> {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));
   if (language) formData.append('language', language);
+  if (numSpeakers) formData.append('num_speakers', String(numSpeakers));
   const response = await apiCall<{ results: UploadResult[] }>(`/projects/${uuid}/audios`, {
     method: 'POST',
     body: formData,

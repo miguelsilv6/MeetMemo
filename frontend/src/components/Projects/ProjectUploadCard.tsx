@@ -4,6 +4,7 @@ import { Alert, Card, Form } from '@govtechsg/sgds-react';
 import { Upload as UploadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WHISPER_LANGUAGES } from '../../constants/languages';
+import SpeakerCountSelect from '../Upload/SpeakerCountSelect';
 import { getPublicConfig } from '../../services/api';
 import { uploadProjectAudios } from '../../services/projectsApi';
 import { exceedsUploadLimit } from '../../utils/uploadLimit';
@@ -34,6 +35,7 @@ export default function ProjectUploadCard({
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [language, setLanguage] = useState<string | null>(null);
+  const [numSpeakers, setNumSpeakers] = useState<number | null>(null);
   const [progress, setProgress] = useState<{ index: number; total: number; name: string } | null>(
     null
   );
@@ -71,7 +73,7 @@ export default function ProjectUploadCard({
         collected.push({ file_name: file.name, status: 'rejected', detail: 'size' });
       } else {
         try {
-          const results = await uploadProjectAudios(projectUuid, [file], language);
+          const results = await uploadProjectAudios(projectUuid, [file], language, numSpeakers);
           collected.push(...results);
           outOfTokens = results.some((r) => r.status === 'no_tokens');
           onUploaded();
@@ -130,6 +132,12 @@ export default function ProjectUploadCard({
               ))}
             </Form.Select>
           </Form.Group>
+          <SpeakerCountSelect
+            id="project-upload-num-speakers"
+            value={numSpeakers}
+            onChange={setNumSpeakers}
+            disabled={busy}
+          />
         </div>
 
         {noTokens && (
