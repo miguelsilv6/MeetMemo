@@ -133,8 +133,16 @@
     "title": "Informação da Comunicação",
     "fileName": "Nome do Ficheiro",
     "duration": "Duração",
+    "language": "Idioma",
     "detectedLanguage": "Idioma Detetado",
     "confidenceTitle": "Confiança reportada pelo modelo de reconhecimento de voz",
+    "languageForced": "Idioma definido (não detetado).",
+    "otherCandidates": "Outros candidatos: {{list}}",
+    "languageFlags": {
+      "mixed_languages": "O idioma parece mudar ao longo da gravação (podem ser interlocutores em idiomas diferentes).",
+      "uncertain": "A deteção do idioma é pouco segura.",
+      "possibly_unsupported": "Pode ser um idioma que o modelo não reconhece (ex.: crioulo). Confirma o idioma e a transcrição com o áudio."
+    },
     "speakers": "Interlocutores",
     "speakerHint": "Os interlocutores só são nomeados manualmente. Usa \"Editar Interlocutores\" para substituir uma etiqueta por um nome.",
     "nextSteps": "Próximos Passos",
@@ -429,6 +437,10 @@
         "default_language": {
           "label": "Idioma de transcrição predefinido",
           "help": "Pré-selecionado no ecrã de carregamento. \"Deteção automática\" deixa o modelo identificar o idioma."
+        },
+        "language_detection_windows": {
+          "label": "Janelas de deteção de idioma",
+          "help": "Número de trechos de 30 s de fala, espalhados do início ao fim da gravação, usados para detetar o idioma (o Whisper sozinho só usa o primeiro). Mais janelas dão uma deteção mais fiável, com alguns segundos a mais por áudio. Recomendado: 4."
         },
         "translation_engine": {
           "label": "Motor de tradução",

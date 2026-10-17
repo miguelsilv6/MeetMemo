@@ -112,6 +112,9 @@ class RuntimeSettings(BaseModel):
 
     # Language and retention
     default_language: Optional[str] = None
+    # Windows of 30 s of speech, spread over the recording, the language is
+    # detected from (faster-whisper alone looks at the first one only).
+    language_detection_windows: int = Field(default=4, ge=1, le=8)
     job_retention_hours: int = Field(default=12, ge=1, le=8760)
     # Applied when a project is created; its expiry date never changes after.
     project_retention_days: int = Field(default=7, ge=1, le=365)

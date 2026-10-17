@@ -48,6 +48,8 @@ class SampleResult:  # pylint: disable=too-many-instance-attributes
     language: Optional[str] = None
     language_probability: Optional[float] = None
     expected_language: Optional[str] = None
+    candidates: list = field(default_factory=list)
+    language_flags: list = field(default_factory=list)
     segments: int = 0
     low_confidence: int = 0
     removed: int = 0
@@ -170,6 +172,9 @@ def evaluate_sample(
     result.duration = data.get("duration")
     result.language = data.get("language")
     result.language_probability = data.get("language_probability")
+    detection = data.get("language_detection") or {}
+    result.candidates = detection.get("candidates") or []
+    result.language_flags = detection.get("flags") or []
     result.segments = len(segments)
     result.low_confidence = sum(1 for s in segments if s.get("low_confidence"))
     result.removed = len(data.get("removed_segments") or [])
@@ -242,6 +247,8 @@ def render_markdown(
         detected = r.language or "—"
         if r.language_probability is not None:
             detected += f" ({r.language_probability * 100:.0f}%)"
+        if r.language_flags:
+            detected += " ⚠ " + ", ".join(r.language_flags)
         ok = {True: "✓", False: "✗", None: ""}[r.language_correct]
         rtf = "—" if r.real_time_factor is None else f"{r.real_time_factor:.2f}"
         lines.append(
@@ -254,7 +261,8 @@ def render_markdown(
 
 CSV_COLUMNS = (
     "file", "duration_s", "processing_s", "rtf", "expected_language", "language",
-    "language_probability", "language_correct", "wer", "cer", "ref_words", "word_errors",
+    "language_probability", "language_candidates", "language_flags", "language_correct",
+    "wer", "cer", "ref_words", "word_errors",
     "segments", "low_confidence", "removed", "error",
 )
 
@@ -268,6 +276,8 @@ def render_csv(results: list[SampleResult]) -> str:
         writer.writerow([
             r.name, r.duration, r.seconds, r.real_time_factor, r.expected_language or "",
             r.language or "", r.language_probability,
+            ";".join(f"{lang}:{prob}" for lang, prob in r.candidates),
+            ";".join(r.language_flags),
             "" if r.language_correct is None else int(r.language_correct),
             r.wer, r.cer, r.ref_words, r.word_errors, r.segments, r.low_confidence,
             r.removed, r.error or "",

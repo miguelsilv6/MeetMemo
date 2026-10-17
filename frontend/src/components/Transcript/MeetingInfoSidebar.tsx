@@ -36,9 +36,15 @@ export default function MeetingInfoSidebar({
 }: MeetingInfoSidebarProps) {
   const { t } = useTranslation();
   const [showRetranscribe, setShowRetranscribe] = useState(false);
+  const detection = transcript?.language_detection ?? null;
+  const flags = detection?.flags ?? [];
+  const otherCandidates = (detection?.candidates ?? []).slice(1).filter(([, p]) => p >= 0.01);
+  // Suggest the runner-up language, else the admin's default.
+  const retranscribeSuggestion = otherCandidates[0]?.[0] ?? retranscribeLanguage;
   const lowConfidence =
-    typeof transcript?.language_probability === 'number' &&
-    isLowConfidence(transcript.language_probability);
+    (typeof transcript?.language_probability === 'number' &&
+      isLowConfidence(transcript.language_probability)) ||
+    flags.length > 0;
 
   return (
     <Card className="sticky-sidebar">
@@ -61,7 +67,9 @@ export default function MeetingInfoSidebar({
           </div>
           {transcript?.language && (
             <div className="info-item mb-3">
-              <small className="text-muted">{t('meetingInfo.detectedLanguage')}</small>
+              <small className="text-muted">
+                {detection?.forced ? t('meetingInfo.language') : t('meetingInfo.detectedLanguage')}
+              </small>
               <div className="d-flex align-items-center gap-1 flex-wrap">
                 <Languages size={14} className="text-muted" />
                 <span>{getLanguageName(transcript.language)}</span>
@@ -74,6 +82,28 @@ export default function MeetingInfoSidebar({
                   </Badge>
                 )}
               </div>
+              {detection?.forced && (
+                <div className="small text-muted mt-1">{t('meetingInfo.languageForced')}</div>
+              )}
+              {otherCandidates.length > 0 && (
+                <div className="small text-muted mt-1" data-testid="language-candidates">
+                  {t('meetingInfo.otherCandidates', {
+                    list: otherCandidates
+                      .map(([code, p]) => `${getLanguageName(code)} ${Math.round(p * 100)}%`)
+                      .join(' · '),
+                  })}
+                </div>
+              )}
+              {flags.map((flag) => (
+                <div
+                  key={flag}
+                  className="small text-warning-emphasis d-flex gap-1 mt-1"
+                  data-testid={`language-flag-${flag}`}
+                >
+                  <AlertCircle size={14} className="flex-shrink-0 mt-1" />
+                  <span>{t(`meetingInfo.languageFlags.${flag}`)}</span>
+                </div>
+              ))}
               {lowConfidence && onRetranscribe && (
                 <div className="low-confidence-note small mt-2" data-testid="low-confidence">
                   <p className="text-muted mb-1">{t('retranscribe.lowConfidence')}</p>
@@ -171,6 +201,8 @@ export default function MeetingInfoSidebar({
       </Card.Body>
       {onRetranscribe && (
         <RetranscribeModal
+          // Remounted when the suggestion changes (it arrives with the transcript).
+          key={retranscribeSuggestion ?? ''}
           show={showRetranscribe}
           onHide={() => setShowRetranscribe(false)}
           onConfirm={async (language) => {
@@ -178,7 +210,7 @@ export default function MeetingInfoSidebar({
             setShowRetranscribe(false);
           }}
           detectedLanguage={transcript?.language ?? null}
-          defaultLanguage={retranscribeLanguage}
+          defaultLanguage={retranscribeSuggestion}
         />
       )}
     </Card>

@@ -62,6 +62,9 @@ async def get_transcript(
         language_probability = (
             transcription_data.get('language_probability') if transcription_data else None
         )
+        language_detection = (
+            transcription_data.get('language_detection') if transcription_data else None
+        )
 
         # Check for edited transcript first
         edited_path = os.path.join(settings.transcript_edited_dir, f"{base_name}.json")
@@ -83,7 +86,8 @@ async def get_transcript(
                 status_code=200,
                 is_edited=True,
                 language=language,
-                language_probability=language_probability
+                language_probability=language_probability,
+                language_detection=language_detection,
             )
 
         if await aiofiles.os.path.exists(original_path):
@@ -102,7 +106,8 @@ async def get_transcript(
                 status_code=200,
                 is_edited=False,
                 language=language,
-                language_probability=language_probability
+                language_probability=language_probability,
+                language_detection=language_detection,
             )
 
         raise HTTPException(status_code=404, detail=f"Transcript not found for job {uuid}")

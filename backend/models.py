@@ -166,6 +166,9 @@ class TranscriptResponse(BaseModel):
     is_edited: bool
     language: Optional[str] = None
     language_probability: Optional[float] = None
+    # How the language was found: candidates, per-window results and flags
+    # (utils.language_detection), or {"forced": true} when it was given.
+    language_detection: Optional[dict] = None
 
 
 class SummaryResponse(BaseModel):

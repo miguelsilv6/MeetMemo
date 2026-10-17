@@ -1,7 +1,8 @@
 """
 The transcription step: a file is decoded and filtered without touching the
-database (what the evaluation script uses), and the pipeline step saves that
-same result with its progress and state.
+database (what the evaluation script uses), the language is detected over
+windows spread across the recording and then imposed on the transcription,
+and the pipeline step saves that same result with its progress and state.
 
 faster-whisper is replaced by a fake: the test dependencies do not include it.
 """
@@ -10,19 +11,30 @@ import importlib
 import sys
 from types import ModuleType, SimpleNamespace
 
+import numpy as np
 import pytest
 from runtime_settings import RuntimeSettings
+
+SECONDS = 16000
+PT = [("pt", 0.87), ("es", 0.08), ("gl", 0.05)]
 
 
 class _FakeWhisper:
     calls = []
+    detections = []  # what detect_language answers, window after window
+    detected_chunks = []
 
     def __init__(self, name, **options):
         self.name = name
         self.options = options
 
-    def transcribe(self, path, language=None, **options):
-        _FakeWhisper.calls.append((path, language, options))
+    def detect_language(self, audio=None, **_options):
+        _FakeWhisper.detected_chunks.append(len(audio))
+        probs = _FakeWhisper.detections.pop(0) if _FakeWhisper.detections else PT
+        return probs[0][0], probs[0][1], probs
+
+    def transcribe(self, audio, language=None, **options):
+        _FakeWhisper.calls.append((audio, language, options))
         segments = [
             SimpleNamespace(id=1, start=0.0, end=4.0, text=" Bom dia.", avg_logprob=-0.2,
                             no_speech_prob=0.01, compression_ratio=1.1),
@@ -31,20 +43,36 @@ class _FakeWhisper:
             SimpleNamespace(id=3, start=8.0, end=10.0, text=" hum", avg_logprob=-1.6,
                             no_speech_prob=0.2, compression_ratio=1.0),
         ]
-        info = SimpleNamespace(language=language or "pt", language_probability=0.87,
-                               duration=10.0)
+        # faster-whisper reports a given language with probability 1.
+        info = SimpleNamespace(language=language or "en",
+                               language_probability=1.0 if language else 0.51, duration=10.0)
         return iter(segments), info
+
+
+class _Fakes:
+    audio_seconds = 10
+    speech = None  # None: all of it
 
 
 @pytest.fixture(name="service_module")
 def _service_module(monkeypatch):
     faster_whisper = ModuleType("faster_whisper")
     faster_whisper.WhisperModel = _FakeWhisper
-    monkeypatch.setitem(sys.modules, "faster_whisper", faster_whisper)
+    audio = ModuleType("faster_whisper.audio")
+    audio.decode_audio = lambda path, sampling_rate: np.zeros(
+        _Fakes.audio_seconds * SECONDS, dtype=np.float32)
+    vad = ModuleType("faster_whisper.vad")
+    vad.VadOptions = lambda **options: SimpleNamespace(**options)
+    vad.get_speech_timestamps = lambda samples, options: (
+        [{"start": 0, "end": len(samples)}] if _Fakes.speech is None else _Fakes.speech)
+    for name, module in (("faster_whisper", faster_whisper), ("faster_whisper.audio", audio),
+                         ("faster_whisper.vad", vad)):
+        monkeypatch.setitem(sys.modules, name, module)
     monkeypatch.delitem(sys.modules, "services.transcription_service", raising=False)
     module = importlib.import_module("services.transcription_service")
     module._loaded_model = None  # pylint: disable=protected-access
-    _FakeWhisper.calls = []
+    _FakeWhisper.calls, _FakeWhisper.detections, _FakeWhisper.detected_chunks = [], [], []
+    _Fakes.audio_seconds, _Fakes.speech = 10, None
     yield module
     monkeypatch.delitem(sys.modules, "services.transcription_service", raising=False)
 
@@ -52,8 +80,8 @@ def _service_module(monkeypatch):
 SETTINGS = SimpleNamespace(device="cpu", compute_type="int8", whisper_cpu_threads=2)
 
 
-def _runtime():
-    return RuntimeSettings(whisper_model_name="large-v3")
+def _runtime(**changes):
+    return RuntimeSettings(whisper_model_name="large-v3", **changes)
 
 
 def test_a_file_is_transcribed_and_filtered_without_the_database(service_module):
@@ -69,8 +97,72 @@ def test_a_file_is_transcribed_and_filtered_without_the_database(service_module)
     assert data["model_name"] == "large-v3"
     assert data["settings"]["beam_size"] == 5
     assert progress == [42, 74, 90]
-    path, language, options = _FakeWhisper.calls[0]
-    assert (path, language, options["beam_size"]) == ("call.wav", None, 5)
+    audio, language, options = _FakeWhisper.calls[0]
+    assert (len(audio), language, options["beam_size"]) == (10 * SECONDS, "pt", 5)
+
+
+def test_the_language_is_detected_over_the_whole_call_and_imposed(service_module):
+    # 90 s of speech: windows at the start, middle and end (3 fit apart).
+    _Fakes.audio_seconds = 100
+    _Fakes.speech = [{"start": 10 * SECONDS, "end": 100 * SECONDS}]
+    # The greeting looks Spanish; the rest of the call is Portuguese.
+    _FakeWhisper.detections = [[("es", 0.55), ("pt", 0.40)], [("pt", 0.95)], [("pt", 0.93)]]
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", None, _runtime())
+
+    detection = data["language_detection"]
+    assert _FakeWhisper.detected_chunks == [30 * SECONDS] * 3
+    assert [(w["start"], w["end"]) for w in detection["windows"]] == [
+        (10.0, 40.0), (40.0, 70.0), (70.0, 100.0)]
+    assert detection["language"] == "pt" and detection["candidates"][0][0] == "pt"
+    assert _FakeWhisper.calls[0][1] == "pt"  # not faster-whisper's first-30-s guess
+    assert data["language"] == "pt"
+    assert data["language_probability"] == detection["probability"]
+
+
+def test_two_languages_in_one_call_are_flagged(service_module):
+    _Fakes.audio_seconds = 120
+    _FakeWhisper.detections = [[("pt", 0.95)], [("ro", 0.91)], [("pt", 0.9)], [("ro", 0.88)]]
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", None, _runtime())
+
+    assert "mixed_languages" in data["language_detection"]["flags"]
+    assert len(data["language_detection"]["windows"]) == 4
+
+
+def test_the_number_of_windows_comes_from_the_admin_panel(service_module):
+    _Fakes.audio_seconds = 300
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    service.transcribe_file("call.wav", "large-v3", None,
+                            _runtime(language_detection_windows=2))
+
+    assert len(_FakeWhisper.detected_chunks) == 2
+
+
+def test_a_given_language_is_not_reported_as_detected(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", "ro", _runtime())
+
+    assert _FakeWhisper.detected_chunks == []
+    assert _FakeWhisper.calls[0][1] == "ro"
+    # faster-whisper says 1.0 for a given language: that is not a detection.
+    assert (data["language"], data["language_probability"]) == ("ro", None)
+    assert data["language_detection"] == {"forced": True}
+
+
+def test_without_speech_faster_whispers_own_detection_is_kept(service_module):
+    _Fakes.speech = []
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", None, _runtime())
+
+    assert _FakeWhisper.calls[0][1] is None
+    assert (data["language"], data["language_probability"]) == ("en", 0.51)
+    assert data["language_detection"] is None
 
 
 class _JobRepo:
@@ -102,6 +194,7 @@ def test_the_pipeline_step_saves_the_same_result(service_module):
 
     assert repo.saved == data
     assert [s["text"] for s in data["segments"]] == [" Bom dia.", " hum"]
+    assert data["language_detection"]["language"] == "pt"
     assert repo.states == ["transcribing", "transcribed"]
     assert repo.progress[0] == 10 and repo.progress[-1] == 100
 

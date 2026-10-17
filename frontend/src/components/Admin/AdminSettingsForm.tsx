@@ -40,6 +40,7 @@ const FIELD_TABS: Record<keyof RuntimeSettings, SettingsTab> = {
   audio_highpass: 'transcription',
   audio_loudnorm: 'transcription',
   default_language: 'languageRetention',
+  language_detection_windows: 'languageRetention',
   translation_engine: 'languageRetention',
   job_retention_hours: 'languageRetention',
   project_retention_days: 'languageRetention',
@@ -442,6 +443,7 @@ export default function AdminSettingsForm({
                     />
                   </Form.Group>
                 </Col>
+                <Col md={6}>{numberField('language_detection_windows')}</Col>
                 <Col md={6}>{numberField('job_retention_hours')}</Col>
                 <Col md={6}>{numberField('project_retention_days')}</Col>
               </Row>

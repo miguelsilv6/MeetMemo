@@ -126,3 +126,14 @@ def test_csv_has_one_row_per_file():
     assert rows[0]["file"] == "call.wav"
     assert rows[0]["language_correct"] == "1"
     assert float(rows[0]["wer"]) == 0.0
+
+
+def test_the_language_candidates_and_flags_are_reported():
+    data = {**TRANSCRIPT, "language_detection": {
+        "candidates": [["pt", 0.45], ["es", 0.3]], "flags": ["uncertain"]}}
+    result = evaluate_sample(Sample("call.wav", None, expected_language="pt"),
+                             lambda s: data, clock=_clock())
+    report = render_markdown([result], summarize([result]), {})
+    assert "pt (93%) ⚠ uncertain" in report
+    row = next(csv.DictReader(io.StringIO(render_csv([result]))))
+    assert (row["language_candidates"], row["language_flags"]) == ("pt:0.45;es:0.3", "uncertain")

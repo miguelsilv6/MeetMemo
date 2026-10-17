@@ -119,3 +119,73 @@ describe('MeetingInfoSidebar re-transcription', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
+
+describe('MeetingInfoSidebar language detection details', () => {
+  const detected = {
+    language: 'pt',
+    probability: 0.86,
+    candidates: [
+      ['pt', 0.86],
+      ['es', 0.09],
+      ['gl', 0.004],
+    ] as [string, number][],
+    windows: [],
+    agreement: 1,
+    flags: [],
+  };
+
+  it('lists the other candidate languages', () => {
+    renderSidebar({
+      transcript: {
+        segments: [],
+        language: 'pt',
+        language_probability: 0.86,
+        language_detection: detected,
+      },
+    });
+    // Below 1% is noise and left out.
+    expect(screen.getByTestId('language-candidates')).toHaveTextContent(
+      'Other candidates: Spanish 9%'
+    );
+  });
+
+  it('warns about each flag and offers to transcribe again, suggesting the runner-up', async () => {
+    renderSidebar({
+      transcript: {
+        segments: [],
+        language: 'pt',
+        language_probability: 0.86,
+        language_detection: { ...detected, flags: ['mixed_languages', 'possibly_unsupported'] },
+      },
+      onRetranscribe: vi.fn(),
+      retranscribeLanguage: 'en',
+    });
+
+    expect(screen.getByTestId('language-flag-mixed_languages')).toHaveTextContent(
+      /seems to change during the recording/
+    );
+    expect(screen.getByTestId('language-flag-possibly_unsupported')).toHaveTextContent(/creole/);
+    // Offered despite 86%: the flags say the detection deserves a second look.
+    fireEvent.click(
+      screen.getByRole('button', { name: /choose the language and transcribe again/i })
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Language of the communication')).toHaveValue('es');
+  });
+
+  it('says when the language was set rather than detected', () => {
+    renderSidebar({
+      transcript: {
+        segments: [],
+        language: 'ro',
+        language_probability: null,
+        language_detection: { forced: true },
+      },
+      onRetranscribe: vi.fn(),
+    });
+    expect(screen.getByText('Language set (not detected).')).toBeInTheDocument();
+    expect(screen.queryByText('Detected Language')).not.toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('low-confidence')).not.toBeInTheDocument();
+  });
+});
