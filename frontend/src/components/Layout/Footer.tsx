@@ -10,7 +10,9 @@ export default function Footer() {
       <Container>
         <Row>
           <Col className="text-center text-muted">
-            <small>{t('app.footer')}</small>
+            <div>
+              <small>{t('app.footer')}</small>
+            </div>
             <SystemInfoBar />
           </Col>
         </Row>

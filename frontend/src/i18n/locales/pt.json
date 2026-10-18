@@ -13,7 +13,7 @@
   "app": {
     "name": "MeetMemo",
     "tagline": "Resumo de Comunicações com IA",
-    "footer": "MeetMemo © 2025 - Transcrição de Comunicações com IA e Identificação de Interlocutores"
+    "footer": "MAFS"
   },
   "workflowSteps": {
     "upload": "Carregar Áudio",
