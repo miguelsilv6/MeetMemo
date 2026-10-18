@@ -13,7 +13,7 @@
   "app": {
     "name": "MeetMemo",
     "tagline": "AI Communication Summary",
-    "footer": "MeetMemo © 2025 - AI-Powered Communication Transcription with Speaker Diarization"
+    "footer": "MAFS"
   },
   "workflowSteps": {
     "upload": "Upload Audio",
