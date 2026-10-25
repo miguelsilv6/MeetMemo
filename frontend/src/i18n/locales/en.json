@@ -168,7 +168,10 @@
       "description": "Replace speaker labels with actual names.",
       "tip": "Tip: To add a new speaker, use the ✏️ button on any transcript segment.",
       "speakerNames": "Speaker Names",
-      "namePlaceholder": "Enter speaker name"
+      "namePlaceholder": "Enter speaker name",
+      "beforeSummary": "The AI summary will use these names. Some speakers still have their automatic label (SPEAKER_xx): say who they are before generating the summary, or continue without changing them.",
+      "skip": "Continue without changing",
+      "saveAndSummarize": "Save and generate summary"
     },
     "editText": {
       "title": "Edit Transcript Segment",

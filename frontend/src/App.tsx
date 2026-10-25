@@ -52,6 +52,7 @@ import ProjectView from './components/Projects/ProjectView';
 
 // Modal Components
 import EditSpeakersModal from './components/Modals/EditSpeakersModal';
+import { hasDefaultSpeakerNames } from './utils/speakerNames';
 import EditTextModal from './components/Modals/EditTextModal';
 import EditSummaryModal from './components/Modals/EditSummaryModal';
 import RecordingModal from './components/Modals/RecordingModal';
@@ -136,9 +137,12 @@ function App() {
     editingSpeakers,
     setEditingSpeakers,
     showEditSpeakersModal,
-    setShowEditSpeakersModal,
     handleEditSpeakers,
     handleSaveSpeakers,
+    askSpeakerNamesBefore,
+    beforeNextStep: speakerNamesBeforeSummary,
+    handleSkipSpeakers,
+    handleCancelEditSpeakers,
   } = useSpeakerManagement(jobId, transcript, setTranscriptWithColors, setError);
 
   // Transcript polling (defined before useFileUpload that depends on it)
@@ -212,6 +216,16 @@ function App() {
     handleEditSummary,
     handleSaveSummary,
   } = useSummary(jobId, setCurrentStep, setError);
+
+  // A new AI summary uses the speakers' names: while any is still a
+  // SPEAKER_xx label, ask for them first (the user may go on without).
+  const handleGenerateSummaryWithNames = () => {
+    if (!summary?.summary && hasDefaultSpeakerNames(transcript?.segments)) {
+      askSpeakerNamesBefore(handleGenerateSummary);
+      return;
+    }
+    handleGenerateSummary();
+  };
 
   // View a past job's summary directly from Recent Meetings, without making
   // the user regenerate it — the backend serves the cached copy for a job
@@ -485,7 +499,7 @@ function App() {
                 handleDeleteSegments={handleDeleteSegments}
                 handleInsertSegmentAfter={handleInsertSegmentAfter}
                 handleRequestSplitSegment={handleRequestSplitSegment}
-                handleGenerateSummary={handleGenerateSummary}
+                handleGenerateSummary={handleGenerateSummaryWithNames}
                 generatingSummary={generatingSummary}
                 summaryTask={summaryTask}
                 summary={summary}
@@ -540,10 +554,12 @@ function App() {
       {/* Modals */}
       <EditSpeakersModal
         show={showEditSpeakersModal}
-        onHide={() => setShowEditSpeakersModal(false)}
+        onHide={handleCancelEditSpeakers}
         editingSpeakers={editingSpeakers}
         setEditingSpeakers={setEditingSpeakers}
         handleSaveSpeakers={handleSaveSpeakers}
+        beforeSummary={speakerNamesBeforeSummary}
+        onSkip={handleSkipSpeakers}
       />
 
       <EditTextModal

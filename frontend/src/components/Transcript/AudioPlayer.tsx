@@ -41,7 +41,7 @@ import type { RangePeaks } from './AudioWaveform';
 
 // Resolution of the player's waveform, independent of audio length (and of
 // the zoom level: a zoomed view fetches this many peaks for its own range).
-const WAVEFORM_BUCKETS = 300;
+const WAVEFORM_BUCKETS = 800;
 // Wait for the view to settle (e.g. while panning) before fetching its peaks.
 const DETAIL_FETCH_DELAY_MS = 250;
 const PLAYBACK_RATE_STORAGE_KEY = 'meetmemo-playback-rate';
@@ -609,141 +609,143 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
                 <small className="text-muted">{formatTime(duration)}</small>
               </div>
 
-              {/* Controls */}
-              <div className="audio-controls d-flex align-items-center justify-content-center gap-2">
-                {/* Skip backward */}
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="audio-control-btn p-1"
-                  onClick={skipBackward}
-                  title={t('audioPlayer.skipBack')}
-                  disabled={isLoading}
-                >
-                  <SkipBack size={18} />
-                </Button>
-
-                {/* Play/Pause */}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="audio-play-btn rounded-circle p-2"
-                  onClick={togglePlay}
-                  title={playTitle}
-                  disabled={isLoading || !!error}
-                >
-                  {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                </Button>
-
-                {/* Skip forward */}
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="audio-control-btn p-1"
-                  onClick={skipForward}
-                  title={t('audioPlayer.skipForward')}
-                  disabled={isLoading}
-                >
-                  <SkipForward size={18} />
-                </Button>
-
-                {/* Volume control */}
-                <div className="audio-volume-control d-flex align-items-center ms-3">
+              {/* Controls and tools: one line under the waveform when there is room */}
+              <div className="audio-controls-bar">
+                <div className="audio-controls d-flex align-items-center justify-content-center gap-2">
+                  {/* Skip backward */}
                   <Button
                     variant="link"
                     size="sm"
                     className="audio-control-btn p-1"
-                    onClick={toggleMute}
-                    title={isMuted ? t('audioPlayer.unmute') : t('audioPlayer.mute')}
+                    onClick={skipBackward}
+                    title={t('audioPlayer.skipBack')}
+                    disabled={isLoading}
                   >
-                    {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    <SkipBack size={18} />
                   </Button>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={isMuted ? 0 : volume}
-                    onChange={handleVolumeChange}
-                    className="audio-volume-slider"
-                    aria-label={t('audioPlayer.volume')}
-                  />
+
+                  {/* Play/Pause */}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="audio-play-btn rounded-circle p-2"
+                    onClick={togglePlay}
+                    title={playTitle}
+                    disabled={isLoading || !!error}
+                  >
+                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                  </Button>
+
+                  {/* Skip forward */}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="audio-control-btn p-1"
+                    onClick={skipForward}
+                    title={t('audioPlayer.skipForward')}
+                    disabled={isLoading}
+                  >
+                    <SkipForward size={18} />
+                  </Button>
+
+                  {/* Volume control */}
+                  <div className="audio-volume-control d-flex align-items-center ms-3">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="audio-control-btn p-1"
+                      onClick={toggleMute}
+                      title={isMuted ? t('audioPlayer.unmute') : t('audioPlayer.mute')}
+                    >
+                      {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    </Button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={isMuted ? 0 : volume}
+                      onChange={handleVolumeChange}
+                      className="audio-volume-slider"
+                      aria-label={t('audioPlayer.volume')}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Speed, zoom and shortcuts */}
-              <div className="audio-tools d-flex flex-wrap align-items-center justify-content-center gap-3 mt-2">
-                {renderSpeedSelect()}
-                {renderChannelSelect()}
+                {/* Speed, zoom and shortcuts */}
+                <div className="audio-tools d-flex flex-wrap align-items-center justify-content-center gap-3">
+                  {renderSpeedSelect()}
+                  {renderChannelSelect()}
 
-                {isMultichannel && (
+                  {isMultichannel && (
+                    <div
+                      className="btn-group btn-group-sm audio-layout-toggle"
+                      role="group"
+                      aria-label={t('audioPlayer.waveformLayout')}
+                    >
+                      <Button
+                        size="sm"
+                        variant={effectiveLayout === 'combined' ? 'primary' : 'outline-primary'}
+                        aria-pressed={effectiveLayout === 'combined'}
+                        onClick={() => setWaveformLayout('combined')}
+                        title={t('audioPlayer.waveformCombinedHint')}
+                      >
+                        {t('audioPlayer.waveformCombined')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={effectiveLayout === 'split' ? 'primary' : 'outline-primary'}
+                        aria-pressed={effectiveLayout === 'split'}
+                        onClick={() => setWaveformLayout('split')}
+                        title={t('audioPlayer.waveformSplitHint')}
+                      >
+                        {t('audioPlayer.waveformSplit')}
+                      </Button>
+                    </div>
+                  )}
+
                   <div
-                    className="btn-group btn-group-sm audio-layout-toggle"
+                    className="audio-zoom-controls d-flex align-items-center gap-1"
                     role="group"
-                    aria-label={t('audioPlayer.waveformLayout')}
+                    aria-label={t('audioPlayer.zoomGroup')}
                   >
                     <Button
+                      variant="link"
                       size="sm"
-                      variant={effectiveLayout === 'combined' ? 'primary' : 'outline-primary'}
-                      aria-pressed={effectiveLayout === 'combined'}
-                      onClick={() => setWaveformLayout('combined')}
-                      title={t('audioPlayer.waveformCombinedHint')}
+                      className="audio-control-btn p-1"
+                      onClick={() => zoomBy(-1)}
+                      disabled={zoom <= 1 || duration <= 0}
+                      title={`${t('audioPlayer.zoomOut')} (−)`}
                     >
-                      {t('audioPlayer.waveformCombined')}
+                      <ZoomOut size={18} />
                     </Button>
+                    <small className="audio-zoom-level text-muted" aria-live="polite">
+                      {t('audioPlayer.zoomLevel', { level: zoom })}
+                    </small>
                     <Button
+                      variant="link"
                       size="sm"
-                      variant={effectiveLayout === 'split' ? 'primary' : 'outline-primary'}
-                      aria-pressed={effectiveLayout === 'split'}
-                      onClick={() => setWaveformLayout('split')}
-                      title={t('audioPlayer.waveformSplitHint')}
+                      className="audio-control-btn p-1"
+                      onClick={() => zoomBy(1)}
+                      disabled={zoom >= MAX_ZOOM || duration <= 0}
+                      title={`${t('audioPlayer.zoomIn')} (+)`}
                     >
-                      {t('audioPlayer.waveformSplit')}
+                      <ZoomIn size={18} />
                     </Button>
                   </div>
-                )}
 
-                <div
-                  className="audio-zoom-controls d-flex align-items-center gap-1"
-                  role="group"
-                  aria-label={t('audioPlayer.zoomGroup')}
-                >
                   <Button
                     variant="link"
                     size="sm"
-                    className="audio-control-btn p-1"
-                    onClick={() => zoomBy(-1)}
-                    disabled={zoom <= 1 || duration <= 0}
-                    title={`${t('audioPlayer.zoomOut')} (−)`}
+                    className={`audio-control-btn p-1 ${showShortcuts ? 'active' : ''}`}
+                    onClick={() => setShowShortcuts((shown) => !shown)}
+                    aria-expanded={showShortcuts}
+                    aria-controls="audio-shortcuts"
+                    title={t('audioPlayer.shortcuts')}
                   >
-                    <ZoomOut size={18} />
-                  </Button>
-                  <small className="audio-zoom-level text-muted" aria-live="polite">
-                    {t('audioPlayer.zoomLevel', { level: zoom })}
-                  </small>
-                  <Button
-                    variant="link"
-                    size="sm"
-                    className="audio-control-btn p-1"
-                    onClick={() => zoomBy(1)}
-                    disabled={zoom >= MAX_ZOOM || duration <= 0}
-                    title={`${t('audioPlayer.zoomIn')} (+)`}
-                  >
-                    <ZoomIn size={18} />
+                    <Keyboard size={18} />
                   </Button>
                 </div>
-
-                <Button
-                  variant="link"
-                  size="sm"
-                  className={`audio-control-btn p-1 ${showShortcuts ? 'active' : ''}`}
-                  onClick={() => setShowShortcuts((shown) => !shown)}
-                  aria-expanded={showShortcuts}
-                  aria-controls="audio-shortcuts"
-                  title={t('audioPlayer.shortcuts')}
-                >
-                  <Keyboard size={18} />
-                </Button>
               </div>
 
               {showShortcuts && (

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { Modal, Button, Form } from '@govtechsg/sgds-react';
+import { Alert, Modal, Button, Form } from '@govtechsg/sgds-react';
 import { Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { SpeakerMapping } from '../../types/api';
@@ -10,15 +10,24 @@ interface EditSpeakersModalProps {
   editingSpeakers: SpeakerMapping;
   setEditingSpeakers: Dispatch<SetStateAction<SpeakerMapping>>;
   handleSaveSpeakers: () => void;
+  /** Opened before the AI summary: says so, and offers to go on without renaming. */
+  beforeSummary?: boolean;
+  /** Go on to the summary without renaming anyone. */
+  onSkip?: () => void;
 }
 
-/** Lets the user rename each speaker label by hand. */
+/**
+ * Lets the user rename each speaker label by hand. Before an AI summary it
+ * explains that the summary uses these names.
+ */
 export default function EditSpeakersModal({
   show,
   onHide,
   editingSpeakers,
   setEditingSpeakers,
   handleSaveSpeakers,
+  beforeSummary = false,
+  onSkip,
 }: EditSpeakersModalProps) {
   const { t } = useTranslation();
 
@@ -31,6 +40,11 @@ export default function EditSpeakersModal({
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {beforeSummary && (
+          <Alert show variant="info" className="mb-3" data-testid="names-before-summary">
+            {t('modals.editSpeakers.beforeSummary')}
+          </Alert>
+        )}
         <div className="mb-4">
           <p className="text-muted mb-2">{t('modals.editSpeakers.description')}</p>
           <p className="text-muted small mb-2">{t('modals.editSpeakers.tip')}</p>
@@ -58,8 +72,13 @@ export default function EditSpeakersModal({
         <Button variant="secondary" onClick={onHide}>
           {t('common.cancel')}
         </Button>
+        {beforeSummary && onSkip && (
+          <Button variant="outline-secondary" onClick={onSkip}>
+            {t('modals.editSpeakers.skip')}
+          </Button>
+        )}
         <Button variant="primary" onClick={handleSaveSpeakers}>
-          {t('common.save')}
+          {beforeSummary ? t('modals.editSpeakers.saveAndSummarize') : t('common.save')}
         </Button>
       </Modal.Footer>
     </Modal>

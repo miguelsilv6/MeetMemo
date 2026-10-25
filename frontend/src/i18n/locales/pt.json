@@ -168,7 +168,10 @@
       "description": "Substitui as etiquetas dos interlocutores por nomes reais.",
       "tip": "Dica: para adicionares um novo interlocutor, usa o botão ✏️ em qualquer segmento da transcrição.",
       "speakerNames": "Nomes dos Interlocutores",
-      "namePlaceholder": "Introduz o nome do interlocutor"
+      "namePlaceholder": "Introduz o nome do interlocutor",
+      "beforeSummary": "O resumo por IA vai usar estes nomes. Alguns interlocutores ainda têm o nome automático (SPEAKER_xx): indica quem são antes de gerar o resumo, ou continua sem alterar.",
+      "skip": "Continuar sem alterar",
+      "saveAndSummarize": "Guardar e gerar resumo"
     },
     "editText": {
       "title": "Editar Segmento da Transcrição",

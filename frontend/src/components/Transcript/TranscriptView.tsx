@@ -185,264 +185,267 @@ export default function TranscriptView({
   }, []);
 
   return (
-    <Row>
-      <Col lg={8} xl={9} className="transcript-main-col">
-        <Card className="mb-4 transcript-card">
-          {/* Every button stays on one line (all the same height); when they do not
+    <>
+      {/* The player spans the page, so the waveform is wide enough to find moments in. */}
+      <AudioPlayer
+        jobId={jobId}
+        onTimeUpdate={handleTimeUpdate}
+        currentSegmentRef={audioPlayerRef}
+      />
+      <Row>
+        <Col lg={8} xl={9} className="transcript-main-col">
+          <Card className="mb-4 transcript-card">
+            {/* Every button stays on one line (all the same height); when they do not
               fit next to the title, the whole toolbar moves below it. */}
-          <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2 transcript-header">
-            <h5 className="mb-0 text-nowrap">
-              <FileText size={20} className="me-2" />
-              {t('transcript.title')}
-            </h5>
-            <div className="d-flex flex-wrap gap-2 align-items-center transcript-toolbar">
-              <ButtonGroup>
-                <Button
-                  variant={displayMode === 'list' ? 'primary' : 'outline-primary'}
-                  size="sm"
-                  onClick={() => setDisplayMode('list')}
-                  title={t('transcript.listViewTitle')}
-                >
-                  <LayoutList size={16} />
-                </Button>
-                <Button
-                  variant={displayMode === 'kanban' ? 'primary' : 'outline-primary'}
-                  size="sm"
-                  onClick={() => setDisplayMode('kanban')}
-                  title={t('transcript.kanbanViewTitle')}
-                >
-                  <LayoutGrid size={16} />
-                </Button>
-              </ButtonGroup>
-              {/* Translation always targets European Portuguese, so it is pointless
+            <Card.Header className="d-flex flex-wrap justify-content-between align-items-center gap-2 transcript-header">
+              <h5 className="mb-0 text-nowrap">
+                <FileText size={20} className="me-2" />
+                {t('transcript.title')}
+              </h5>
+              <div className="d-flex flex-wrap gap-2 align-items-center transcript-toolbar">
+                <ButtonGroup>
+                  <Button
+                    variant={displayMode === 'list' ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => setDisplayMode('list')}
+                    title={t('transcript.listViewTitle')}
+                  >
+                    <LayoutList size={16} />
+                  </Button>
+                  <Button
+                    variant={displayMode === 'kanban' ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => setDisplayMode('kanban')}
+                    title={t('transcript.kanbanViewTitle')}
+                  >
+                    <LayoutGrid size={16} />
+                  </Button>
+                </ButtonGroup>
+                {/* Translation always targets European Portuguese, so it is pointless
                   for a transcript that is already in Portuguese. */}
-              {transcript?.language !== 'pt' && (
-                <Button
-                  variant={showTranslation ? 'primary' : 'outline-primary'}
-                  size="sm"
-                  onClick={() => handleToggleTranslation(transcript?.segments)}
-                  disabled={translating || !transcript?.segments?.length}
-                  title={t('transcript.translateToPortuguese')}
-                >
-                  {translating ? (
-                    <span
-                      className="spinner-border spinner-border-sm me-1"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                  ) : (
-                    <Languages size={16} className="me-1" />
-                  )}
-                  {translating && translationProgress?.queued
-                    ? t('llmTask.queued', { count: translationProgress.position ?? 0 })
-                    : translating && translationProgress?.preparing
-                      ? t('transcript.preparingEngine')
-                      : translating && translationProgress
-                        ? t('transcript.translatingProgress', { ...translationProgress })
-                        : showTranslation
-                          ? t('transcript.showOriginal')
-                          : t('transcript.translateToPortuguese')}
-                </Button>
-              )}
-              <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
-                <Users size={16} className="me-1" />
-                {t('transcript.editSpeakers')}
-              </Button>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={handleUndo}
-                disabled={!canUndo}
-                title={t('transcript.undo')}
-              >
-                <Undo2 size={16} />
-              </Button>
-              <Button
-                variant={selectMode ? 'primary' : 'outline-secondary'}
-                size="sm"
-                onClick={toggleSelectMode}
-                disabled={!transcript?.segments?.length}
-                title={t('transcript.selectSegments')}
-              >
-                <CheckSquare size={16} />
-              </Button>
-            </div>
-          </Card.Header>
-          {showTranslation && translationEngine && (
-            <div
-              className="translation-engine-note small text-muted px-3 py-2 border-bottom"
-              data-testid="translation-engine-note"
-            >
-              {t(`transcript.translatedBy.${translationEngine}`)}
-            </div>
-          )}
-          {selectMode && (
-            <div className="bulk-actions-bar d-flex flex-wrap gap-2 align-items-center px-3 py-2 border-bottom">
-              <span className="text-muted small">
-                {t('bulkActions.selectedCount', { count: selectedIndices.size })}
-              </span>
-              <Form.Select
-                size="sm"
-                style={{ width: 'auto' }}
-                value={bulkMoveTarget}
-                onChange={(e) => setBulkMoveTarget(e.target.value)}
-                disabled={selectedIndices.size === 0}
-              >
-                <option value="">{t('bulkActions.moveTo')}</option>
-                {speakers.map((speaker) => (
-                  <option key={speaker} value={speaker}>
-                    {speaker}
-                  </option>
-                ))}
-              </Form.Select>
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={handleBulkMove}
-                disabled={selectedIndices.size === 0 || !bulkMoveTarget}
-              >
-                {t('bulkActions.move')}
-              </Button>
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={() => setShowBulkDeleteConfirm(true)}
-                disabled={selectedIndices.size === 0}
-              >
-                <Trash2 size={14} className="me-1" />
-                {t('bulkActions.delete')}
-              </Button>
-              <Button variant="link" size="sm" onClick={exitSelectMode}>
-                {t('bulkActions.cancel')}
-              </Button>
-            </div>
-          )}
-          <Card.Body>
-            {transcript && transcript.segments ? (
-              displayMode === 'kanban' ? (
-                <Suspense
-                  fallback={
-                    <div className="text-center text-muted py-5">
+                {transcript?.language !== 'pt' && (
+                  <Button
+                    variant={showTranslation ? 'primary' : 'outline-primary'}
+                    size="sm"
+                    onClick={() => handleToggleTranslation(transcript?.segments)}
+                    disabled={translating || !transcript?.segments?.length}
+                    title={t('transcript.translateToPortuguese')}
+                  >
+                    {translating ? (
                       <span
-                        className="spinner-border spinner-border-sm me-2"
+                        className="spinner-border spinner-border-sm me-1"
                         role="status"
                         aria-hidden="true"
                       ></span>
-                      {t('transcript.loadingKanban')}
-                    </div>
-                  }
+                    ) : (
+                      <Languages size={16} className="me-1" />
+                    )}
+                    {translating && translationProgress?.queued
+                      ? t('llmTask.queued', { count: translationProgress.position ?? 0 })
+                      : translating && translationProgress?.preparing
+                        ? t('transcript.preparingEngine')
+                        : translating && translationProgress
+                          ? t('transcript.translatingProgress', { ...translationProgress })
+                          : showTranslation
+                            ? t('transcript.showOriginal')
+                            : t('transcript.translateToPortuguese')}
+                  </Button>
+                )}
+                <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>
+                  <Users size={16} className="me-1" />
+                  {t('transcript.editSpeakers')}
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  title={t('transcript.undo')}
                 >
-                  <TranscriptKanbanView
-                    segments={transcript.segments}
-                    displayTextByIndex={displayTextByIndex}
-                    activeSegmentIndex={activeSegmentIndex}
-                    handleEditText={handleEditText}
-                    onSeekToSegment={handleSeekToSegment}
-                    onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
-                    onMoveSegmentTo={handleMoveSegmentTo}
-                    onBulkMoveSegments={handleBulkMoveSegments}
-                    onDeleteSegments={handleDeleteSegments}
-                    onInsertSegmentAfter={handleInsertSegmentAfter}
-                    onSplitSegment={handleRequestSplitSegment}
-                    onRequestDeleteSegment={setPendingDeleteIndex}
-                    selectMode={selectMode}
-                    selectedIndices={selectedIndices}
-                    onToggleSelect={handleToggleSelect}
-                  />
-                </Suspense>
-              ) : (
-                <div className="transcript-content">
-                  {transcript.segments.map((segment, index) => (
-                    <TranscriptSegment
-                      key={index}
-                      segment={segment}
-                      displayText={displayTextByIndex?.[index]}
-                      index={index}
-                      handleEditText={handleEditText}
-                      isActive={index === activeSegmentIndex}
-                      onSeekToSegment={handleSeekToSegment}
-                      onInsertSegmentAfter={handleInsertSegmentAfter}
-                      onSplitSegment={handleRequestSplitSegment}
-                      onDeleteSegment={setPendingDeleteIndex}
-                      selectMode={selectMode}
-                      isSelected={selectedIndices.has(index)}
-                      onToggleSelect={handleToggleSelect}
-                    />
-                  ))}
-                </div>
-              )
-            ) : (
-              <div className="transcript-placeholder text-center text-muted py-5">
-                <FileText size={48} className="mb-3 opacity-50" />
-                <p>{t('transcript.placeholder')}</p>
+                  <Undo2 size={16} />
+                </Button>
+                <Button
+                  variant={selectMode ? 'primary' : 'outline-secondary'}
+                  size="sm"
+                  onClick={toggleSelectMode}
+                  disabled={!transcript?.segments?.length}
+                  title={t('transcript.selectSegments')}
+                >
+                  <CheckSquare size={16} />
+                </Button>
+              </div>
+            </Card.Header>
+            {showTranslation && translationEngine && (
+              <div
+                className="translation-engine-note small text-muted px-3 py-2 border-bottom"
+                data-testid="translation-engine-note"
+              >
+                {t(`transcript.translatedBy.${translationEngine}`)}
               </div>
             )}
-          </Card.Body>
-        </Card>
-      </Col>
+            {selectMode && (
+              <div className="bulk-actions-bar d-flex flex-wrap gap-2 align-items-center px-3 py-2 border-bottom">
+                <span className="text-muted small">
+                  {t('bulkActions.selectedCount', { count: selectedIndices.size })}
+                </span>
+                <Form.Select
+                  size="sm"
+                  style={{ width: 'auto' }}
+                  value={bulkMoveTarget}
+                  onChange={(e) => setBulkMoveTarget(e.target.value)}
+                  disabled={selectedIndices.size === 0}
+                >
+                  <option value="">{t('bulkActions.moveTo')}</option>
+                  {speakers.map((speaker) => (
+                    <option key={speaker} value={speaker}>
+                      {speaker}
+                    </option>
+                  ))}
+                </Form.Select>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={handleBulkMove}
+                  disabled={selectedIndices.size === 0 || !bulkMoveTarget}
+                >
+                  {t('bulkActions.move')}
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  disabled={selectedIndices.size === 0}
+                >
+                  <Trash2 size={14} className="me-1" />
+                  {t('bulkActions.delete')}
+                </Button>
+                <Button variant="link" size="sm" onClick={exitSelectMode}>
+                  {t('bulkActions.cancel')}
+                </Button>
+              </div>
+            )}
+            <Card.Body>
+              {transcript && transcript.segments ? (
+                displayMode === 'kanban' ? (
+                  <Suspense
+                    fallback={
+                      <div className="text-center text-muted py-5">
+                        <span
+                          className="spinner-border spinner-border-sm me-2"
+                          role="status"
+                          aria-hidden="true"
+                        ></span>
+                        {t('transcript.loadingKanban')}
+                      </div>
+                    }
+                  >
+                    <TranscriptKanbanView
+                      segments={transcript.segments}
+                      displayTextByIndex={displayTextByIndex}
+                      activeSegmentIndex={activeSegmentIndex}
+                      handleEditText={handleEditText}
+                      onSeekToSegment={handleSeekToSegment}
+                      onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                      onMoveSegmentTo={handleMoveSegmentTo}
+                      onBulkMoveSegments={handleBulkMoveSegments}
+                      onDeleteSegments={handleDeleteSegments}
+                      onInsertSegmentAfter={handleInsertSegmentAfter}
+                      onSplitSegment={handleRequestSplitSegment}
+                      onRequestDeleteSegment={setPendingDeleteIndex}
+                      selectMode={selectMode}
+                      selectedIndices={selectedIndices}
+                      onToggleSelect={handleToggleSelect}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="transcript-content">
+                    {transcript.segments.map((segment, index) => (
+                      <TranscriptSegment
+                        key={index}
+                        segment={segment}
+                        displayText={displayTextByIndex?.[index]}
+                        index={index}
+                        handleEditText={handleEditText}
+                        isActive={index === activeSegmentIndex}
+                        onSeekToSegment={handleSeekToSegment}
+                        onInsertSegmentAfter={handleInsertSegmentAfter}
+                        onSplitSegment={handleRequestSplitSegment}
+                        onDeleteSegment={setPendingDeleteIndex}
+                        selectMode={selectMode}
+                        isSelected={selectedIndices.has(index)}
+                        onToggleSelect={handleToggleSelect}
+                      />
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="transcript-placeholder text-center text-muted py-5">
+                  <FileText size={48} className="mb-3 opacity-50" />
+                  <p>{t('transcript.placeholder')}</p>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
 
-      <Col lg={4} xl={3}>
-        <AudioPlayer
-          jobId={jobId}
-          onTimeUpdate={handleTimeUpdate}
-          currentSegmentRef={audioPlayerRef}
-        />
-        <MeetingInfoSidebar
-          selectedFile={selectedFile}
-          transcript={transcript}
-          handleGenerateSummary={handleGenerateSummary}
-          generatingSummary={generatingSummary}
-          summaryTask={summaryTask}
-          summary={summary}
-          jobId={jobId}
-          onRetranscribe={handleRetranscribe}
-          retranscribeLanguage={retranscribeLanguage}
-          onReprocess={handleReprocess}
-        />
-      </Col>
+        <Col lg={4} xl={3}>
+          <MeetingInfoSidebar
+            selectedFile={selectedFile}
+            transcript={transcript}
+            handleGenerateSummary={handleGenerateSummary}
+            generatingSummary={generatingSummary}
+            summaryTask={summaryTask}
+            summary={summary}
+            jobId={jobId}
+            onRetranscribe={handleRetranscribe}
+            retranscribeLanguage={retranscribeLanguage}
+            onReprocess={handleReprocess}
+          />
+        </Col>
 
-      <Modal show={pendingDeleteSegment !== undefined} onHide={() => setPendingDeleteIndex(null)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{t('transcript.deleteSegmentConfirmTitle')}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>{t('transcript.deleteSegmentConfirmBody')}</p>
-          {pendingDeleteSegment && (
-            <blockquote className="delete-segment-preview mb-0">
-              <small className="text-muted d-block mb-1">
-                {pendingDeleteSegment.speaker} · {formatTime(pendingDeleteSegment.start)} -{' '}
-                {formatTime(pendingDeleteSegment.end)}
-              </small>
-              {pendingDeleteSegment.text}
-            </blockquote>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setPendingDeleteIndex(null)}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="danger" onClick={handleConfirmDeleteSegment}>
-            {t('common.delete')}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <Modal show={pendingDeleteSegment !== undefined} onHide={() => setPendingDeleteIndex(null)}>
+          <Modal.Header closeButton>
+            <Modal.Title>{t('transcript.deleteSegmentConfirmTitle')}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>{t('transcript.deleteSegmentConfirmBody')}</p>
+            {pendingDeleteSegment && (
+              <blockquote className="delete-segment-preview mb-0">
+                <small className="text-muted d-block mb-1">
+                  {pendingDeleteSegment.speaker} · {formatTime(pendingDeleteSegment.start)} -{' '}
+                  {formatTime(pendingDeleteSegment.end)}
+                </small>
+                {pendingDeleteSegment.text}
+              </blockquote>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={() => setPendingDeleteIndex(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" onClick={handleConfirmDeleteSegment}>
+              {t('common.delete')}
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
-      <Modal show={showBulkDeleteConfirm} onHide={() => setShowBulkDeleteConfirm(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{t('bulkActions.deleteConfirmTitle')}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {t('bulkActions.deleteConfirmBody', { count: selectedIndices.size })}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setShowBulkDeleteConfirm(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="outline-danger" onClick={handleConfirmBulkDelete}>
-            {t('common.delete')}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </Row>
+        <Modal show={showBulkDeleteConfirm} onHide={() => setShowBulkDeleteConfirm(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>{t('bulkActions.deleteConfirmTitle')}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            {t('bulkActions.deleteConfirmBody', { count: selectedIndices.size })}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" onClick={() => setShowBulkDeleteConfirm(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="outline-danger" onClick={handleConfirmBulkDelete}>
+              {t('common.delete')}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </Row>
+    </>
   );
 }

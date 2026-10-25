@@ -52,4 +52,26 @@ describe('EditSpeakersModal', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(/suggestion/i)).not.toBeInTheDocument();
   });
+
+  it('before a summary, says the summary uses these names and offers to go on without', () => {
+    const props = renderModal({ beforeSummary: true, onSkip: vi.fn() });
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByTestId('names-before-summary')).toHaveTextContent(
+      /AI summary will use these names/
+    );
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue without changing' }));
+    expect(props.onSkip).toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save and generate summary' }));
+    expect(props.handleSaveSpeakers).toHaveBeenCalled();
+  });
+
+  it('a plain edit has neither the notice nor the skip button', () => {
+    renderModal({ onSkip: vi.fn() });
+    expect(screen.queryByTestId('names-before-summary')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Continue without changing' })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+  });
 });
