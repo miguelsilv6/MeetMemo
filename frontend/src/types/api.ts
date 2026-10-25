@@ -14,6 +14,16 @@ export interface TranscriptSegment {
   original?: { speaker: string; start: number; end: number };
 }
 
+/** An instant of an audio a reviewer marked to come back to, with an optional note. */
+export interface CuePoint {
+  id: number;
+  position_seconds: number;
+  note: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** One word of a segment, as the speech model heard it. */
 export interface TranscriptWord {
   start: number;

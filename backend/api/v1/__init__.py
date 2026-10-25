@@ -9,6 +9,7 @@ from api.v1 import (
     admin,
     audio,
     auth,
+    cue_points,
     export_jobs,
     exports,
     health,
@@ -77,6 +78,11 @@ api_router.include_router(
 api_router.include_router(
     audio.router,
     tags=["audio"]
+)
+
+api_router.include_router(
+    cue_points.router,
+    tags=["cue-points"]
 )
 
 api_router.include_router(

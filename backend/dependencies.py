@@ -112,6 +112,12 @@ def get_llm_task_repository():
     return LlmTaskRepository()
 
 
+def get_cue_point_repository():
+    """Get CuePointRepository instance (marked instants of an audio)."""
+    from repositories.cue_point_repository import CuePointRepository
+    return CuePointRepository()
+
+
 def get_user_repository():
     """Get UserRepository instance."""
     from repositories.user_repository import UserRepository

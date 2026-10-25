@@ -1,5 +1,6 @@
 """Pydantic models for request/response validation."""
 # pylint: disable=R0903
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, validator
@@ -15,6 +16,31 @@ class SpeakerNameMapping(BaseModel):
 class TranscriptUpdateRequest(BaseModel):
     """Model for updating transcript content."""
     transcript: list[dict]
+
+
+# Longest recording a cue point can point into (48 h): any real call fits.
+MAX_CUE_POINT_SECONDS = 48 * 3600
+
+
+class CuePointCreateRequest(BaseModel):
+    """A new cue point: an instant of the audio and an optional note."""
+    position_seconds: float = Field(..., ge=0, le=MAX_CUE_POINT_SECONDS, allow_inf_nan=False)
+    note: str = Field("", max_length=500)
+
+
+class CuePointUpdateRequest(BaseModel):
+    """A cue point's new note."""
+    note: str = Field(..., max_length=500)
+
+
+class CuePoint(BaseModel):
+    """A marked instant of an audio, with who marked it and when."""
+    id: int
+    position_seconds: float
+    note: str
+    created_by: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class SummarizeRequest(BaseModel):

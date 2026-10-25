@@ -260,6 +260,7 @@
     "shortcutSeek": "Back / forward {{seconds}} seconds",
     "shortcutSpeed": "Slower / faster",
     "shortcutZoom": "Zoom the waveform out / in",
+    "shortcutCuePoint": "Add a cue point at the current time",
     "shortcutWheelZoom": "Zoom the waveform around the pointer",
     "shortcutWheelPan": "Move the zoomed waveform",
     "shortcutsNote": "Shortcuts are off while typing in a text field or while a dialog is open.",
@@ -876,5 +877,20 @@
     "label": "Sort:",
     "newest": "Newest first",
     "oldest": "Oldest first"
+  },
+  "cuePoints": {
+    "title": "Cue points ({{count}})",
+    "add": "Mark",
+    "addHint": "Mark the current time to come back to it (M)",
+    "empty": "No cue points yet. Press M while listening to mark a moment of interest.",
+    "jump": "Play from here",
+    "notePlaceholder": "Note (optional)",
+    "noteLabel": "Note for the cue point at {{time}}",
+    "remove": "Remove cue point",
+    "errors": {
+      "load": "The cue points could not be loaded.",
+      "save": "The cue point could not be saved.",
+      "delete": "The cue point could not be removed."
+    }
   }
 }

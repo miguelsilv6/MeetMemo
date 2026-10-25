@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../../services/api';
+import useCuePoints from '../../hooks/useCuePoints';
+import CuePointList from './CuePointList';
 import { formatTime } from '../../utils/timeFormat';
 import {
   ARROW_SEEK_SECONDS,
@@ -343,6 +345,26 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
     }
   }, [currentSegmentRef, seekTo]);
 
+  // Cue points: instants marked to come back to, drawn on the waveform.
+  const {
+    cuePoints,
+    error: cuePointError,
+    addedId,
+    addCuePoint,
+    updateNote,
+    removeCuePoint,
+  } = useCuePoints(jobId);
+  const addCuePointHere = useCallback(() => {
+    addCuePoint(audioRef.current?.currentTime ?? 0);
+  }, [addCuePoint]);
+  const waveformMarkers = cuePoints.map((cue) => ({
+    id: cue.id,
+    time: cue.position_seconds,
+    label: cue.note
+      ? `${formatTime(cue.position_seconds)} · ${cue.note}`
+      : formatTime(cue.position_seconds),
+  }));
+
   // Keyboard shortcuts. The listener is registered once and reads the latest
   // actions from a ref, so it isn't re-added on every time update.
   const shortcutActionsRef = useRef({
@@ -350,6 +372,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
     seekBy: (seconds: number) => seekBy(seconds),
     stepRate: (direction: 1 | -1) => changePlaybackRate(stepPlaybackRate(playbackRate, direction)),
     zoomBy,
+    addCuePoint: addCuePointHere,
     enabled: !isLoading && !error,
   });
   useEffect(() => {
@@ -359,6 +382,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
       stepRate: (direction: 1 | -1) =>
         changePlaybackRate(stepPlaybackRate(playbackRate, direction)),
       zoomBy,
+      addCuePoint: addCuePointHere,
       enabled: !isLoading && !error,
     };
   });
@@ -398,6 +422,10 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
         case '+':
         case '=':
           actions.zoomBy(1);
+          break;
+        case 'm':
+        case 'M':
+          actions.addCuePoint();
           break;
         default:
           return;
@@ -491,6 +519,7 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
         onZoom={zoomBy}
         onPan={panBy}
         laneHeight={laneHeight}
+        markers={waveformMarkers}
       />
     );
 
@@ -738,6 +767,10 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
                     </dt>
                     <dd>{t('audioPlayer.shortcutZoom')}</dd>
                     <dt>
+                      <kbd>M</kbd>
+                    </dt>
+                    <dd>{t('audioPlayer.shortcutCuePoint')}</dd>
+                    <dt>
                       <kbd>Ctrl</kbd> + {t('audioPlayer.mouseWheel')}
                     </dt>
                     <dd>{t('audioPlayer.shortcutWheelZoom')}</dd>
@@ -749,6 +782,16 @@ export default function AudioPlayer({ jobId, onTimeUpdate, currentSegmentRef }: 
                   <small className="text-muted">{t('audioPlayer.shortcutsNote')}</small>
                 </div>
               )}
+
+              <CuePointList
+                cuePoints={cuePoints}
+                addedId={addedId}
+                error={cuePointError}
+                onAdd={addCuePointHere}
+                onSeek={seekTo}
+                onUpdateNote={updateNote}
+                onRemove={removeCuePoint}
+              />
             </div>
           </Card.Body>
         </Card>

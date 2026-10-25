@@ -8,6 +8,7 @@ import {
 } from '../utils/fileNaming';
 import type {
   ApiError,
+  CuePoint,
   JobStatus,
   PublicConfig,
   JobsResponse,
@@ -434,6 +435,35 @@ export async function deleteJob(uuid: string): Promise<unknown> {
   return await apiCall(`/jobs/${uuid}`, {
     method: 'DELETE',
   });
+}
+
+// Cue points: marked instants of an audio, with a note
+export async function listCuePoints(uuid: string): Promise<CuePoint[]> {
+  return await apiCall<CuePoint[]>(`/jobs/${uuid}/cue-points`);
+}
+
+export async function createCuePoint(
+  uuid: string,
+  positionSeconds: number,
+  note = ''
+): Promise<CuePoint> {
+  return await apiCall<CuePoint>(`/jobs/${uuid}/cue-points`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ position_seconds: positionSeconds, note }),
+  });
+}
+
+export async function updateCuePoint(uuid: string, id: number, note: string): Promise<CuePoint> {
+  return await apiCall<CuePoint>(`/jobs/${uuid}/cue-points/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  });
+}
+
+export async function deleteCuePoint(uuid: string, id: number): Promise<void> {
+  await apiCall(`/jobs/${uuid}/cue-points/${id}`, { method: 'DELETE' });
 }
 
 // Health check

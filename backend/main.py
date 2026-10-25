@@ -19,6 +19,7 @@ from config import get_settings
 from database import (
     close_database,
     ensure_admin_schema,
+    ensure_cue_points_schema,
     ensure_llm_tasks_schema,
     ensure_projects_schema,
     ensure_tokens_schema,
@@ -226,6 +227,7 @@ async def lifespan(fastapi_app: FastAPI):
         await ensure_users_schema()
         await ensure_tokens_schema(app_settings.tokens_timezone)
         await ensure_llm_tasks_schema()
+        await ensure_cue_points_schema()
         # Audios and projects from before user accounts have no owner: they are
         # deleted with their files, once.
         await purge_ownerless(app_settings)

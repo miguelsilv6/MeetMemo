@@ -28,6 +28,7 @@ function makeCurrentTimeSettable(audio: HTMLAudioElement) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.getAudioUrl).mockReturnValue('/api/v1/jobs/job1/audio');
+  vi.mocked(api.listCuePoints).mockResolvedValue([]);
 });
 
 describe('AudioPlayer', () => {
@@ -231,6 +232,37 @@ describe('AudioPlayer speed, zoom and shortcuts', () => {
     expect(screen.getByText('Zoom 2×')).toBeInTheDocument();
     fireEvent.keyDown(document.body, { key: '-' });
     expect(screen.getByText('Zoom 1×')).toBeInTheDocument();
+  });
+
+  it('marks cue points with M, lists them and draws them on the waveform', async () => {
+    const saved = {
+      id: 1,
+      position_seconds: 15,
+      note: 'menciona a morada',
+      created_by: 'ana',
+      created_at: '2026-10-25T10:00:00Z',
+      updated_at: '2026-10-25T10:00:00Z',
+    };
+    vi.mocked(api.listCuePoints).mockResolvedValue([saved]);
+    vi.mocked(api.createCuePoint).mockResolvedValue({
+      ...saved,
+      id: 2,
+      position_seconds: 30,
+      note: '',
+    });
+    const { audio } = await renderLoaded(120);
+    await screen.findByDisplayValue('menciona a morada');
+    playTo(audio, 30);
+
+    fireEvent.keyDown(document.body, { key: 'm' });
+
+    await waitFor(() => expect(api.createCuePoint).toHaveBeenCalledWith('job1', 30));
+    // Listed (its time) and drawn (a marker): both seek to it.
+    expect(await screen.findAllByRole('button', { name: '0:30' })).toHaveLength(2);
+    // A marker per cue point over the waveform; clicking one seeks there.
+    const marker = screen.getByRole('button', { name: '0:15 · menciona a morada' });
+    fireEvent.click(marker);
+    expect(audio.currentTime).toBe(15);
   });
 
   it('ignores shortcuts while typing or while a dialog is open', async () => {
