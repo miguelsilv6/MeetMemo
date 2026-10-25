@@ -7,6 +7,7 @@ import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColor
 import { formatTime } from '../../utils/timeFormat';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 import { LOW_WORD_PROBABILITY, matchingWords } from '../../utils/wordConfidence';
+import OriginalTimes from './OriginalTimes';
 
 interface TranscriptSegmentProps {
   segment: TranscriptSegmentType;
@@ -134,6 +135,7 @@ export default function TranscriptSegment({
             <small className="text-muted segment-timestamp">
               {formatTime(segment.start)} - {formatTime(segment.end)}
             </small>
+            <OriginalTimes segment={segment} onSeekToSegment={onSeekToSegment} />
             <Button
               variant="link"
               size="sm"

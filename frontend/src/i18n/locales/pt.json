@@ -99,6 +99,8 @@
     "loadingKanban": "A carregar vista Kanban…",
     "currentlyPlaying": "A reproduzir atualmente",
     "playFromHere": "Reproduzir a partir daqui",
+    "originalTimes": "original {{start}} – {{end}}",
+    "originalTimesHint": "Tempos ajustados ao mover esta fala. Clica para a ouvir onde foi dita.",
     "editThisSegment": "Editar este segmento",
     "editHint": "Duplo clique para editar",
     "insertSegmentAfter": "Inserir segmento a seguir a este",

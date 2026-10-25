@@ -17,6 +17,7 @@ import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
 import { formatTime } from '../../utils/timeFormat';
 import { findActiveSegmentIndex } from '../../utils/activeSegment';
+import type { DropPlacement } from '../../utils/moveSegment';
 import type { TranslationProgress } from '../../hooks/useTranslation';
 import type {
   LlmTask,
@@ -40,6 +41,8 @@ interface TranscriptViewProps {
   handleEditSpeakers: () => void;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   handleMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  /** Moves a segment before/after another one (Kanban drag between bubbles). */
+  handleMoveSegmentTo?: (index: number, targetIndex: number, placement: DropPlacement) => void;
   handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   handleDeleteSegments: (indices: number[]) => void;
   handleInsertSegmentAfter: (index: number) => void;
@@ -72,6 +75,7 @@ export default function TranscriptView({
   handleEditSpeakers,
   handleEditText,
   handleMoveSegmentSpeaker,
+  handleMoveSegmentTo,
   handleBulkMoveSegments,
   handleDeleteSegments,
   handleInsertSegmentAfter,
@@ -332,6 +336,7 @@ export default function TranscriptView({
                     handleEditText={handleEditText}
                     onSeekToSegment={handleSeekToSegment}
                     onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                    onMoveSegmentTo={handleMoveSegmentTo}
                     onBulkMoveSegments={handleBulkMoveSegments}
                     onDeleteSegments={handleDeleteSegments}
                     onInsertSegmentAfter={handleInsertSegmentAfter}

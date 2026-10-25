@@ -99,6 +99,8 @@
     "loadingKanban": "Loading Kanban view…",
     "currentlyPlaying": "Currently playing",
     "playFromHere": "Play from here",
+    "originalTimes": "original {{start}} – {{end}}",
+    "originalTimesHint": "Times adjusted when this line was moved. Click to hear it where it was spoken.",
     "editThisSegment": "Edit this segment",
     "editHint": "Double-click to edit",
     "insertSegmentAfter": "Insert segment after this one",

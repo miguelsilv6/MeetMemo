@@ -10,6 +10,8 @@ export interface TranscriptSegment {
   low_confidence?: boolean;
   /** Each word with its timing and the speech model's confidence (absent once edited). */
   words?: TranscriptWord[];
+  /** The speaker and times it was transcribed with, kept once it is moved to other times. */
+  original?: { speaker: string; start: number; end: number };
 }
 
 /** One word of a segment, as the speech model heard it. */

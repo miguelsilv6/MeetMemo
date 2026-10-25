@@ -104,6 +104,50 @@ describe('useTranscript', () => {
     expect(setError).toHaveBeenCalledWith('network down');
   });
 
+  it('moves a segment between two lines of another speaker, saves it and can undo it', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const call: TranscriptSegment[] = [
+      { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'one' },
+      { speaker: 'SPEAKER_00', start: 3, end: 5, text: 'two' },
+      { speaker: 'SPEAKER_00', start: 10, end: 12, text: 'three' },
+      { speaker: 'SPEAKER_01', start: 40, end: 43, text: 'reply' },
+    ];
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: call });
+    });
+    await act(async () => {
+      await result.current.handleMoveSegmentTo(3, 1, 'after');
+    });
+
+    const [, saved] = vi.mocked(api.updateTranscript).mock.calls[0];
+    expect(saved.map((s) => s.text)).toEqual(['one', 'two', 'reply', 'three']);
+    expect(saved[2]).toMatchObject({ speaker: 'SPEAKER_00', start: 5, end: 8 });
+    expect(result.current.transcript?.segments).toEqual(saved);
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+    expect(result.current.transcript?.segments).toEqual(call);
+  });
+
+  it('rolls back a move next to another segment if the API call fails', async () => {
+    const setError = vi.fn();
+    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useTranscript('job1', setError));
+
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    await act(async () => {
+      await result.current.handleMoveSegmentTo(2, 0, 'before');
+    });
+
+    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
+    expect(setError).toHaveBeenCalledWith('network down');
+  });
+
   it('bulk-reassigns several segments to another speaker in one API call', async () => {
     vi.mocked(api.updateTranscript).mockResolvedValue({});
     const { result } = renderHook(() => useTranscript('job1', vi.fn()));
