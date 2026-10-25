@@ -28,6 +28,8 @@ export default function useJobHistory(
   const { t } = useTranslation();
   const [recentJobs, setRecentJobs] = useState<RecentJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
+  // A transcript is being opened: the page shows a spinner meanwhile.
+  const [openingJob, setOpeningJob] = useState(false);
 
   // Fetch recent jobs
   const fetchRecentJobs = async () => {
@@ -75,6 +77,7 @@ export default function useJobHistory(
 
   // Load a past job
   const handleLoadJob = async (job: RecentJob) => {
+    setOpeningJob(true);
     try {
       setError(null);
       setJobId(job.uuid);
@@ -103,6 +106,8 @@ export default function useJobHistory(
       }
     } catch (err) {
       setError((err as Error).message || t('errors.loadJob'));
+    } finally {
+      setOpeningJob(false);
     }
   };
 
@@ -124,6 +129,7 @@ export default function useJobHistory(
     loadingJobs,
     fetchRecentJobs,
     handleLoadJob,
+    openingJob,
     handleDeleteJob,
   };
 }

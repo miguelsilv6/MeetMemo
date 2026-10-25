@@ -677,6 +677,60 @@
   flex: 1;
 }
 
+/* A note reads as text; clicking it (or the pencil) edits it in place. */
+.cue-point-note-text {
+  flex: 1;
+  min-width: 0;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  background: none;
+  color: var(--text-primary, inherit);
+  font-size: 0.875rem;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+
+.cue-point-note-text:hover,
+.cue-point-note-text:focus-visible {
+  border-color: var(--border);
+  background-color: var(--mm-surface-hover, rgba(0, 0, 0, 0.03));
+  outline: none;
+}
+
+.cue-point-note-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.cue-point-edit-btn,
+.cue-point-editor-btn {
+  color: var(--text-secondary);
+}
+
+/* The pencil shows on hover or focus (always on touch screens). */
+@media (hover: hover) {
+  .cue-point-edit-btn {
+    opacity: 0;
+  }
+
+  .cue-point-row:hover .cue-point-edit-btn,
+  .cue-point-edit-btn:focus-visible {
+    opacity: 1;
+  }
+}
+
+.cue-point-editor {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 /* Channel to hear: highlighted when only one channel is playing */
 .audio-channel {
   color: var(--text-secondary);
@@ -1454,4 +1508,25 @@ button.kanban-add-column:hover {
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
   cursor: help;
+}
+
+/* Opening a transcript: a spinner in place of the page, faded in so a quick
+   load does not flash. */
+.loading-view {
+  animation: loading-view-in 150ms ease-in 150ms both;
+}
+
+@keyframes loading-view-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-view {
+    animation: none;
+  }
 }

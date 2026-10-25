@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import type { MouseEvent } from 'react';
 import { Alert, Button, Form } from '@govtechsg/sgds-react';
-import { Bookmark, CircleQuestionMark, Trash2 } from 'lucide-react';
+import { Bookmark, Check, CircleQuestionMark, Pencil, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatTime } from '../../utils/timeFormat';
 import type { CuePoint } from '../../types/api';
@@ -19,9 +20,10 @@ interface CuePointListProps {
 const MAX_NOTE_LENGTH = 500;
 
 /**
- * The audio's cue points under the player: click a time to jump there, type a
- * note (saved when leaving the field or on Enter; Escape cancels), or remove one.
- * How to use them is behind a "?" next to the title.
+ * The audio's cue points under the player: click a time to jump there, read
+ * each note, edit it in place (click it or the pencil), or remove a cue point.
+ * A cue point just added opens for its note. How to use them is behind a "?"
+ * next to the title.
  */
 export default function CuePointList({
   cuePoints,
@@ -34,6 +36,15 @@ export default function CuePointList({
 }: CuePointListProps) {
   const { t } = useTranslation();
   const [showHelp, setShowHelp] = useState(false);
+  // The cue point whose note is being edited (one at a time); a new one opens too.
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const editing = editingId ?? addedId;
+
+  // Leave the editor: saving a note the same as before saves nothing.
+  const finishEditing = (cue: CuePoint, note: string) => {
+    setEditingId(null);
+    onUpdateNote(cue.id, note);
+  };
 
   return (
     <div className="cue-point-list" data-testid="cue-point-list">
@@ -88,25 +99,36 @@ export default function CuePointList({
               >
                 {formatTime(cue.position_seconds)}
               </Button>
-              <Form.Control
-                // A new key when the saved note changes resets what was typed.
-                key={`${cue.id}-${cue.updated_at}`}
-                size="sm"
-                className="cue-point-note"
-                defaultValue={cue.note}
-                maxLength={MAX_NOTE_LENGTH}
-                placeholder={t('cuePoints.notePlaceholder')}
-                aria-label={t('cuePoints.noteLabel', { time: formatTime(cue.position_seconds) })}
-                autoFocus={cue.id === addedId}
-                onBlur={(e) => onUpdateNote(cue.id, e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') {
-                    e.currentTarget.value = cue.note;
-                    e.currentTarget.blur();
-                  }
-                }}
-              />
+              {editing === cue.id ? (
+                <NoteEditor
+                  cue={cue}
+                  onSave={(note) => finishEditing(cue, note)}
+                  onCancel={() => finishEditing(cue, cue.note)}
+                />
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={`cue-point-note-text ${cue.note ? '' : 'cue-point-note-empty'}`}
+                    onClick={() => setEditingId(cue.id)}
+                    title={cue.note || t('cuePoints.editNote')}
+                  >
+                    {cue.note || t('cuePoints.noNote')}
+                  </button>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 cue-point-edit-btn"
+                    onClick={() => setEditingId(cue.id)}
+                    title={t('cuePoints.editNote')}
+                    aria-label={t('cuePoints.noteLabel', {
+                      time: formatTime(cue.position_seconds),
+                    })}
+                  >
+                    <Pencil size={14} />
+                  </Button>
+                </>
+              )}
               <Button
                 variant="link"
                 size="sm"
@@ -122,6 +144,75 @@ export default function CuePointList({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * The note of one cue point being edited: Enter or ✓ saves, Escape or ✗
+ * cancels, and leaving the field saves too (nothing typed is lost).
+ */
+function NoteEditor({
+  cue,
+  onSave,
+  onCancel,
+}: {
+  cue: CuePoint;
+  onSave: (note: string) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation();
+  const [note, setNote] = useState(cue.note);
+  // Saved or cancelled already: the blur that follows must not save again.
+  const [done, setDone] = useState(false);
+  const finish = (save: boolean) => {
+    if (done) return;
+    setDone(true);
+    if (save) onSave(note);
+    else onCancel();
+  };
+  // The buttons act before the field loses the focus.
+  const keepFocus = (e: MouseEvent) => e.preventDefault();
+
+  return (
+    <div className="cue-point-editor">
+      <Form.Control
+        size="sm"
+        className="cue-point-note"
+        value={note}
+        maxLength={MAX_NOTE_LENGTH}
+        placeholder={t('cuePoints.notePlaceholder')}
+        aria-label={t('cuePoints.noteLabel', { time: formatTime(cue.position_seconds) })}
+        autoFocus
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={() => finish(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') finish(true);
+          if (e.key === 'Escape') finish(false);
+        }}
+      />
+      <Button
+        variant="link"
+        size="sm"
+        className="p-0 cue-point-editor-btn"
+        onMouseDown={keepFocus}
+        onClick={() => finish(true)}
+        title={t('cuePoints.saveNote')}
+        aria-label={t('cuePoints.saveNote')}
+      >
+        <Check size={16} />
+      </Button>
+      <Button
+        variant="link"
+        size="sm"
+        className="p-0 cue-point-editor-btn"
+        onMouseDown={keepFocus}
+        onClick={() => finish(false)}
+        title={t('cuePoints.cancelEdit')}
+        aria-label={t('cuePoints.cancelEdit')}
+      >
+        <X size={16} />
+      </Button>
     </div>
   );
 }

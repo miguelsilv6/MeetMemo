@@ -895,7 +895,11 @@
       "load": "The cue points could not be loaded.",
       "save": "The cue point could not be saved.",
       "delete": "The cue point could not be removed."
-    }
+    },
+    "noNote": "No note",
+    "editNote": "Edit the note",
+    "saveNote": "Save the note",
+    "cancelEdit": "Cancel"
   },
   "reprocess": {
     "open": "Transcribe again from the start",
@@ -906,5 +910,8 @@
     "confirm": "Transcribe again",
     "starting": "Restarting…",
     "failed": "The processing could not be restarted."
+  },
+  "loading": {
+    "openingTranscript": "Opening the transcript…"
   }
 }

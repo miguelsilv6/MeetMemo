@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import useJobHistory from './useJobHistory';
 import * as api from '../services/api';
+import type { Transcript } from '../types/api';
 
 vi.mock('../services/api');
 
@@ -124,6 +125,39 @@ describe('useJobHistory', () => {
     });
 
     expect(setError).toHaveBeenCalledWith(expect.stringMatching(/transcript not found/i));
+  });
+
+  it('is opening a job while its transcript loads, and stops after (also on failure)', async () => {
+    vi.mocked(api.getJobs).mockResolvedValue({ jobs: {} });
+    let respond: (value: Transcript) => void = () => {};
+    vi.mocked(api.getTranscript).mockReturnValue(
+      new Promise<Transcript>((resolve) => {
+        respond = resolve;
+      })
+    );
+    const { hook } = setup();
+    expect(hook.result.current.openingJob).toBe(false);
+
+    let loading: Promise<void> = Promise.resolve();
+    act(() => {
+      loading = hook.result.current.handleLoadJob({
+        uuid: 'u1',
+        filename: 'a.mp3',
+        status_code: 200,
+      });
+    });
+    expect(hook.result.current.openingJob).toBe(true);
+    await act(async () => {
+      respond({ segments: [] });
+      await loading;
+    });
+    expect(hook.result.current.openingJob).toBe(false);
+
+    vi.mocked(api.getTranscript).mockRejectedValue(new Error('network down'));
+    await act(async () => {
+      await hook.result.current.handleLoadJob({ uuid: 'u1', filename: 'a.mp3', status_code: 200 });
+    });
+    expect(hook.result.current.openingJob).toBe(false);
   });
 
   it('deletes a job then refreshes the list', async () => {
