@@ -37,6 +37,7 @@ import Footer from './components/Layout/Footer';
 
 // Common Components
 import LoadingScreen from './components/Common/LoadingScreen';
+import LoadingView from './components/Common/LoadingView';
 import ErrorAlert from './components/Common/ErrorAlert';
 
 // View Components
@@ -191,7 +192,7 @@ function App() {
   );
 
   // Job history
-  const { recentJobs, loadingJobs, fetchRecentJobs, handleLoadJob, handleDeleteJob } =
+  const { recentJobs, loadingJobs, fetchRecentJobs, handleLoadJob, openingJob, handleDeleteJob } =
     useJobHistory(
       backendReady && signedIn,
       setTranscriptWithColors,
@@ -437,6 +438,8 @@ function App() {
               window.location.hash = projectRoute(uuid);
             }}
           />
+        ) : openingJob ? (
+          <LoadingView message={t('loading.openingTranscript')} />
         ) : (
           <>
             <ErrorAlert error={error} onClose={() => setError(null)} />

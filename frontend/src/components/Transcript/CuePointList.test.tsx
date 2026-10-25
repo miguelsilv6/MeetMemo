@@ -58,23 +58,64 @@ describe('CuePointList', () => {
     expect(props.onSeek).toHaveBeenCalledWith(75);
   });
 
-  it('saves a note when leaving the field or on Enter', () => {
-    const { props } = renderList();
-    const note = screen.getByLabelText('Note for the cue point at 1:15');
-    fireEvent.change(note, { target: { value: 'pede dinheiro' } });
-    fireEvent.keyDown(note, { key: 'Enter' });
-    fireEvent.blur(note);
-    expect(props.onUpdateNote).toHaveBeenLastCalledWith(2, 'pede dinheiro');
+  it('shows each note as text, with no fields until one is edited', () => {
+    renderList();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'menciona a morada' })).toBeInTheDocument();
+    // A cue point without a note says so.
+    expect(screen.getByRole('button', { name: 'No note' })).toHaveClass('cue-point-note-empty');
   });
 
-  it('Escape puts the saved note back', () => {
+  it('edits a note from the pencil or the note itself, saving on Enter', () => {
     const { props } = renderList();
-    const note = screen.getByLabelText('Note for the cue point at 0:12') as HTMLInputElement;
-    fireEvent.change(note, { target: { value: 'typo' } });
-    fireEvent.keyDown(note, { key: 'Escape' });
-    fireEvent.blur(note);
-    expect(note.value).toBe('menciona a morada');
+    fireEvent.click(screen.getByRole('button', { name: 'Note for the cue point at 1:15' }));
+    const field = screen.getByRole('textbox', { name: 'Note for the cue point at 1:15' });
+    expect(field).toHaveFocus();
+    fireEvent.change(field, { target: { value: 'pede dinheiro' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(props.onUpdateNote).toHaveBeenCalledTimes(1);
+    expect(props.onUpdateNote).toHaveBeenLastCalledWith(2, 'pede dinheiro');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'menciona a morada' }));
+    expect(screen.getByRole('textbox')).toHaveValue('menciona a morada');
+  });
+
+  it('saves with ✓ or when leaving the field', () => {
+    const { props } = renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'menciona a morada' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'morada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save the note' }));
+    expect(props.onUpdateNote).toHaveBeenLastCalledWith(1, 'morada');
+
+    fireEvent.click(screen.getByRole('button', { name: 'No note' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'pausa longa' } });
+    fireEvent.blur(screen.getByRole('textbox'));
+    expect(props.onUpdateNote).toHaveBeenLastCalledWith(2, 'pausa longa');
+  });
+
+  it('Escape or ✗ leaves the note as it was', () => {
+    const { props } = renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'menciona a morada' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'typo' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
     expect(props.onUpdateNote).toHaveBeenLastCalledWith(1, 'menciona a morada');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'menciona a morada' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'typo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(props.onUpdateNote).toHaveBeenLastCalledWith(1, 'menciona a morada');
+  });
+
+  it('edits one note at a time', () => {
+    renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'Note for the cue point at 0:12' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Note for the cue point at 1:15' }));
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(
+      screen.getByRole('textbox', { name: 'Note for the cue point at 1:15' })
+    ).toBeInTheDocument();
   });
 
   it('removes a cue point', () => {
@@ -83,8 +124,8 @@ describe('CuePointList', () => {
     expect(props.onRemove).toHaveBeenCalledWith(2);
   });
 
-  it('focuses the note of the cue point just added', () => {
+  it('opens the note of the cue point just added', () => {
     renderList({ addedId: 2 });
-    expect(screen.getByLabelText('Note for the cue point at 1:15')).toHaveFocus();
+    expect(screen.getByRole('textbox', { name: 'Note for the cue point at 1:15' })).toHaveFocus();
   });
 });

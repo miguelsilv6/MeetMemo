@@ -251,7 +251,7 @@ describe('AudioPlayer speed, zoom and shortcuts', () => {
       note: '',
     });
     const { audio } = await renderLoaded(120);
-    await screen.findByDisplayValue('menciona a morada');
+    await screen.findByRole('button', { name: 'menciona a morada' });
     playTo(audio, 30);
 
     fireEvent.keyDown(document.body, { key: 'm' });
