@@ -636,6 +636,11 @@
   margin-top: 0.75rem;
 }
 
+.cue-point-help-btn {
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
 .cue-point-row {
   display: flex;
   align-items: center;

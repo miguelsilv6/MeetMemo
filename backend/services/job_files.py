@@ -76,6 +76,19 @@ async def remove_files(paths: Iterable[str], job_uuid: str) -> list[str]:
     return removed
 
 
+def asr_file_paths(settings: Settings, job_uuid: str) -> list[str]:
+    """
+    Paths of the audio's ASR copies (existing or not): the 16 kHz copy, the
+    channel analysis and each channel's copy. Deleting them makes the next
+    transcription prepare the audio again, with the settings in effect then.
+    """
+    return [
+        asr_audio_path(settings.upload_dir, str(job_uuid)),
+        channel_analysis_path(settings.upload_dir, str(job_uuid)),
+        *(channel_asr_path(settings.upload_dir, str(job_uuid), n) for n in range(CHANNELS)),
+    ]
+
+
 def job_file_paths(
     settings: Settings,
     job_uuid: str,
@@ -84,9 +97,7 @@ def job_file_paths(
 ) -> list[str]:
     """Paths of every file the job may have created (existing or not)."""
     paths = [
-        asr_audio_path(settings.upload_dir, str(job_uuid)),
-        channel_analysis_path(settings.upload_dir, str(job_uuid)),
-        *(channel_asr_path(settings.upload_dir, str(job_uuid), n) for n in range(CHANNELS)),
+        *asr_file_paths(settings, job_uuid),
         os.path.join(settings.summary_dir, f"{job_uuid}.txt"),
     ]
     if file_name:

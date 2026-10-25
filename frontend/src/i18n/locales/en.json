@@ -882,7 +882,8 @@
     "title": "Cue points ({{count}})",
     "add": "Mark",
     "addHint": "Mark the current time to come back to it (M)",
-    "empty": "No cue points yet. Press M while listening to mark a moment of interest.",
+    "help": "Press M while listening, or Mark, to mark a moment of interest. Click its time or its marker on the waveform to go back to it.",
+    "helpLabel": "How to use cue points",
     "jump": "Play from here",
     "notePlaceholder": "Note (optional)",
     "noteLabel": "Note for the cue point at {{time}}",
@@ -892,5 +893,15 @@
       "save": "The cue point could not be saved.",
       "delete": "The cue point could not be removed."
     }
+  },
+  "reprocess": {
+    "open": "Transcribe again from the start",
+    "title": "Transcribe again from the start",
+    "settings": "The audio goes through the whole process again — audio preparation, language detection, transcription, speaker identification and alignment — with the admin panel's current settings (model, language and stereo mode).",
+    "kept": "The audio, its cue points and the number of speakers given at upload are kept. No token is spent.",
+    "warning": "The current transcript and its edits, the summary, translations and exports are replaced and cannot be recovered.",
+    "confirm": "Transcribe again",
+    "starting": "Restarting…",
+    "failed": "The processing could not be restarted."
   }
 }

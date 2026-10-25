@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Alert, Button, Form } from '@govtechsg/sgds-react';
-import { Bookmark, Trash2 } from 'lucide-react';
+import { Bookmark, CircleQuestionMark, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatTime } from '../../utils/timeFormat';
 import type { CuePoint } from '../../types/api';
@@ -20,6 +21,7 @@ const MAX_NOTE_LENGTH = 500;
 /**
  * The audio's cue points under the player: click a time to jump there, type a
  * note (saved when leaving the field or on Enter; Escape cancels), or remove one.
+ * How to use them is behind a "?" next to the title.
  */
 export default function CuePointList({
   cuePoints,
@@ -31,13 +33,28 @@ export default function CuePointList({
   onRemove,
 }: CuePointListProps) {
   const { t } = useTranslation();
+  const [showHelp, setShowHelp] = useState(false);
 
   return (
     <div className="cue-point-list" data-testid="cue-point-list">
       <div className="d-flex align-items-center justify-content-between">
-        <h6 className="mb-0 small fw-semibold">
-          {t('cuePoints.title', { count: cuePoints.length })}
-        </h6>
+        <div className="d-flex align-items-center gap-1">
+          <h6 className="mb-0 small fw-semibold">
+            {t('cuePoints.title', { count: cuePoints.length })}
+          </h6>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 cue-point-help-btn"
+            onClick={() => setShowHelp((shown) => !shown)}
+            title={t('cuePoints.help')}
+            aria-label={t('cuePoints.helpLabel')}
+            aria-expanded={showHelp}
+            aria-controls="cue-point-help"
+          >
+            <CircleQuestionMark size={14} />
+          </Button>
+        </div>
         <Button
           variant="outline-secondary"
           size="sm"
@@ -53,9 +70,12 @@ export default function CuePointList({
           {error}
         </Alert>
       )}
-      {cuePoints.length === 0 ? (
-        <p className="text-muted small mb-0 mt-1">{t('cuePoints.empty')}</p>
-      ) : (
+      {showHelp && (
+        <p id="cue-point-help" className="text-muted small mb-0 mt-1">
+          {t('cuePoints.help')}
+        </p>
+      )}
+      {cuePoints.length > 0 && (
         <ul className="list-unstyled mb-0 mt-1">
           {cuePoints.map((cue) => (
             <li key={cue.id} className="cue-point-row">

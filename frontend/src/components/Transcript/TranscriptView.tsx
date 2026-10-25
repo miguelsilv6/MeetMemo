@@ -66,6 +66,8 @@ interface TranscriptViewProps {
   handleRetranscribe?: (language: string) => Promise<void>;
   /** Pre-selected language for that. */
   retranscribeLanguage?: string | null;
+  /** Process the audio again from the very start (administrator only). */
+  handleReprocess?: () => Promise<void>;
 }
 
 export default function TranscriptView({
@@ -94,6 +96,7 @@ export default function TranscriptView({
   handleUndo,
   handleRetranscribe,
   retranscribeLanguage = null,
+  handleReprocess,
 }: TranscriptViewProps) {
   const { t } = useTranslation();
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
@@ -394,6 +397,7 @@ export default function TranscriptView({
           jobId={jobId}
           onRetranscribe={handleRetranscribe}
           retranscribeLanguage={retranscribeLanguage}
+          onReprocess={handleReprocess}
         />
       </Col>
 

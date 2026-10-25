@@ -505,6 +505,13 @@ export async function startTranscription(
   });
 }
 
+// Process a completed audio again from the very start, with the admin panel's
+// current settings (administrator only). Its transcript and everything made
+// from it are deleted; its cue points stay; no token is charged.
+export async function reprocessJob(uuid: string): Promise<unknown> {
+  return await apiCall(`/jobs/${uuid}/reprocess`, { method: 'POST' });
+}
+
 // Transcribe a completed audio again in the given language (Whisper code).
 // Everything made from its old transcript is deleted; no token is charged.
 export async function retranscribeJob(uuid: string, language: string): Promise<unknown> {

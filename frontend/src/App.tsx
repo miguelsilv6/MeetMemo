@@ -242,6 +242,20 @@ function App() {
     if (!jobId) return;
     const uuid = jobId;
     await api.retranscribeJob(uuid, language);
+    restartProcessing(uuid);
+  };
+
+  // The administrator processes the audio again from the very start.
+  const handleReprocess = async () => {
+    if (!jobId) return;
+    const uuid = jobId;
+    await api.reprocessJob(uuid);
+    restartProcessing(uuid);
+  };
+
+  // An audio put back at the start is processed again: by its project's queue,
+  // or here step by step, as after an upload.
+  const restartProcessing = (uuid: string) => {
     if (openedFromProject) {
       window.location.hash = projectRoute(openedFromProject.uuid);
       return;
@@ -485,6 +499,7 @@ function App() {
                 handleUndo={handleUndo}
                 handleRetranscribe={handleRetranscribe}
                 retranscribeLanguage={selectedLanguage}
+                handleReprocess={me?.is_admin ? handleReprocess : undefined}
               />
             )}
 

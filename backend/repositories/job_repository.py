@@ -169,24 +169,44 @@ class JobRepository:
     async def reset_for_retranscription(self, uuid: str, language: str) -> Optional[list[str]]:
         """
         Put a completed audio back at the start, to be transcribed again in
-        ``language``: its transcription and diarization data, exports and
-        summary/translation tasks are dropped, and its token is no longer
-        refundable (it paid for the first transcription).
+        ``language`` (with the model it was transcribed with): its
+        transcription and diarization data, exports and summary/translation
+        tasks are dropped, and its token is no longer refundable (it paid for
+        the first transcription).
 
         Returns:
             The paths of the export files to delete, or None if the audio is
             not completed (still processing, failed, or gone).
         """
+        return await self._reset(uuid, language, clear_model=False)
+
+    async def reset_for_reprocessing(self, uuid: str) -> Optional[list[str]]:
+        """
+        Put a completed audio back at the start, to be processed again with
+        the admin panel's current settings: as ``reset_for_retranscription``,
+        but its language and model are cleared too, so the panel's model and
+        language (or detection) apply.
+
+        Returns:
+            The paths of the export files to delete, or None if the audio is
+            not completed.
+        """
+        return await self._reset(uuid, None, clear_model=True)
+
+    async def _reset(
+        self, uuid: str, language: Optional[str], clear_model: bool
+    ) -> Optional[list[str]]:
         async with get_db() as conn:
             async with conn.transaction():
                 reset = await conn.fetchval(
                     """UPDATE jobs SET workflow_state = 'uploaded', status_code = 202,
                                       current_step_progress = 0, error_message = NULL,
                                       language = $2, transcription_data = NULL,
-                                      diarization_data = NULL, token_refundable = FALSE
+                                      diarization_data = NULL, token_refundable = FALSE,
+                                      model_name = CASE WHEN $3 THEN NULL ELSE model_name END
                        WHERE uuid = $1 AND workflow_state = 'completed'
                        RETURNING uuid""",
-                    uuid, language,
+                    uuid, language, clear_model,
                 )
                 if reset is None:
                     return None
