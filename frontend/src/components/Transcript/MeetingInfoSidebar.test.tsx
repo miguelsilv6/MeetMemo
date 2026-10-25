@@ -239,3 +239,43 @@ describe('MeetingInfoSidebar calls transcribed per channel', () => {
     expect(within(dialog).getByTestId('channels-differ')).toHaveTextContent(/both channels/);
   });
 });
+
+describe('MeetingInfoSidebar transcribing again from the start', () => {
+  it('offers it only when given (the administrator)', () => {
+    renderSidebar();
+    expect(
+      screen.queryByRole('button', { name: 'Transcribe again from the start' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('warns what is replaced and kept, then starts over', async () => {
+    const onReprocess = vi.fn().mockResolvedValue(undefined);
+    renderSidebar({ onReprocess });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transcribe again from the start' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/admin panel's current settings/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/its cue points .* are kept/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/cannot be recovered/)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Transcribe again' }));
+    await waitFor(() => expect(onReprocess).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('shows why it could not start over and stays open', async () => {
+    const onReprocess = vi
+      .fn()
+      .mockRejectedValue(
+        new Error('Only an audio whose processing has finished can be transcribed again.')
+      );
+    renderSidebar({ onReprocess });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transcribe again from the start' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Transcribe again' }));
+
+    expect(await within(dialog).findByText(/processing has finished/)).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+});

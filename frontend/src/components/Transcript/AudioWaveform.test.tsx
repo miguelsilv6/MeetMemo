@@ -133,9 +133,9 @@ describe('AudioWaveform', () => {
 
       expect(canvas).toHaveAttribute('data-lanes', '2');
       expect(canvas).toHaveClass('audio-waveform-split');
-      // Two 40px lanes and the gap between them.
-      expect(canvas).toHaveAttribute('height', '86');
-      expect(canvas.style.height).toBe('86px');
+      // Two 64px lanes and the gap between them.
+      expect(canvas).toHaveAttribute('height', '134');
+      expect(canvas.style.height).toBe('134px');
     });
 
     it('labels the left and right lanes', () => {
@@ -143,7 +143,7 @@ describe('AudioWaveform', () => {
       const labels = [...container.querySelectorAll('.audio-waveform-lane-label')];
 
       expect(labels.map((label) => label.textContent)).toEqual(['L', 'R']);
-      expect(labels.map((label) => (label as HTMLElement).style.top)).toEqual(['0px', '46px']);
+      expect(labels.map((label) => (label as HTMLElement).style.top)).toEqual(['0px', '70px']);
     });
 
     it('draws the mixed envelope in the combined layout', () => {

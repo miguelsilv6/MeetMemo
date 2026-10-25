@@ -28,11 +28,28 @@ function renderList(overrides: Partial<ComponentProps<typeof CuePointList>> = {}
 }
 
 describe('CuePointList', () => {
-  it('explains how to add one while there are none', () => {
+  it('adds one with the button; an empty list has no text of its own', () => {
     const { props } = renderList({ cuePoints: [] });
-    expect(screen.getByText(/Press M while listening/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Mark/ }));
+    expect(screen.queryByText(/Press M while listening/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Mark$/ }));
     expect(props.onAdd).toHaveBeenCalled();
+  });
+
+  it('explains how to use cue points behind the "?"', () => {
+    renderList();
+    const help = screen.getByRole('button', { name: 'How to use cue points' });
+    expect(help).toHaveAttribute('title', expect.stringMatching(/^Press M while listening/));
+    expect(help).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(help);
+    expect(help).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(/^Press M while listening/, { selector: 'p' })).toBeInTheDocument();
+
+    fireEvent.click(help);
+    expect(
+      screen.queryByText(/^Press M while listening/, { selector: 'p' })
+    ).not.toBeInTheDocument();
   });
 
   it('jumps to a cue point from its time', () => {

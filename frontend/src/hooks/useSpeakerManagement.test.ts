@@ -60,3 +60,72 @@ describe('useSpeakerManagement.handleSaveSpeakers', () => {
     expect(updated.segments?.[1].speaker).toBe('SPEAKER_01');
   });
 });
+
+describe('useSpeakerManagement.askSpeakerNamesBefore', () => {
+  function renderAsking() {
+    const next = vi.fn();
+    const hook = renderHook(() => useSpeakerManagement('job1', transcript, vi.fn(), vi.fn()));
+    act(() => {
+      hook.result.current.askSpeakerNamesBefore(next);
+    });
+    return { ...hook, next };
+  }
+
+  it('opens the editor before the next step and runs it once the names are saved', async () => {
+    vi.mocked(api.updateSpeakers).mockResolvedValue({});
+    const { result, next } = renderAsking();
+    expect(result.current.showEditSpeakersModal).toBe(true);
+    expect(result.current.beforeNextStep).toBe(true);
+    expect(next).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.handleSaveSpeakers();
+    });
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(result.current.showEditSpeakersModal).toBe(false);
+    expect(result.current.beforeNextStep).toBe(false);
+  });
+
+  it('goes on without renaming when skipped', () => {
+    const { result, next } = renderAsking();
+    act(() => {
+      result.current.handleSkipSpeakers();
+    });
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(api.updateSpeakers).not.toHaveBeenCalled();
+    expect(result.current.showEditSpeakersModal).toBe(false);
+  });
+
+  it('does not go on when cancelled, nor when saving fails', async () => {
+    const { result, next } = renderAsking();
+    act(() => {
+      result.current.handleCancelEditSpeakers();
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(result.current.showEditSpeakersModal).toBe(false);
+
+    vi.mocked(api.updateSpeakers).mockRejectedValue(new Error('network down'));
+    act(() => {
+      result.current.askSpeakerNamesBefore(next);
+    });
+    await act(async () => {
+      await result.current.handleSaveSpeakers();
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(result.current.showEditSpeakersModal).toBe(true);
+  });
+
+  it('a plain edit (not before a step) runs nothing after saving', async () => {
+    vi.mocked(api.updateSpeakers).mockResolvedValue({});
+    const { result, next } = renderAsking();
+    act(() => {
+      result.current.handleCancelEditSpeakers();
+      result.current.handleEditSpeakers();
+    });
+    expect(result.current.beforeNextStep).toBe(false);
+    await act(async () => {
+      await result.current.handleSaveSpeakers();
+    });
+    expect(next).not.toHaveBeenCalled();
+  });
+});

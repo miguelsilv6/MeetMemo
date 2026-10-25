@@ -52,6 +52,7 @@ import ProjectView from './components/Projects/ProjectView';
 
 // Modal Components
 import EditSpeakersModal from './components/Modals/EditSpeakersModal';
+import { hasDefaultSpeakerNames } from './utils/speakerNames';
 import EditTextModal from './components/Modals/EditTextModal';
 import EditSummaryModal from './components/Modals/EditSummaryModal';
 import RecordingModal from './components/Modals/RecordingModal';
@@ -136,9 +137,12 @@ function App() {
     editingSpeakers,
     setEditingSpeakers,
     showEditSpeakersModal,
-    setShowEditSpeakersModal,
     handleEditSpeakers,
     handleSaveSpeakers,
+    askSpeakerNamesBefore,
+    beforeNextStep: speakerNamesBeforeSummary,
+    handleSkipSpeakers,
+    handleCancelEditSpeakers,
   } = useSpeakerManagement(jobId, transcript, setTranscriptWithColors, setError);
 
   // Transcript polling (defined before useFileUpload that depends on it)
@@ -213,6 +217,16 @@ function App() {
     handleSaveSummary,
   } = useSummary(jobId, setCurrentStep, setError);
 
+  // A new AI summary uses the speakers' names: while any is still a
+  // SPEAKER_xx label, ask for them first (the user may go on without).
+  const handleGenerateSummaryWithNames = () => {
+    if (!summary?.summary && hasDefaultSpeakerNames(transcript?.segments)) {
+      askSpeakerNamesBefore(handleGenerateSummary);
+      return;
+    }
+    handleGenerateSummary();
+  };
+
   // View a past job's summary directly from Recent Meetings, without making
   // the user regenerate it — the backend serves the cached copy for a job
   // that already has one.
@@ -242,6 +256,20 @@ function App() {
     if (!jobId) return;
     const uuid = jobId;
     await api.retranscribeJob(uuid, language);
+    restartProcessing(uuid);
+  };
+
+  // The administrator processes the audio again from the very start.
+  const handleReprocess = async () => {
+    if (!jobId) return;
+    const uuid = jobId;
+    await api.reprocessJob(uuid);
+    restartProcessing(uuid);
+  };
+
+  // An audio put back at the start is processed again: by its project's queue,
+  // or here step by step, as after an upload.
+  const restartProcessing = (uuid: string) => {
     if (openedFromProject) {
       window.location.hash = projectRoute(openedFromProject.uuid);
       return;
@@ -471,7 +499,7 @@ function App() {
                 handleDeleteSegments={handleDeleteSegments}
                 handleInsertSegmentAfter={handleInsertSegmentAfter}
                 handleRequestSplitSegment={handleRequestSplitSegment}
-                handleGenerateSummary={handleGenerateSummary}
+                handleGenerateSummary={handleGenerateSummaryWithNames}
                 generatingSummary={generatingSummary}
                 summaryTask={summaryTask}
                 summary={summary}
@@ -485,6 +513,7 @@ function App() {
                 handleUndo={handleUndo}
                 handleRetranscribe={handleRetranscribe}
                 retranscribeLanguage={selectedLanguage}
+                handleReprocess={me?.is_admin ? handleReprocess : undefined}
               />
             )}
 
@@ -525,10 +554,12 @@ function App() {
       {/* Modals */}
       <EditSpeakersModal
         show={showEditSpeakersModal}
-        onHide={() => setShowEditSpeakersModal(false)}
+        onHide={handleCancelEditSpeakers}
         editingSpeakers={editingSpeakers}
         setEditingSpeakers={setEditingSpeakers}
         handleSaveSpeakers={handleSaveSpeakers}
+        beforeSummary={speakerNamesBeforeSummary}
+        onSkip={handleSkipSpeakers}
       />
 
       <EditTextModal

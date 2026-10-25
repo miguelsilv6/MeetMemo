@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import { Card, Button, Badge } from '@govtechsg/sgds-react';
-import { Sparkles, Download, AlertCircle, Languages, FileText, RotateCcw } from 'lucide-react';
+import {
+  Sparkles,
+  Download,
+  AlertCircle,
+  Languages,
+  FileText,
+  RotateCcw,
+  RefreshCw,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { getLanguageName } from '../../constants/languages';
 import { getConfidenceVariant, isLowConfidence } from '../../utils/confidence';
 import RetranscribeModal from './RetranscribeModal';
+import ReprocessModal from './ReprocessModal';
 import * as api from '../../services/api';
 import type { LlmTask, SelectedFile, Summary, Transcript } from '../../types/api';
 
@@ -21,6 +30,8 @@ interface MeetingInfoSidebarProps {
   onRetranscribe?: (language: string) => Promise<void>;
   /** Pre-selected language for that. */
   retranscribeLanguage?: string | null;
+  /** Process the audio again from the very start (given to the administrator only). */
+  onReprocess?: () => Promise<void>;
 }
 
 export default function MeetingInfoSidebar({
@@ -33,9 +44,11 @@ export default function MeetingInfoSidebar({
   jobId,
   onRetranscribe,
   retranscribeLanguage = null,
+  onReprocess,
 }: MeetingInfoSidebarProps) {
   const { t } = useTranslation();
   const [showRetranscribe, setShowRetranscribe] = useState(false);
+  const [showReprocess, setShowReprocess] = useState(false);
   const detection = transcript?.language_detection ?? null;
   const channels = detection?.channels ?? [];
   // A call transcribed per channel: any side's doubts count.
@@ -220,8 +233,28 @@ export default function MeetingInfoSidebar({
             <Download size={18} className="me-2" />
             {t('meetingInfo.exportWord')}
           </Button>
+          {onReprocess && (
+            <Button
+              variant="outline-danger"
+              className="w-100 mb-2"
+              onClick={() => setShowReprocess(true)}
+            >
+              <RefreshCw size={18} className="me-2" />
+              {t('reprocess.open')}
+            </Button>
+          )}
         </div>
       </Card.Body>
+      {onReprocess && (
+        <ReprocessModal
+          show={showReprocess}
+          onHide={() => setShowReprocess(false)}
+          onConfirm={async () => {
+            await onReprocess();
+            setShowReprocess(false);
+          }}
+        />
+      )}
       {onRetranscribe && (
         <RetranscribeModal
           // Remounted when the suggestion changes (it arrives with the transcript).

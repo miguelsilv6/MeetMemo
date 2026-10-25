@@ -176,7 +176,7 @@ describe('AudioPlayer speed, zoom and shortcuts', () => {
     expect(screen.getByLabelText('Move the zoomed waveform')).toBeInTheDocument();
     expect(screen.getByTitle('Showing 0:00 – 1:00')).toBeInTheDocument();
     await waitFor(() =>
-      expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 0, 60, 300, true)
+      expect(api.getWaveformPeaks).toHaveBeenCalledWith('job1', 0, 60, 800, true)
     );
 
     fireEvent.click(screen.getByTitle('Zoom out of the waveform (−)'));

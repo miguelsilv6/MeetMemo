@@ -168,7 +168,10 @@
       "description": "Substitui as etiquetas dos interlocutores por nomes reais.",
       "tip": "Dica: para adicionares um novo interlocutor, usa o botão ✏️ em qualquer segmento da transcrição.",
       "speakerNames": "Nomes dos Interlocutores",
-      "namePlaceholder": "Introduz o nome do interlocutor"
+      "namePlaceholder": "Introduz o nome do interlocutor",
+      "beforeSummary": "O resumo por IA vai usar estes nomes. Alguns interlocutores ainda têm o nome automático (SPEAKER_xx): indica quem são antes de gerar o resumo, ou continua sem alterar.",
+      "skip": "Continuar sem alterar",
+      "saveAndSummarize": "Guardar e gerar resumo"
     },
     "editText": {
       "title": "Editar Segmento da Transcrição",
@@ -882,7 +885,8 @@
     "title": "Cue points ({{count}})",
     "add": "Marcar",
     "addHint": "Marcar o instante atual para voltar a ele (M)",
-    "empty": "Ainda não há cue points. Carrega em M durante a audição para marcar um momento com interesse.",
+    "help": "Carrega em M durante a audição, ou em Marcar, para marcar um momento com interesse. Clica no tempo ou no marcador da waveform para lá voltar.",
+    "helpLabel": "Como usar os cue points",
     "jump": "Reproduzir a partir daqui",
     "notePlaceholder": "Nota (opcional)",
     "noteLabel": "Nota do cue point em {{time}}",
@@ -892,5 +896,15 @@
       "save": "Não foi possível guardar o cue point.",
       "delete": "Não foi possível remover o cue point."
     }
+  },
+  "reprocess": {
+    "open": "Transcrever de novo desde o início",
+    "title": "Transcrever de novo desde o início",
+    "settings": "O áudio volta a passar por todo o processo — preparação do áudio, deteção do idioma, transcrição, identificação de interlocutores e alinhamento — com as definições atuais do painel de administração (modelo, idioma e modo estéreo).",
+    "kept": "Mantêm-se o áudio, os cue points e o número de interlocutores indicado no carregamento. Não é gasto nenhum token.",
+    "warning": "A transcrição atual e as suas edições, o resumo, as traduções e as exportações são substituídos e não podem ser recuperados.",
+    "confirm": "Transcrever de novo",
+    "starting": "A recomeçar…",
+    "failed": "Não foi possível recomeçar o processamento."
   }
 }

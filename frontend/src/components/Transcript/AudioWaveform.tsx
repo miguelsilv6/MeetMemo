@@ -50,9 +50,11 @@ interface AudioWaveformProps {
   className?: string;
 }
 
-const CANVAS_WIDTH = 800;
-const DEFAULT_LANE_HEIGHT = 48;
-const SPLIT_LANE_HEIGHT = 40;
+// The player spans the page: a wide canvas stays sharp, and tall lanes make
+// the moments of a call easy to see and to click.
+const CANVAS_WIDTH = 1600;
+const DEFAULT_LANE_HEIGHT = 96;
+const SPLIT_LANE_HEIGHT = 64;
 const LANE_GAP = 6;
 const UNPLAYED_COLOR = 'rgba(148, 163, 184, 0.5)';
 const PLAYED_COLOR = '#2563eb';

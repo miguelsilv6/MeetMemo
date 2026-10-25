@@ -59,7 +59,12 @@ from runtime_settings import WHISPER_LANGUAGE_CODES
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
-from services.job_files import derived_file_paths, remove_files, remove_job_files
+from services.job_files import (
+    asr_file_paths,
+    derived_file_paths,
+    remove_files,
+    remove_job_files,
+)
 from services.pipeline import prepare_audio, resolve_transcription_options
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
@@ -318,19 +323,70 @@ async def retranscribe_job(
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
     export_paths = await job_repo.reset_for_retranscription(uuid, body.language)
+    await _restarted(request, settings, job, export_paths)
+    logger.info("Job %s will be transcribed again in %s", uuid, body.language)
+    return _restart_response(uuid)
+
+
+@router.post("/jobs/{uuid}/reprocess", response_model=WorkflowActionResponse, status_code=202)
+async def reprocess_job(
+    uuid: str,
+    request: Request,
+    principal: Principal = Depends(get_principal),
+    job_repo: JobRepository = Depends(get_job_repository),
+    settings: Settings = Depends(get_settings),
+) -> WorkflowActionResponse:
+    """Process a completed audio again from the very start (administrator only).
+
+    Unlike a re-transcription in another language, nothing of the first run
+    is kept: the audio is prepared again (ASR copies and channel analysis),
+    and the admin panel's current model and language (or detection) apply.
+    What was made from the old transcript goes as on a re-transcription; the
+    audio's cue points and the number of speakers given at upload stay. No
+    token is charged.
+    """
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="Only the administrator can do this")
+    job = await job_repo.get(uuid)
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+    export_paths = await job_repo.reset_for_reprocessing(uuid)
+    await _restarted(request, settings, job, export_paths, asr_file_paths(settings, uuid))
+    logger.info("Job %s will be processed again from the start (asked by %s)",
+                uuid, principal.username)
+    return _restart_response(uuid)
+
+
+async def _restarted(
+    request: Request,
+    settings: Settings,
+    job: dict,
+    export_paths: Optional[list[str]],
+    extra_paths: Optional[list[str]] = None,
+) -> None:
+    """
+    After an audio was put back at the start: refuse if it was not completed,
+    delete what was made from its old transcript (and ``extra_paths``), and
+    wake the project queue for a project audio.
+    """
     if export_paths is None:
         raise HTTPException(
             status_code=409,
             detail="Only an audio whose processing has finished can be transcribed again.",
         )
+    uuid = str(job["uuid"])
     await remove_files(
-        derived_file_paths(settings, uuid, job["file_name"], export_paths), uuid
+        [*derived_file_paths(settings, uuid, job["file_name"], export_paths),
+         *(extra_paths or [])],
+        uuid,
     )
     if job.get("project_uuid"):
         queue = getattr(request.app.state, "project_queue", None)
         if queue is not None:
             queue.notify()
-    logger.info("Job %s will be transcribed again in %s", uuid, body.language)
+
+
+def _restart_response(uuid: str) -> WorkflowActionResponse:
     return WorkflowActionResponse(
         uuid=uuid,
         workflow_state="uploaded",
