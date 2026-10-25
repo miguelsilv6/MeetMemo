@@ -22,6 +22,7 @@ from utils.channels import merge_channels
 from utils.cpu import available_cpu_count
 from utils.hallucination_filter import filter_segments
 from utils.language_detection import SAMPLE_RATE, aggregate, speech_windows
+from utils.pauses import split_segments_at_pauses
 from utils.whisper_options import model_options, transcribe_options
 
 from services.runtime_settings_service import RuntimeSettingsService
@@ -218,7 +219,9 @@ class TranscriptionService:
         raw_segments, info = self._decode(
             audio, model_name, chosen, transcribe_options(runtime), on_progress
         )
-        segments, removed = filter_segments(raw_segments, runtime.filter_rules())
+        segments, removed = filter_segments(
+            split_segments_at_pauses(raw_segments), runtime.filter_rules()
+        )
         if language:
             detected, probability, detection = language, None, {"forced": True}
         elif detection:

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { initializeSpeakerColors } from '../utils/speakerColors';
+import { moveSegmentNextTo } from '../utils/moveSegment';
+import type { DropPlacement } from '../utils/moveSegment';
 import type { Transcript, TranscriptSegment } from '../types/api';
 import type { SetError } from '../types/ui';
 
@@ -233,6 +235,33 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     }
   };
 
+  // Move a segment next to another one (e.g. dropped between two Kanban
+  // bubbles of another speaker): it takes that speaker and, if needed, times
+  // between its new neighbours. Rolled back if the backend save fails.
+  const handleMoveSegmentTo = async (
+    index: number,
+    targetIndex: number,
+    placement: DropPlacement
+  ) => {
+    if (!transcript || !jobId) return;
+
+    const previousTranscript = transcript;
+    const previousSegments = transcript.segments ?? [];
+    const updatedSegments = moveSegmentNextTo(previousSegments, index, targetIndex, placement);
+    if (!updatedSegments) return;
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(previousSegments);
+    } catch (err) {
+      setTranscriptWithColors(previousTranscript);
+      setError((err as Error).message || t('errors.moveSegment'));
+    }
+  };
+
   // Reassign several segments to a different speaker at once (e.g. removing a
   // speaker column and moving all its lines to another one). One optimistic
   // update + one API call for the whole batch, rolled back together on failure.
@@ -316,6 +345,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     handleCancelEditText,
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
+    handleMoveSegmentTo,
     handleBulkMoveSegments,
     handleDeleteSegments,
     splittingSegment,

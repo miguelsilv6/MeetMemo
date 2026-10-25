@@ -16,6 +16,8 @@ import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
 import { formatTime } from '../../utils/timeFormat';
+import { findActiveSegmentIndex } from '../../utils/activeSegment';
+import type { DropPlacement } from '../../utils/moveSegment';
 import type { TranslationProgress } from '../../hooks/useTranslation';
 import type {
   LlmTask,
@@ -39,6 +41,8 @@ interface TranscriptViewProps {
   handleEditSpeakers: () => void;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   handleMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  /** Moves a segment before/after another one (Kanban drag between bubbles). */
+  handleMoveSegmentTo?: (index: number, targetIndex: number, placement: DropPlacement) => void;
   handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   handleDeleteSegments: (indices: number[]) => void;
   handleInsertSegmentAfter: (index: number) => void;
@@ -64,32 +68,6 @@ interface TranscriptViewProps {
   retranscribeLanguage?: string | null;
 }
 
-/**
- * Find the active segment index based on current playback time.
- */
-function findActiveSegmentIndex(
-  segments: TranscriptSegmentType[] | undefined,
-  currentTime: number
-): number {
-  if (!segments || segments.length === 0) return -1;
-
-  for (let i = 0; i < segments.length; i++) {
-    const start = Number(segments[i].start);
-    const end = Number(segments[i].end);
-    if (currentTime >= start && currentTime < end) {
-      return i;
-    }
-  }
-
-  // If past the last segment, return last segment
-  const lastEnd = Number(segments[segments.length - 1].end);
-  if (currentTime >= lastEnd) {
-    return segments.length - 1;
-  }
-
-  return -1;
-}
-
 export default function TranscriptView({
   transcript,
   selectedFile,
@@ -97,6 +75,7 @@ export default function TranscriptView({
   handleEditSpeakers,
   handleEditText,
   handleMoveSegmentSpeaker,
+  handleMoveSegmentTo,
   handleBulkMoveSegments,
   handleDeleteSegments,
   handleInsertSegmentAfter,
@@ -357,6 +336,7 @@ export default function TranscriptView({
                     handleEditText={handleEditText}
                     onSeekToSegment={handleSeekToSegment}
                     onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
+                    onMoveSegmentTo={handleMoveSegmentTo}
                     onBulkMoveSegments={handleBulkMoveSegments}
                     onDeleteSegments={handleDeleteSegments}
                     onInsertSegmentAfter={handleInsertSegmentAfter}

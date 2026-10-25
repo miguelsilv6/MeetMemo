@@ -115,6 +115,27 @@ def test_a_file_is_transcribed_and_filtered_without_the_database(service_module)
     assert (len(audio), language, options["beam_size"]) == (10 * SECONDS, "pt", 5)
 
 
+def test_a_segment_across_a_pause_is_cut_into_the_times_it_was_spoken(
+        service_module, monkeypatch):
+    def transcribe(self, audio, language=None, **options):  # pylint: disable=unused-argument
+        words = [SimpleNamespace(start=10.0, end=10.4, word=" Sim.", probability=0.9),
+                 SimpleNamespace(start=29.6, end=30.2, word=" Está bem.", probability=0.9)]
+        segment = SimpleNamespace(id=1, start=10.0, end=30.2, text=" Sim. Está bem.",
+                                  avg_logprob=-0.2, no_speech_prob=0.01,
+                                  compression_ratio=1.1, words=words)
+        return iter([segment]), SimpleNamespace(language="pt", language_probability=0.9,
+                                                duration=40.0)
+
+    monkeypatch.setattr(_FakeWhisper, "transcribe", transcribe)
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", "pt", _runtime())
+
+    assert [(s["id"], s["start"], s["end"], s["text"]) for s in data["segments"]] == [
+        (1, 10.0, 10.4, " Sim."), (2, 29.6, 30.2, " Está bem.")]
+    assert data["text"] == " Sim. Está bem."
+
+
 def test_the_language_is_detected_over_the_whole_call_and_imposed(service_module):
     # 90 s of speech: windows at the start, middle and end (3 fit apart).
     _Fakes.audio_seconds = 100

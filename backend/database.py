@@ -166,6 +166,20 @@ async def ensure_llm_tasks_schema():
     logger.info("LLM tasks schema ensured")
 
 
+CUE_POINTS_SCHEMA_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "migrations", "012_cue_points.sql"
+)
+
+
+async def ensure_cue_points_schema():
+    """Create the table of cue points (marked instants of an audio) on older databases."""
+    with open(CUE_POINTS_SCHEMA_PATH, encoding="utf-8") as f:
+        schema_sql = f.read()
+    async with get_db() as conn:
+        await conn.execute(schema_sql)
+    logger.info("Cue points schema ensured")
+
+
 class InsufficientTokensError(Exception):
     """The user has no token left for another transcription."""
 

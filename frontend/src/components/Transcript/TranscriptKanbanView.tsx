@@ -9,14 +9,18 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
+import type { DragEndEvent, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
 import { AlertTriangle, Pencil, Play, Plus, Scissors, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
 import { buildKanbanRows } from '../../utils/kanbanRows';
+import type { DropPlacement } from '../../utils/moveSegment';
+import { dropTargetOf, nearestBubbleInColumn } from '../../utils/kanbanDrop';
+import type { DropTarget } from '../../utils/kanbanDrop';
 import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
+import OriginalTimes from './OriginalTimes';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 
 interface IndexedSegment {
@@ -32,6 +36,8 @@ interface TranscriptKanbanViewProps {
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
+  /** Moves a segment before/after another one (it takes that line's speaker and place). */
+  onMoveSegmentTo?: (index: number, targetIndex: number, placement: DropPlacement) => void;
   onBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   onDeleteSegments: (indices: number[]) => void;
   onInsertSegmentAfter: (index: number) => void;
@@ -62,6 +68,7 @@ function KanbanBubble({
   selectMode,
   isSelected,
   onToggleSelect,
+  dropPlacement,
 }: {
   indexed: IndexedSegment;
   displayText?: string;
@@ -74,6 +81,8 @@ function KanbanBubble({
   selectMode: boolean;
   isSelected: boolean;
   onToggleSelect?: (index: number) => void;
+  /** Where a bubble being dragged would land next to this one, if here. */
+  dropPlacement?: DropPlacement | null;
 }) {
   const { t } = useTranslation();
   const { segment, index } = indexed;
@@ -82,6 +91,16 @@ function KanbanBubble({
     data: { index, speaker: segment.speaker },
     disabled: selectMode,
   });
+  // Also a drop target: another line dropped on it goes before or after it.
+  const { setNodeRef: setDropRef } = useDroppable({
+    id: `segment-${index}`,
+    data: { type: 'segment', index, speaker: segment.speaker },
+    disabled: selectMode,
+  });
+  const setRefs = (node: HTMLDivElement | null) => {
+    setNodeRef(node);
+    setDropRef(node);
+  };
 
   const handlePlayFromHere = (e: SyntheticEvent) => {
     e.stopPropagation();
@@ -92,12 +111,14 @@ function KanbanBubble({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       {...(selectMode ? {} : listeners)}
       {...(selectMode ? {} : attributes)}
       className={`kanban-bubble ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
-      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''}`}
+      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''} ${
+        dropPlacement ? `kanban-bubble-drop-${dropPlacement}` : ''
+      }`}
       onClick={handleClick}
       onDoubleClick={
         selectMode
@@ -130,6 +151,7 @@ function KanbanBubble({
         <small className="text-muted kanban-bubble-timestamp">
           {formatTime(segment.start)} - {formatTime(segment.end)}
         </small>
+        <OriginalTimes segment={segment} onSeekToSegment={onSeekToSegment} />
         {segment.low_confidence && (
           <span
             className="d-inline-flex text-warning"
@@ -269,21 +291,24 @@ function KanbanColumnDropZone({
   speaker,
   isFirst,
   isEmpty,
+  isTarget,
   style,
 }: {
   speaker: string;
   isFirst: boolean;
   isEmpty: boolean;
+  /** A bubble being dragged would land in this column. */
+  isTarget: boolean;
   style: CSSProperties;
 }) {
   const { t } = useTranslation();
-  const { setNodeRef, isOver } = useDroppable({ id: speaker });
+  const { setNodeRef } = useDroppable({ id: speaker, data: { type: 'column', speaker } });
 
   return (
     <div
       ref={setNodeRef}
       className={`kanban-column ${isFirst ? 'kanban-column-first' : ''} ${
-        isOver ? 'kanban-column-over' : ''
+        isTarget ? 'kanban-column-over' : ''
       }`}
       style={style}
     >
@@ -341,7 +366,8 @@ function AddSpeakerColumn({ onAdd }: { onAdd: (name: string) => void }) {
  * Kanban-style transcript view: one column per speaker, and one row per
  * segment in chronological order, so the conversation reads top to bottom
  * across columns and no two lines ever sit side by side. Dragging a bubble
- * to another column reassigns that segment's speaker. Speakers can also be
+ * next to another one moves it there: it takes that column's speaker and,
+ * if it was elsewhere in time, times between its new neighbours. Speakers can also be
  * added (an empty column to drag/move lines into) or removed (moving or
  * deleting their lines first).
  */
@@ -352,6 +378,7 @@ export default function TranscriptKanbanView({
   handleEditText,
   onSeekToSegment,
   onMoveSegmentSpeaker,
+  onMoveSegmentTo,
   onBulkMoveSegments,
   onDeleteSegments,
   onInsertSegmentAfter,
@@ -363,6 +390,7 @@ export default function TranscriptKanbanView({
 }: TranscriptKanbanViewProps) {
   const { t } = useTranslation();
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   // Speakers added via "Add speaker" that have no segments yet. Purely a UI
   // placeholder — there is nothing to persist until a segment actually moves
   // into one, so this does not survive a reload.
@@ -405,17 +433,35 @@ export default function TranscriptKanbanView({
     setDraggingIndex(Number(event.active.id));
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragMove = (event: DragMoveEvent) => {
+    const target = dropTargetOf(event);
+    setDropTarget((prev) =>
+      prev?.speaker === target?.speaker &&
+      prev?.index === target?.index &&
+      prev?.placement === target?.placement
+        ? prev
+        : target
+    );
+  };
+
+  const endDrag = () => {
     setDraggingIndex(null);
-    const { active, over } = event;
-    if (!over) return;
+    setDropTarget(null);
+  };
 
-    const index = Number(active.id);
-    const targetSpeaker = String(over.id);
-    const sourceSpeaker = active.data.current?.speaker;
+  // Dropped next to a bubble: the line takes its speaker and its place (times
+  // included). Dropped on an empty column, or without that handler: only
+  // the speaker changes.
+  const handleDragEnd = (event: DragEndEvent) => {
+    endDrag();
+    const target = dropTargetOf(event);
+    if (!target) return;
 
-    if (targetSpeaker && targetSpeaker !== sourceSpeaker) {
-      onMoveSegmentSpeaker(index, targetSpeaker);
+    const index = Number(event.active.id);
+    if (target.index !== null && onMoveSegmentTo) {
+      onMoveSegmentTo(index, target.index, target.placement);
+    } else if (target.speaker !== event.active.data.current?.speaker) {
+      onMoveSegmentSpeaker(index, target.speaker);
     }
   };
 
@@ -454,9 +500,11 @@ export default function TranscriptKanbanView({
     <>
       <DndContext
         sensors={sensors}
+        collisionDetection={nearestBubbleInColumn}
         onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
-        onDragCancel={() => setDraggingIndex(null)}
+        onDragCancel={endDrag}
       >
         <div className="kanban-board" style={{ gridTemplateColumns }}>
           {speakers.map((speaker, column) => (
@@ -484,6 +532,7 @@ export default function TranscriptKanbanView({
               speaker={speaker}
               isFirst={column === 0}
               isEmpty={(segmentCountBySpeaker.get(speaker) ?? 0) === 0}
+              isTarget={dropTarget?.speaker === speaker}
               style={{ gridColumn: column + 1, gridRow: contentRowSpan }}
             />
           ))}
@@ -520,6 +569,9 @@ export default function TranscriptKanbanView({
                   selectMode={selectMode}
                   isSelected={selectedIndices.has(row.index)}
                   onToggleSelect={onToggleSelect}
+                  dropPlacement={
+                    onMoveSegmentTo && dropTarget?.index === row.index ? dropTarget.placement : null
+                  }
                 />
               </div>
             );

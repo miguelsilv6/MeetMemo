@@ -14,6 +14,14 @@ export interface RangePeaks {
   channelPeaks?: WaveformPeak[][] | null;
 }
 
+/** A marked instant drawn over the waveform (a cue point). */
+export interface WaveformMarker {
+  id: number;
+  time: number;
+  /** Shown on hover and read by screen readers. */
+  label: string;
+}
+
 interface AudioWaveformProps {
   /** Peaks for the whole track (downmixed). */
   peaks: WaveformPeak[];
@@ -37,6 +45,8 @@ interface AudioWaveformProps {
   onPan?: (seconds: number) => void;
   /** Height of one lane, in canvas pixels. */
   laneHeight?: number;
+  /** Marked instants, drawn as clickable lines that seek to them. */
+  markers?: WaveformMarker[];
   className?: string;
 }
 
@@ -79,6 +89,7 @@ export default function AudioWaveform({
   onZoom,
   onPan,
   laneHeight,
+  markers = [],
   className = '',
 }: AudioWaveformProps) {
   const { t } = useTranslation();
@@ -249,13 +260,35 @@ export default function AudioWaveform({
     />
   );
 
-  if (!isSplit) return canvasElement;
+  const markerElements =
+    span > 0
+      ? markers
+          .filter((marker) => marker.time >= viewStart && marker.time <= end)
+          .map((marker) => (
+            <button
+              key={marker.id}
+              type="button"
+              className="audio-waveform-marker"
+              style={{ left: `${((marker.time - viewStart) / span) * 100}%` }}
+              title={marker.label}
+              aria-label={marker.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSeek(marker.time);
+              }}
+            />
+          ))
+      : [];
 
-  // Lane labels as HTML over the canvas, so they stay legible in any theme.
+  if (!isSplit && markerElements.length === 0) return canvasElement;
+
+  // Lane labels and markers as HTML over the canvas, so they stay legible in
+  // any theme and the markers can be clicked.
   return (
     <div className="audio-waveform-lanes">
       {canvasElement}
-      {channelPeaks.map((_, index) => (
+      {markerElements}
+      {(isSplit ? channelPeaks : []).map((_, index) => (
         <span
           key={index}
           className="audio-waveform-lane-label"

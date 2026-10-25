@@ -99,6 +99,8 @@
     "loadingKanban": "A carregar vista Kanban…",
     "currentlyPlaying": "A reproduzir atualmente",
     "playFromHere": "Reproduzir a partir daqui",
+    "originalTimes": "original {{start}} – {{end}}",
+    "originalTimesHint": "Tempos ajustados ao mover esta fala. Clica para a ouvir onde foi dita.",
     "editThisSegment": "Editar este segmento",
     "editHint": "Duplo clique para editar",
     "insertSegmentAfter": "Inserir segmento a seguir a este",
@@ -258,6 +260,7 @@
     "shortcutSeek": "Recuar / avançar {{seconds}} segundos",
     "shortcutSpeed": "Mais lento / mais rápido",
     "shortcutZoom": "Afastar / aproximar a waveform",
+    "shortcutCuePoint": "Adicionar um cue point no instante atual",
     "shortcutWheelZoom": "Zoom na waveform à volta do ponteiro",
     "shortcutWheelPan": "Deslocar a waveform ampliada",
     "shortcutsNote": "Os atalhos não funcionam enquanto escreves num campo de texto ou com uma janela aberta.",
@@ -874,5 +877,20 @@
     "label": "Ordenar:",
     "newest": "Mais recentes primeiro",
     "oldest": "Mais antigas primeiro"
+  },
+  "cuePoints": {
+    "title": "Cue points ({{count}})",
+    "add": "Marcar",
+    "addHint": "Marcar o instante atual para voltar a ele (M)",
+    "empty": "Ainda não há cue points. Carrega em M durante a audição para marcar um momento com interesse.",
+    "jump": "Reproduzir a partir daqui",
+    "notePlaceholder": "Nota (opcional)",
+    "noteLabel": "Nota do cue point em {{time}}",
+    "remove": "Remover cue point",
+    "errors": {
+      "load": "Não foi possível carregar os cue points.",
+      "save": "Não foi possível guardar o cue point.",
+      "delete": "Não foi possível remover o cue point."
+    }
   }
 }

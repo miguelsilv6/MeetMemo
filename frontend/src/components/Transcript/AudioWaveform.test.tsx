@@ -162,4 +162,25 @@ describe('AudioWaveform', () => {
       expect(props.onSeek).toHaveBeenCalledWith(25);
     });
   });
+
+  describe('markers', () => {
+    const markers = [
+      { id: 1, time: 10, label: '0:10 · morada' },
+      { id: 2, time: 60, label: '1:00' },
+    ];
+
+    it('draws each marker at its time and seeks to it when clicked', () => {
+      const { props } = renderWaveform({ markers, duration: 100 });
+      const marker = screen.getByRole('button', { name: '0:10 · morada' });
+      expect(marker).toHaveStyle({ left: '10%' });
+      fireEvent.click(marker);
+      expect(props.onSeek).toHaveBeenCalledWith(10);
+    });
+
+    it('only draws the markers inside a zoomed view, placed within it', () => {
+      renderWaveform({ markers, duration: 100, viewStart: 50, viewEnd: 75 });
+      expect(screen.queryByRole('button', { name: '0:10 · morada' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '1:00' })).toHaveStyle({ left: '40%' });
+    });
+  });
 });
