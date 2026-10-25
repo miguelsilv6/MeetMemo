@@ -24,6 +24,11 @@ export default function useSummary(
   const [generatingSummary, setGeneratingSummary] = useState(false);
   /** The background task while it waits or runs (for "queued, N ahead"). */
   const [summaryTask, setSummaryTask] = useState<LlmTask | null>(null);
+  /**
+   * Why the last summary could not be made, shown next to the button that
+   * asked for it (the page's error banner is often scrolled out of view).
+   */
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   // Bumped whenever the job changes, so a poll for the previous one stops.
   const generation = useRef(0);
   // The job the summary on hand belongs to.
@@ -48,10 +53,17 @@ export default function useSummary(
           if (generation.current !== mine) return null;
         }
         if (response.task?.status === 'error') {
-          setError(llmTaskError(response.task, t));
+          const message = llmTaskError(response.task, t);
+          setError(message);
+          setSummaryError(message);
           return null;
         }
-        return response.summary ? response : null;
+        if (!response.summary) {
+          // Finished without a summary or a reason: never leave it silent.
+          setSummaryError(t('errors.generateSummary'));
+          return null;
+        }
+        return response;
       } finally {
         if (generation.current === mine) {
           setGeneratingSummary(false);
@@ -74,6 +86,7 @@ export default function useSummary(
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when the job changes
     setGeneratingSummary(false);
     setSummaryTask(null);
+    setSummaryError(null);
     // Another job's summary (or one of this job before it was transcribed
     // again) is not this one's.
     if (summaryJob.current !== jobId) {
@@ -106,6 +119,7 @@ export default function useSummary(
   const generateSummaryFor = async (uuid: string) => {
     try {
       setError(null);
+      setSummaryError(null);
       setGeneratingSummary(true);
       const summaryData = await follow(uuid, await api.generateSummary(uuid));
       if (!summaryData) return;
@@ -113,7 +127,9 @@ export default function useSummary(
       setSummary(summaryData);
       setCurrentStep('summary');
     } catch (err) {
-      setError((err as Error).message || t('errors.generateSummary'));
+      const message = (err as Error).message || t('errors.generateSummary');
+      setError(message);
+      setSummaryError(message);
       setGeneratingSummary(false);
     }
   };
@@ -158,6 +174,7 @@ export default function useSummary(
     summary,
     generatingSummary,
     summaryTask,
+    summaryError,
     editingSummary,
     setEditingSummary,
     showEditSummaryModal,

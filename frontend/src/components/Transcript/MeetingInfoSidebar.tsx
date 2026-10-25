@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Button, Badge } from '@govtechsg/sgds-react';
+import { Alert, Card, Button, Badge } from '@govtechsg/sgds-react';
 import {
   Sparkles,
   Download,
@@ -24,6 +24,8 @@ interface MeetingInfoSidebarProps {
   handleGenerateSummary: () => void;
   generatingSummary: boolean;
   summaryTask?: LlmTask | null;
+  /** Why the last summary could not be made, shown under its button. */
+  summaryError?: string | null;
   summary: Summary | null;
   jobId: string | null;
   /** Transcribe the audio again in another language (offered on low confidence). */
@@ -40,6 +42,7 @@ export default function MeetingInfoSidebar({
   handleGenerateSummary,
   generatingSummary,
   summaryTask = null,
+  summaryError = null,
   summary,
   jobId,
   onRetranscribe,
@@ -217,6 +220,17 @@ export default function MeetingInfoSidebar({
               </>
             )}
           </Button>
+          {summaryError && !generatingSummary && (
+            <Alert
+              show
+              variant="danger"
+              className="py-2 px-3 mb-2 small"
+              data-testid="summary-error"
+              role="alert"
+            >
+              {summaryError}
+            </Alert>
+          )}
           <Button
             variant="outline-secondary"
             className="w-100 mb-2"

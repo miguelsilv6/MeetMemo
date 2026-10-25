@@ -51,6 +51,8 @@ interface TranscriptViewProps {
   generatingSummary: boolean;
   /** The background summary task while it waits or runs. */
   summaryTask?: LlmTask | null;
+  /** Why the last summary could not be made (shown next to its button). */
+  summaryError?: string | null;
   summary: Summary | null;
   translatedSegments: TranscriptSegmentType[] | null;
   translating: boolean;
@@ -85,6 +87,7 @@ export default function TranscriptView({
   handleGenerateSummary,
   generatingSummary,
   summaryTask = null,
+  summaryError = null,
   summary,
   translatedSegments,
   translating,
@@ -395,6 +398,7 @@ export default function TranscriptView({
             handleGenerateSummary={handleGenerateSummary}
             generatingSummary={generatingSummary}
             summaryTask={summaryTask}
+            summaryError={summaryError}
             summary={summary}
             jobId={jobId}
             onRetranscribe={handleRetranscribe}
