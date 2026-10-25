@@ -145,6 +145,25 @@ Before deploying to production:
   - [ ] Summary generation works
   - [ ] PDF/Markdown export works
 
+## Starting Automatically After a Reboot
+
+All four services (`postgres`, `meetmemo-backend`, `meetmemo-frontend`, `nginx`) use `restart: unless-stopped`. When the server or VM restarts, Docker starts them again on its own. If the backend starts before PostgreSQL accepts connections, it restarts until the database is ready.
+
+This needs the Docker service to start with the system:
+
+```bash
+sudo systemctl enable docker
+systemctl is-enabled docker   # should print "enabled"
+```
+
+To check each container's policy:
+
+```bash
+docker inspect -f '{{.Name}} {{.HostConfig.RestartPolicy.Name}}' $(docker compose ps -q)
+```
+
+A container stopped by hand (`docker compose stop` or `down`) stays stopped across reboots until the next `docker compose up -d`. That is what `unless-stopped` means.
+
 ## Backup and Recovery
 
 ### Quick Backup Script

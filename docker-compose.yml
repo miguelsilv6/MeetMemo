@@ -23,6 +23,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: meetmemo-backend
+    restart: unless-stopped
     volumes:
       - audiofiles:/app/audiofiles
       - logs:/app/logs
@@ -79,6 +80,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: meetmemo-frontend
+    restart: unless-stopped
     # No external ports - accessed via nginx
     depends_on:
       - meetmemo-backend
