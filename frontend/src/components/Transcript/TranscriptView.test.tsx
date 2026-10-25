@@ -183,4 +183,29 @@ describe('TranscriptView', () => {
       expect(handleDeleteSegments).not.toHaveBeenCalled();
     });
   });
+
+  it('moves the highlight to the other speaker while a long segment overlaps', () => {
+    // Two channels: a two-word segment of one side spans the other side's line.
+    const overlapping: TranscriptSegmentType[] = [
+      { speaker: 'SPEAKER_00', start: 10, end: 30, text: 'Sim. Está bem.' },
+      { speaker: 'SPEAKER_01', start: 12, end: 18, text: 'Então amanhã às nove' },
+    ];
+    // The active segment scrolls into view (jsdom has neither API).
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    Element.prototype.scrollIntoView = vi.fn();
+    const { container } = renderView({ transcript: { segments: overlapping } });
+    const audio = container.querySelector('audio') as HTMLAudioElement;
+    let time = 0;
+    Object.defineProperty(audio, 'currentTime', { get: () => time, configurable: true });
+    const active = () => container.querySelector('.transcript-segment-active')?.textContent ?? '';
+
+    time = 11;
+    fireEvent.timeUpdate(audio);
+    expect(active()).toContain('Sim. Está bem.');
+
+    time = 15;
+    fireEvent.timeUpdate(audio);
+    expect(active()).toContain('Então amanhã às nove');
+    vi.unstubAllGlobals();
+  });
 });

@@ -16,6 +16,7 @@ import MeetingInfoSidebar from './MeetingInfoSidebar';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
 import { formatTime } from '../../utils/timeFormat';
+import { findActiveSegmentIndex } from '../../utils/activeSegment';
 import type { TranslationProgress } from '../../hooks/useTranslation';
 import type {
   LlmTask,
@@ -62,32 +63,6 @@ interface TranscriptViewProps {
   handleRetranscribe?: (language: string) => Promise<void>;
   /** Pre-selected language for that. */
   retranscribeLanguage?: string | null;
-}
-
-/**
- * Find the active segment index based on current playback time.
- */
-function findActiveSegmentIndex(
-  segments: TranscriptSegmentType[] | undefined,
-  currentTime: number
-): number {
-  if (!segments || segments.length === 0) return -1;
-
-  for (let i = 0; i < segments.length; i++) {
-    const start = Number(segments[i].start);
-    const end = Number(segments[i].end);
-    if (currentTime >= start && currentTime < end) {
-      return i;
-    }
-  }
-
-  // If past the last segment, return last segment
-  const lastEnd = Number(segments[segments.length - 1].end);
-  if (currentTime >= lastEnd) {
-    return segments.length - 1;
-  }
-
-  return -1;
 }
 
 export default function TranscriptView({
