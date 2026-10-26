@@ -321,4 +321,19 @@ describe('TranscriptKanbanView', () => {
     renderKanban({ onRequestDeleteSegment: vi.fn(), selectMode: true });
     expect(screen.queryByTitle('Delete this segment')).not.toBeInTheDocument();
   });
+
+  it('colours the bubbles the speech model was unsure of', () => {
+    const { container } = renderKanban({
+      segments: [
+        { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'clear line' },
+        { speaker: 'SPEAKER_01', start: 2, end: 4, text: 'doubtful line', low_confidence: true },
+      ],
+    });
+    const bubble = (text: string) =>
+      [...container.querySelectorAll('.kanban-bubble')].find((el) =>
+        el.textContent?.includes(text)
+      );
+    expect(bubble('doubtful line')).toHaveClass('kanban-bubble-low-confidence');
+    expect(bubble('clear line')).not.toHaveClass('kanban-bubble-low-confidence');
+  });
 });

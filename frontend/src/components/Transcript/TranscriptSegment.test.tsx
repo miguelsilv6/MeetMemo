@@ -168,4 +168,18 @@ describe('TranscriptSegment', () => {
     expect(screen.getByText('Welcome all')).toBeInTheDocument();
     expect(document.querySelector('.low-confidence-word')).toBeNull();
   });
+
+  it('colours a line the speech model was unsure of', () => {
+    const { container, rerender, props } = renderSegment({
+      segment: { ...segment, low_confidence: true },
+    });
+    expect(container.querySelector('.transcript-segment')).toHaveClass(
+      'transcript-segment-low-confidence'
+    );
+
+    rerender(<TranscriptSegment {...props} segment={segment} />);
+    expect(container.querySelector('.transcript-segment')).not.toHaveClass(
+      'transcript-segment-low-confidence'
+    );
+  });
 });

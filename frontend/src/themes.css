@@ -19,5 +19,8 @@
   --mm-success: #198754;
   --mm-danger: #dc3545;
   --mm-warning: #ffc107;
+  /* Lines the speech model was unsure of (check them against the audio). */
+  --mm-low-confidence-bg: #fff8e6;
+  --mm-low-confidence-border: #f59e0b;
   --mm-info: #0dcaf0;
 }

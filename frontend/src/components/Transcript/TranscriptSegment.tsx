@@ -69,7 +69,7 @@ export default function TranscriptSegment({
   return (
     <div
       ref={segmentRef}
-      className={`transcript-segment mb-3 p-3 border-start border-3 ${isActive ? 'transcript-segment-active' : ''} ${selectMode ? 'transcript-segment-selectable' : ''} ${isSelected ? 'transcript-segment-selected' : ''}`}
+      className={`transcript-segment mb-3 p-3 border-start border-3 ${isActive ? 'transcript-segment-active' : ''} ${selectMode ? 'transcript-segment-selectable' : ''} ${isSelected ? 'transcript-segment-selected' : ''} ${segment.low_confidence ? 'transcript-segment-low-confidence' : ''}`}
       style={{ borderColor: getSpeakerBorderColor(segment.speaker) }}
       onClick={handleClick}
       onDoubleClick={
