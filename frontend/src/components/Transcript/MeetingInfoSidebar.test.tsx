@@ -238,6 +238,25 @@ describe('MeetingInfoSidebar calls transcribed per channel', () => {
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByTestId('channels-differ')).toHaveTextContent(/both channels/);
   });
+
+  it('names each side by its renamed speaker', () => {
+    const detection = channelTranscript.language_detection!;
+    renderSidebar({
+      transcript: {
+        ...channelTranscript,
+        language_detection: {
+          ...detection,
+          channels: detection.channels!.map((channel) =>
+            channel.channel === 0 ? { ...channel, display_name: 'Ana Silva' } : channel
+          ),
+        },
+      },
+    });
+
+    const list = screen.getByTestId('channel-languages');
+    expect(list).toHaveTextContent('Left channel (Ana Silva)');
+    expect(list).toHaveTextContent('Right channel (SPEAKER_01)');
+  });
 });
 
 describe('MeetingInfoSidebar transcribing again from the start', () => {

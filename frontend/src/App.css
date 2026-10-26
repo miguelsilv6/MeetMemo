@@ -1499,6 +1499,37 @@ button.kanban-add-column:hover {
   padding-left: 1.1rem;
 }
 
+/* A line the speech model was unsure of: an amber bubble, to check against
+   the audio. Playing or selected lines keep their own highlight, with the
+   amber outline still showing. */
+.transcript-segment.transcript-segment-low-confidence {
+  background-color: var(--mm-low-confidence-bg);
+  box-shadow: inset 0 0 0 1px var(--mm-low-confidence-border);
+}
+
+.transcript-segment.transcript-segment-low-confidence:hover {
+  background-color: var(--mm-low-confidence-bg);
+}
+
+.transcript-segment.transcript-segment-low-confidence.transcript-segment-active,
+.transcript-segment.transcript-segment-low-confidence.transcript-segment-selected {
+  background-color: var(--primary-light);
+  box-shadow:
+    inset 0 0 0 1px var(--mm-low-confidence-border),
+    0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.kanban-bubble-low-confidence .kanban-bubble-text {
+  background-color: var(--mm-low-confidence-bg);
+  border-color: var(--mm-low-confidence-border);
+}
+
+.kanban-bubble-low-confidence.kanban-bubble-active .kanban-bubble-text,
+.kanban-bubble-low-confidence.kanban-bubble-selected .kanban-bubble-text {
+  background-color: var(--primary-light);
+  border-color: var(--mm-low-confidence-border);
+}
+
 /* A word the speech model was unsure of: check it against the audio. */
 .low-confidence-word {
   text-decoration: underline dotted var(--mm-warning, #d39e00);

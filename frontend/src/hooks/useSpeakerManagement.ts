@@ -92,7 +92,20 @@ export default function useSpeakerManagement(
         speaker: editingSpeakers[segment.speaker] || segment.speaker,
       }));
 
-      setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+      // The channels of a call transcribed per channel show the new names too
+      // (the server keeps their label and updates their display name the same way).
+      const detection = transcript.language_detection;
+      const channels = detection?.channels?.map((channel) => {
+        const current = channel.display_name ?? channel.speaker;
+        const renamed = editingSpeakers[current];
+        return renamed && renamed !== current ? { ...channel, display_name: renamed } : channel;
+      });
+
+      setTranscriptWithColors({
+        ...transcript,
+        segments: updatedSegments,
+        ...(detection && channels ? { language_detection: { ...detection, channels } } : {}),
+      });
       setShowEditSpeakersModal(false);
       runNextStep();
     } catch (err) {

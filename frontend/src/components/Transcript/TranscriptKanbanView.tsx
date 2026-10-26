@@ -118,7 +118,9 @@ function KanbanBubble({
       {...(selectMode ? {} : attributes)}
       className={`kanban-bubble ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
-      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''}`}
+      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''} ${
+        segment.low_confidence ? 'kanban-bubble-low-confidence' : ''
+      }`}
       onClick={handleClick}
       onDoubleClick={
         selectMode

@@ -61,6 +61,59 @@ describe('useSpeakerManagement.handleSaveSpeakers', () => {
   });
 });
 
+describe('useSpeakerManagement renaming the channels', () => {
+  it("names each channel of a per-channel call by its speaker's new name", async () => {
+    vi.mocked(api.updateSpeakers).mockResolvedValue({});
+    const setTranscriptWithColors = vi.fn();
+    const channelCall: Transcript = {
+      ...transcript,
+      language_detection: {
+        language: 'pt',
+        probability: 0.9,
+        candidates: [],
+        flags: [],
+        channels: [
+          {
+            channel: 0,
+            speaker: 'SPEAKER_00',
+            display_name: 'Ana',
+            language: 'pt',
+            probability: 0.9,
+            flags: [],
+            forced: false,
+            speech_seconds: 10,
+          },
+          {
+            channel: 1,
+            speaker: 'SPEAKER_01',
+            language: 'ro',
+            probability: 0.8,
+            flags: [],
+            forced: false,
+            speech_seconds: 8,
+          },
+        ],
+      } as Transcript['language_detection'],
+    };
+    const { result } = renderHook(() =>
+      useSpeakerManagement('job1', channelCall, setTranscriptWithColors, vi.fn())
+    );
+
+    act(() => {
+      result.current.setEditingSpeakers({ Ana: 'Ana Silva', SPEAKER_01: 'Bruno' });
+    });
+    await act(async () => {
+      await result.current.handleSaveSpeakers();
+    });
+
+    const updated = setTranscriptWithColors.mock.calls.at(-1)?.[0] as Transcript;
+    expect(updated.language_detection?.channels?.map((c) => [c.speaker, c.display_name])).toEqual([
+      ['SPEAKER_00', 'Ana Silva'],
+      ['SPEAKER_01', 'Bruno'],
+    ]);
+  });
+});
+
 describe('useSpeakerManagement.askSpeakerNamesBefore', () => {
   function renderAsking() {
     const next = vi.fn();

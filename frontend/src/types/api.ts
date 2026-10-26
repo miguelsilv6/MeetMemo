@@ -75,8 +75,10 @@ export interface LanguageDetection {
 export interface ChannelLanguage {
   /** 0 = left, 1 = right. */
   channel: number;
-  /** The speaker label its segments carry (e.g. `SPEAKER_00`). */
+  /** The speaker label it was transcribed with (e.g. `SPEAKER_00`). */
   speaker: string;
+  /** The speaker's name once renamed (shown instead of the label). */
+  display_name?: string;
   language: string;
   probability: number | null;
   flags: LanguageDetectionFlag[];
