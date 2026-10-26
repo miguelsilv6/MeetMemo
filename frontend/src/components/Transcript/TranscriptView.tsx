@@ -42,7 +42,12 @@ interface TranscriptViewProps {
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   handleMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
   /** Moves a segment before/after another one (Kanban drag between bubbles). */
-  handleMoveSegmentTo?: (index: number, targetIndex: number, placement: DropPlacement) => void;
+  handleMoveSegmentTo?: (
+    index: number,
+    targetIndex: number,
+    placement: DropPlacement,
+    speaker: string
+  ) => void;
   handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   handleDeleteSegments: (indices: number[]) => void;
   handleInsertSegmentAfter: (index: number) => void;
@@ -51,6 +56,8 @@ interface TranscriptViewProps {
   generatingSummary: boolean;
   /** The background summary task while it waits or runs. */
   summaryTask?: LlmTask | null;
+  /** Why the last summary could not be made (shown next to its button). */
+  summaryError?: string | null;
   summary: Summary | null;
   translatedSegments: TranscriptSegmentType[] | null;
   translating: boolean;
@@ -85,6 +92,7 @@ export default function TranscriptView({
   handleGenerateSummary,
   generatingSummary,
   summaryTask = null,
+  summaryError = null,
   summary,
   translatedSegments,
   translating,
@@ -395,6 +403,7 @@ export default function TranscriptView({
             handleGenerateSummary={handleGenerateSummary}
             generatingSummary={generatingSummary}
             summaryTask={summaryTask}
+            summaryError={summaryError}
             summary={summary}
             jobId={jobId}
             onRetranscribe={handleRetranscribe}

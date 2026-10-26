@@ -279,3 +279,21 @@ describe('MeetingInfoSidebar transcribing again from the start', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
+
+describe('MeetingInfoSidebar summary error', () => {
+  it('shows why the summary failed under its button, but not while it is being made', () => {
+    const { rerender, props } = renderSidebar({
+      summaryError: 'The language model did not answer in time.',
+    });
+    expect(screen.getByTestId('summary-error')).toHaveTextContent('did not answer in time');
+
+    rerender(
+      <MeetingInfoSidebar
+        {...props}
+        summaryError="The language model did not answer in time."
+        generatingSummary
+      />
+    );
+    expect(screen.queryByTestId('summary-error')).not.toBeInTheDocument();
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { CollisionDetection, DragEndEvent } from '@dnd-kit/core';
-import { dropTargetOf, nearestBubbleInColumn } from './kanbanDrop';
+import { dropTargetOf, nearestDropPoint } from './kanbanDrop';
 
 type Args = Parameters<CollisionDetection>[0];
 
@@ -35,21 +35,21 @@ const layout = [
   },
 ];
 
-function detect(x: number, y: number, activeIndex = 2) {
-  const containers = layout.map(({ id, data }) => ({ id, data: { current: data } }));
-  return nearestBubbleInColumn({
+function detect(x: number, y: number, activeIndex = 2, items = layout) {
+  const containers = items.map(({ id, data }) => ({ id, data: { current: data } }));
+  return nearestDropPoint({
     active: { id: String(activeIndex) },
     collisionRect: rect(x - 5, y - 5, 10, 10),
-    droppableRects: new Map(layout.map(({ id, rect: r }) => [id, r])),
+    droppableRects: new Map(items.map(({ id, rect: r }) => [id, r])),
     droppableContainers: containers,
     pointerCoordinates: { x, y },
   } as unknown as Args);
 }
 
-const targetAt = (x: number, y: number, activeIndex?: number) =>
-  dropTargetOf({ collisions: detect(x, y, activeIndex) } as unknown as DragEndEvent);
+const targetAt = (x: number, y: number, activeIndex?: number, items?: typeof layout) =>
+  dropTargetOf({ collisions: detect(x, y, activeIndex, items) } as unknown as DragEndEvent);
 
-describe('nearestBubbleInColumn', () => {
+describe('nearestDropPoint', () => {
   it('goes before a bubble in its upper half and after it in its lower half', () => {
     expect(targetAt(100, 105)).toEqual({ speaker: 'A', index: 1, placement: 'before' });
     expect(targetAt(100, 135)).toEqual({ speaker: 'A', index: 1, placement: 'after' });
@@ -60,13 +60,22 @@ describe('nearestBubbleInColumn', () => {
     expect(targetAt(100, 90)).toEqual({ speaker: 'A', index: 1, placement: 'before' });
   });
 
+  it("places by the height of another column's bubbles, keeping the column's speaker", () => {
+    // B's bubble dragged within B's column to the height between A's two bubbles.
+    expect(targetAt(300, 60, 2)).toEqual({ speaker: 'B', index: 0, placement: 'after' });
+    expect(targetAt(300, 90, 2)).toEqual({ speaker: 'B', index: 1, placement: 'before' });
+    // An empty column too.
+    expect(targetAt(500, 110, 2)).toEqual({ speaker: 'C', index: 1, placement: 'before' });
+  });
+
   it('never targets the dragged bubble itself', () => {
-    expect(targetAt(300, 320, 2)).toEqual({ speaker: 'B', index: null, placement: 'after' });
+    expect(targetAt(300, 320, 2)).toEqual({ speaker: 'B', index: 1, placement: 'after' });
     expect(targetAt(100, 20, 0)).toEqual({ speaker: 'A', index: 1, placement: 'before' });
   });
 
-  it('is just the column when it has no bubbles', () => {
-    expect(targetAt(500, 400)).toEqual({ speaker: 'C', index: null, placement: 'after' });
+  it('is just the column when there is no other bubble', () => {
+    const alone = layout.filter(({ id }) => id !== 'segment-0' && id !== 'segment-1');
+    expect(targetAt(500, 400, 2, alone)).toEqual({ speaker: 'C', index: null, placement: 'after' });
   });
 
   it('is nothing off every column', () => {

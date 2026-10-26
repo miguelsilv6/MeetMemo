@@ -208,6 +208,7 @@ function App() {
     summary,
     generatingSummary,
     summaryTask,
+    summaryError,
     editingSummary,
     setEditingSummary,
     showEditSummaryModal,
@@ -505,6 +506,7 @@ function App() {
                 handleGenerateSummary={handleGenerateSummaryWithNames}
                 generatingSummary={generatingSummary}
                 summaryTask={summaryTask}
+                summaryError={summaryError}
                 summary={summary}
                 translatedSegments={translatedSegments}
                 translating={translating}

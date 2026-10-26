@@ -1079,29 +1079,26 @@
   opacity: 0.4;
 }
 
-/* Where a dragged line would land: a bar above or below this bubble. */
-.kanban-bubble-drop-before,
-.kanban-bubble-drop-after {
+/* Where a dragged line would land: a bar in the column it is dropped in, at
+   the top (before) or bottom (after) of the row it goes next to. */
+.kanban-drop-bar {
   position: relative;
-}
-
-.kanban-bubble-drop-before::before,
-.kanban-bubble-drop-after::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
+  z-index: 2;
   height: 3px;
+  margin: 0 0.5rem;
   border-radius: 2px;
   background-color: var(--primary);
+  pointer-events: none;
 }
 
-.kanban-bubble-drop-before::before {
-  top: -0.35rem;
+.kanban-drop-bar-before {
+  align-self: start;
+  top: -0.25rem;
 }
 
-.kanban-bubble-drop-after::after {
-  bottom: -0.35rem;
+.kanban-drop-bar-after {
+  align-self: end;
+  bottom: -0.25rem;
 }
 
 .segment-original-times {

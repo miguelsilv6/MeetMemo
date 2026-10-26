@@ -15,7 +15,7 @@ const call = () => [
 
 describe('moveSegmentNextTo', () => {
   it('puts a line between two lines of another speaker, with times there', () => {
-    const moved = moveSegmentNextTo(call(), 3, 1, 'after')!;
+    const moved = moveSegmentNextTo(call(), 3, 1, 'after', 'A')!;
 
     expect(moved.map((s) => s.text)).toEqual(['A1', 'A2', 'B1', 'A3']);
     expect(moved[2]).toMatchObject({
@@ -26,49 +26,78 @@ describe('moveSegmentNextTo', () => {
     });
   });
 
+  it("keeps the line's own speaker when dropped between another speaker's lines", () => {
+    // B1 dragged within B's column to the height between A2 and A3.
+    const moved = moveSegmentNextTo(call(), 3, 1, 'after', 'B')!;
+
+    expect(moved.map((s) => s.text)).toEqual(['A1', 'A2', 'B1', 'A3']);
+    expect(moved[2]).toMatchObject({
+      speaker: 'B',
+      start: 5,
+      end: 8,
+      original: { speaker: 'B', start: 40, end: 43 },
+    });
+  });
+
+  it('goes next to the line it is dropped at, whoever says the lines around it', () => {
+    const segments = [
+      seg('A', 0, 2, 'A1'),
+      seg('B', 2, 4, 'B1'),
+      seg('A', 10, 12, 'A2'),
+      seg('C', 30, 33, 'C1'),
+    ];
+    // C1 dropped right after A1, before B1 (another speaker's line).
+    const moved = moveSegmentNextTo(segments, 3, 0, 'after', 'C')!;
+    expect(moved.map((s) => s.text)).toEqual(['A1', 'C1', 'B1', 'A2']);
+    expect(moved[1]).toMatchObject({ speaker: 'C', start: 2, end: 3 });
+  });
+
   it('dropping before the next line is the same place', () => {
-    expect(moveSegmentNextTo(call(), 3, 2, 'before')).toEqual(
-      moveSegmentNextTo(call(), 3, 1, 'after')
+    expect(moveSegmentNextTo(call(), 3, 2, 'before', 'A')).toEqual(
+      moveSegmentNextTo(call(), 3, 1, 'after', 'A')
     );
   });
 
   it('shortens the line when the gap is smaller than it', () => {
     const segments = [seg('A', 0, 2), seg('A', 3, 4), seg('B', 40, 45)];
-    const moved = moveSegmentNextTo(segments, 2, 0, 'after')!;
+    const moved = moveSegmentNextTo(segments, 2, 0, 'after', 'A')!;
     expect(moved[1]).toMatchObject({ start: 2, end: 3 });
   });
 
   it('keeps at least a second when there is no room at all', () => {
     const segments = [seg('A', 0, 2), seg('A', 2, 4), seg('B', 40, 43)];
-    expect(moveSegmentNextTo(segments, 2, 0, 'after')![1]).toMatchObject({ start: 2, end: 3 });
-    expect(moveSegmentNextTo(segments, 2, 0, 'before')![0]).toMatchObject({ start: 0, end: 1 });
+    expect(moveSegmentNextTo(segments, 2, 0, 'after', 'A')![1]).toMatchObject({ start: 2, end: 3 });
+    expect(moveSegmentNextTo(segments, 2, 0, 'before', 'A')![0]).toMatchObject({
+      start: 0,
+      end: 1,
+    });
   });
 
   it('places a line before the first or after the last line of a column', () => {
-    const first = moveSegmentNextTo([seg('A', 10, 12), seg('B', 40, 43)], 1, 0, 'before')!;
+    const first = moveSegmentNextTo([seg('A', 10, 12), seg('B', 40, 43)], 1, 0, 'before', 'A')!;
     expect(first[0]).toMatchObject({ speaker: 'A', start: 7, end: 10 });
 
-    const last = moveSegmentNextTo([seg('B', 0, 3), seg('A', 10, 12)], 0, 1, 'after')!;
+    const last = moveSegmentNextTo([seg('B', 0, 3), seg('A', 10, 12)], 0, 1, 'after', 'A')!;
     expect(last[1]).toMatchObject({ speaker: 'A', start: 12, end: 15 });
   });
 
   it('only changes the speaker when the line already falls there', () => {
     const segments = [seg('A', 0, 2), seg('B', 4, 6), seg('A', 8, 9)];
-    const moved = moveSegmentNextTo(segments, 1, 0, 'after')!;
+    const moved = moveSegmentNextTo(segments, 1, 0, 'after', 'A')!;
     expect(moved[1]).toEqual({ ...segments[1], speaker: 'A' });
   });
 
   it('reorders within one column', () => {
     const segments = [seg('A', 0, 2, 'one'), seg('A', 3, 5, 'two'), seg('A', 6, 7, 'three')];
-    const moved = moveSegmentNextTo(segments, 2, 0, 'after')!;
+    const moved = moveSegmentNextTo(segments, 2, 0, 'after', 'A')!;
     expect(moved.map((s) => s.text)).toEqual(['one', 'three', 'two']);
     expect(moved[1]).toMatchObject({ start: 2, end: 3, original: { start: 6, end: 7 } });
   });
 
   it('does nothing when dropped where it already is', () => {
     const segments = call();
-    expect(moveSegmentNextTo(segments, 1, 0, 'after')).toBeNull();
-    expect(moveSegmentNextTo(segments, 1, 1, 'before')).toBeNull();
+    expect(moveSegmentNextTo(segments, 1, 0, 'after', 'A')).toBeNull();
+    expect(moveSegmentNextTo(segments, 1, 1, 'before', 'A')).toBeNull();
   });
 
   it('re-times the words into the new span', () => {
@@ -80,7 +109,7 @@ describe('moveSegmentNextTo', () => {
         { start: 41.5, end: 43, word: ' dia', probability: 0.4 },
       ],
     };
-    const moved = moveSegmentNextTo(segments, 3, 1, 'after')!;
+    const moved = moveSegmentNextTo(segments, 3, 1, 'after', 'A')!;
     expect(moved[2].words).toEqual([
       { start: 5, end: 6, word: ' Bom', probability: 0.9 },
       { start: 6.5, end: 8, word: ' dia', probability: 0.4 },
@@ -88,8 +117,8 @@ describe('moveSegmentNextTo', () => {
   });
 
   it('keeps the first original times when moved again', () => {
-    const once = moveSegmentNextTo(call(), 3, 1, 'after')!;
-    const twice = moveSegmentNextTo(once, 2, 0, 'before')!;
+    const once = moveSegmentNextTo(call(), 3, 1, 'after', 'A')!;
+    const twice = moveSegmentNextTo(once, 2, 0, 'before', 'A')!;
     expect(twice[0].original).toEqual({ speaker: 'B', start: 40, end: 43 });
   });
 });

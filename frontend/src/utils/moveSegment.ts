@@ -9,34 +9,37 @@ const MIN_LENGTH_SECONDS = 1;
 const round = (seconds: number) => Math.round(seconds * 100) / 100;
 
 /**
- * The segments after moving one next to another (e.g. dragged in the Kanban
- * view to between two lines of another speaker), or null when nothing changes.
+ * The segments after moving one before or after another (e.g. dragged in the
+ * Kanban view to between two lines), or null when nothing changes.
  *
- * The moved segment takes the target's speaker. Lines read in time order, so
- * when it does not already fall between its new neighbours in that speaker's
- * column, it gets new times there: it starts where the line above ends and
- * keeps its length, shortened (to a second at least) if the line below starts
- * sooner. Its words are re-timed into the new span, and its first speaker and
- * times are kept in `original` (the audio still has it at those times).
+ * The moved segment takes `speaker` (the column it was dropped in, which may
+ * be its own) and its place in the conversation next to the target, whoever
+ * says the target. Lines read in time order, so when it does not already fall
+ * between its new neighbours, it gets new times there: it starts where the
+ * line above ends and keeps its length, shortened (to a second at least) if
+ * the line below starts sooner. Its words are re-timed into the new span, and
+ * its first speaker and times are kept in `original` (the audio still has it
+ * at those times).
  */
 export function moveSegmentNextTo(
   segments: TranscriptSegment[],
   index: number,
   targetIndex: number,
-  placement: DropPlacement
+  placement: DropPlacement,
+  speaker: string
 ): TranscriptSegment[] | null {
   const moving = segments[index];
   const target = segments[targetIndex];
   if (!moving || !target || index === targetIndex) return null;
 
-  // The target speaker's column without the moved line, in display order.
-  const column = segments
+  // The conversation without the moved line, in display order (every speaker).
+  const lines = segments
     .map((segment, i) => ({ segment, i }))
-    .filter(({ segment, i }) => i !== index && segment.speaker === target.speaker)
+    .filter(({ i }) => i !== index)
     .sort((a, b) => Number(a.segment.start) - Number(b.segment.start) || a.i - b.i);
-  const position = column.findIndex(({ i }) => i === targetIndex);
-  const prev = placement === 'before' ? column[position - 1] : column[position];
-  const next = placement === 'before' ? column[position] : column[position + 1];
+  const position = lines.findIndex(({ i }) => i === targetIndex);
+  const prev = placement === 'before' ? lines[position - 1] : lines[position];
+  const next = placement === 'before' ? lines[position] : lines[position + 1];
 
   const start = Number(moving.start);
   const end = Number(moving.end);
@@ -48,9 +51,9 @@ export function moveSegmentNextTo(
       start < Number(next.segment.start) ||
       (start === Number(next.segment.start) && index < next.i));
   if (fits) {
-    if (moving.speaker === target.speaker) return null;
+    if (moving.speaker === speaker) return null;
     const updated = [...segments];
-    updated[index] = { ...moving, speaker: target.speaker };
+    updated[index] = { ...moving, speaker };
     return updated;
   }
 
@@ -77,7 +80,7 @@ export function moveSegmentNextTo(
   const retime = (t: number) => round(newStart + (t - start) * scale);
   const moved: TranscriptSegment = {
     ...moving,
-    speaker: target.speaker,
+    speaker,
     start: newStart,
     end: newEnd,
     original: moving.original ?? { speaker: moving.speaker, start, end },

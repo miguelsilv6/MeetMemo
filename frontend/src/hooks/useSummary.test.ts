@@ -168,6 +168,37 @@ describe('useSummary', () => {
     expect(setError).toHaveBeenLastCalledWith(expect.stringContaining('connection refused'));
     expect(setCurrentStep).not.toHaveBeenCalled();
     expect(result.current.generatingSummary).toBe(false);
+    // Also kept for the button that asked (the page banner may be out of view).
+    expect(result.current.summaryError).toMatch(/not available.*connection refused/);
+
+    // Asking again clears it.
+    vi.mocked(api.generateSummary).mockResolvedValue({ status: 'cached', summary: 'Resumo' });
+    await act(async () => {
+      await result.current.handleGenerateSummary();
+    });
+    expect(result.current.summaryError).toBeNull();
+  });
+
+  it('says so when a summary task ends without a summary', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.generateSummary).mockResolvedValue({ status: 'running', task: task() });
+    vi.mocked(api.getSummary)
+      .mockResolvedValueOnce({ status: 'none', task: null }) // on mount
+      .mockResolvedValueOnce({ status: 'done', task: task({ status: 'done' }) });
+    const setCurrentStep = vi.fn();
+    const { result } = renderHook(() => useSummary('job1', setCurrentStep, vi.fn()));
+
+    let done: Promise<void> = Promise.resolve();
+    await act(async () => {
+      done = result.current.handleGenerateSummary();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LLM_POLL_MS);
+      await done;
+    });
+
+    expect(result.current.summaryError).toBe('Failed to generate summary');
+    expect(setCurrentStep).not.toHaveBeenCalled();
   });
 
   it('picks up a summary still being made when the transcript is opened', async () => {
