@@ -13,7 +13,7 @@ from dependencies import get_job_repository, get_speaker_service, get_summary_se
 from fastapi import APIRouter, Depends, HTTPException
 from models import SpeakerNameMapping, SpeakerUpdateResponse
 from repositories.job_repository import JobRepository
-from services.speaker_service import SpeakerService
+from services.speaker_service import SpeakerService, rename_channel_speakers
 from services.summary_service import SummaryService
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,11 @@ async def update_speakers(  # pylint: disable=too-many-arguments,too-many-positi
             base_name,
             speaker_map.mapping
         )
+
+        # The channels of a call transcribed per channel show the new names too.
+        transcription_data = await job_repo.get_transcription(uuid)
+        if rename_channel_speakers(transcription_data, speaker_map.mapping):
+            await job_repo.save_transcription(uuid, transcription_data)
 
         # Invalidate cached summary
         await summary_service.delete_summary(uuid)

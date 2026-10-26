@@ -118,7 +118,7 @@ export default function MeetingInfoSidebar({
                     <li key={channel.channel} className="mb-1">
                       <div className="text-muted">
                         {t(`meetingInfo.channels.${channel.channel === 0 ? 'left' : 'right'}`, {
-                          speaker: channel.speaker,
+                          speaker: channel.display_name ?? channel.speaker,
                         })}
                       </div>
                       <div className="d-flex align-items-center gap-1">

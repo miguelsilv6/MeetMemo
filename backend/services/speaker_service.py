@@ -14,6 +14,24 @@ from utils.formatters import format_speaker_name, format_transcript_for_llm
 logger = logging.getLogger(__name__)
 
 
+def rename_channel_speakers(transcription_data: dict, mapping: dict[str, str]) -> bool:
+    """
+    Show renamed speakers on the channels of a call transcribed per channel.
+
+    Each channel's ``speaker`` stays the label it was transcribed with (the
+    raw record); its ``display_name`` follows the renames, so SPEAKER_00 ->
+    Ana -> Ana Silva works. Returns whether anything changed.
+    """
+    channels = ((transcription_data or {}).get("language_detection") or {}).get("channels") or []
+    changed = False
+    for channel in channels:
+        current = channel.get("display_name") or channel.get("speaker")
+        if current in mapping and mapping[current] != current:
+            channel["display_name"] = mapping[current]
+            changed = True
+    return changed
+
+
 class SpeakerService:
     """Service for speaker name management."""
 
@@ -46,10 +64,14 @@ class SpeakerService:
         Raises:
             Exception: If update fails
         """
-        # Read original transcript
+        # Rename on the transcript as it is now: the edited copy if there is
+        # one (it carries the earlier edits and renames), else the original.
+        # The original is never written.
+        edited_path = os.path.join(self.settings.transcript_edited_dir, f"{file_name}.json")
         original_path = os.path.join(self.settings.transcript_dir, f"{file_name}.json")
+        source_path = edited_path if os.path.exists(edited_path) else original_path
 
-        async with aiofiles.open(original_path, "r", encoding="utf-8") as f:
+        async with aiofiles.open(source_path, "r", encoding="utf-8") as f:
             transcript_json = await f.read()
 
         transcript_data = json.loads(transcript_json)
@@ -62,10 +84,6 @@ class SpeakerService:
 
         # Save to edited directory
         os.makedirs(self.settings.transcript_edited_dir, exist_ok=True)
-        edited_path = os.path.join(
-            self.settings.transcript_edited_dir,
-            f"{file_name}.json"
-        )
 
         updated_json = json.dumps(transcript_data, indent=4)
         async with aiofiles.open(edited_path, "w", encoding="utf-8") as f:
