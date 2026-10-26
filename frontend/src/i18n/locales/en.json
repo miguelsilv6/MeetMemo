@@ -223,6 +223,11 @@
   },
   "summary": {
     "title": "AI-Generated Summary",
+    "regenerate": "New summary",
+    "regenerateTitle": "Generate a new summary",
+    "regenerateBody": "The AI summarizes the transcript again as it is now, with the current speaker names and edits. The current summary stays on show until the new one is ready.",
+    "regenerateWarning": "The current summary is replaced by the new one, including any changes made by hand, and cannot be recovered.",
+    "regenerateConfirm": "Generate new summary",
     "backToTranscript": "Back to Transcript",
     "placeholder": "AI summary will appear here",
     "summaryHeading": "Summary",

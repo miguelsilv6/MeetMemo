@@ -9,12 +9,14 @@ import type { SetError, SetTranscriptWithColors } from '../types/ui';
  * by the user; nothing assigns names automatically. The editor can also be
  * opened before another step (the AI summary): that step then follows once
  * the names are saved, or when the user goes on without changing them.
+ * `onRenamed` hears of each saved rename (e.g. to keep the undo history in step).
  */
 export default function useSpeakerManagement(
   jobId: string | null,
   transcript: Transcript | null,
   setTranscriptWithColors: SetTranscriptWithColors,
-  setError: SetError
+  setError: SetError,
+  onRenamed?: (mapping: SpeakerMapping) => void
 ) {
   const { t } = useTranslation();
   const [editingSpeakers, setEditingSpeakers] = useState<SpeakerMapping>({});
@@ -106,6 +108,7 @@ export default function useSpeakerManagement(
         segments: updatedSegments,
         ...(detection && channels ? { language_detection: { ...detection, channels } } : {}),
       });
+      onRenamed?.(editingSpeakers);
       setShowEditSpeakersModal(false);
       runNextStep();
     } catch (err) {

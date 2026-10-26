@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Row, Col, Card, Button } from '@govtechsg/sgds-react';
-import { Sparkles, Edit2, ArrowLeft } from 'lucide-react';
+import { Row, Col, Card, Button, Alert } from '@govtechsg/sgds-react';
+import { Sparkles, Edit2, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SummaryContent from './SummaryContent';
 import CollapsibleTranscript from './CollapsibleTranscript';
 import ExportSidebar from './ExportSidebar';
-import type { SelectedFile, Summary, Transcript } from '../../types/api';
+import RegenerateSummaryModal from './RegenerateSummaryModal';
+import type { LlmTask, SelectedFile, Summary, Transcript } from '../../types/api';
 import type { SetCurrentStep } from '../../types/ui';
 
 interface SummaryViewProps {
@@ -16,6 +17,11 @@ interface SummaryViewProps {
   handleEditSummary: () => void;
   handleStartNewMeeting: () => void;
   setCurrentStep: SetCurrentStep;
+  /** Asks for a new summary in place of this one; given to the administrator only. */
+  handleRegenerateSummary?: () => void;
+  generatingSummary?: boolean;
+  summaryTask?: LlmTask | null;
+  summaryError?: string | null;
 }
 
 export default function SummaryView({
@@ -26,9 +32,14 @@ export default function SummaryView({
   handleEditSummary,
   handleStartNewMeeting,
   setCurrentStep,
+  handleRegenerateSummary,
+  generatingSummary = false,
+  summaryTask = null,
+  summaryError = null,
 }: SummaryViewProps) {
   const { t } = useTranslation();
   const [showFullTranscript, setShowFullTranscript] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
 
   return (
     <Row>
@@ -52,14 +63,45 @@ export default function SummaryView({
                 variant="outline-primary"
                 size="sm"
                 onClick={handleEditSummary}
-                disabled={!summary?.summary}
+                disabled={!summary?.summary || generatingSummary}
               >
                 <Edit2 size={16} className="me-1" />
                 {t('common.edit')}
               </Button>
+              {handleRegenerateSummary && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => setConfirmRegenerate(true)}
+                  disabled={generatingSummary}
+                >
+                  {generatingSummary ? (
+                    <>
+                      <span
+                        className="spinner-border spinner-border-sm me-1"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      {summaryTask?.status === 'queued'
+                        ? t('llmTask.queued', { count: summaryTask.queue_position ?? 0 })
+                        : t('meetingInfo.generatingSummary')}
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={16} className="me-1" />
+                      {t('summary.regenerate')}
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </Card.Header>
           <Card.Body>
+            {summaryError && !generatingSummary && (
+              <Alert show variant="danger" className="py-2 px-3 small" role="alert">
+                {summaryError}
+              </Alert>
+            )}
             <SummaryContent summary={summary} />
           </Card.Body>
         </Card>
@@ -78,6 +120,14 @@ export default function SummaryView({
           handleStartNewMeeting={handleStartNewMeeting}
         />
       </Col>
+
+      {handleRegenerateSummary && (
+        <RegenerateSummaryModal
+          show={confirmRegenerate}
+          onHide={() => setConfirmRegenerate(false)}
+          onConfirm={handleRegenerateSummary}
+        />
+      )}
     </Row>
   );
 }

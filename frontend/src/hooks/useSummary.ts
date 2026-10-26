@@ -142,6 +142,27 @@ export default function useSummary(
     await generateSummaryFor(jobId);
   };
 
+  // A new summary in place of the saved one (the administrator's to ask for):
+  // the saved one stays on show until the new one is ready, and stays if it fails.
+  const handleRegenerateSummary = async () => {
+    if (!jobId) return;
+    const uuid = jobId;
+    try {
+      setError(null);
+      setSummaryError(null);
+      setGeneratingSummary(true);
+      const fresh = await follow(uuid, await api.generateSummary(uuid, null, true));
+      if (!fresh) return;
+      summaryJob.current = uuid;
+      setSummary(fresh);
+    } catch (err) {
+      const message = (err as Error).message || t('errors.generateSummary');
+      setError(message);
+      setSummaryError(message);
+      setGeneratingSummary(false);
+    }
+  };
+
   // Open edit summary modal
   const handleEditSummary = () => {
     if (!summary?.summary) return;
@@ -181,6 +202,7 @@ export default function useSummary(
     setShowEditSummaryModal,
     handleGenerateSummary,
     generateSummaryFor,
+    handleRegenerateSummary,
     handleEditSummary,
     handleSaveSummary,
   };

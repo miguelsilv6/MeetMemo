@@ -61,6 +61,30 @@ describe('useSpeakerManagement.handleSaveSpeakers', () => {
   });
 });
 
+describe('useSpeakerManagement.onRenamed', () => {
+  it('hears of the names once the server saved them, not when it refused', async () => {
+    const onRenamed = vi.fn();
+    const { result } = renderHook(() =>
+      useSpeakerManagement('job1', transcript, vi.fn(), vi.fn(), onRenamed)
+    );
+    act(() => {
+      result.current.setEditingSpeakers({ SPEAKER_00: 'Alice', SPEAKER_01: 'SPEAKER_01' });
+    });
+
+    vi.mocked(api.updateSpeakers).mockRejectedValueOnce(new Error('network down'));
+    await act(async () => {
+      await result.current.handleSaveSpeakers();
+    });
+    expect(onRenamed).not.toHaveBeenCalled();
+
+    vi.mocked(api.updateSpeakers).mockResolvedValueOnce({});
+    await act(async () => {
+      await result.current.handleSaveSpeakers();
+    });
+    expect(onRenamed).toHaveBeenCalledWith({ SPEAKER_00: 'Alice', SPEAKER_01: 'SPEAKER_01' });
+  });
+});
+
 describe('useSpeakerManagement renaming the channels', () => {
   it("names each channel of a per-channel call by its speaker's new name", async () => {
     vi.mocked(api.updateSpeakers).mockResolvedValue({});

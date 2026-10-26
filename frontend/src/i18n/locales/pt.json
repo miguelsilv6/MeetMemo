@@ -223,6 +223,11 @@
   },
   "summary": {
     "title": "Resumo Gerado por IA",
+    "regenerate": "Novo resumo",
+    "regenerateTitle": "Gerar um novo resumo",
+    "regenerateBody": "A IA volta a resumir a transcrição tal como está agora, com os nomes dos interlocutores e as edições atuais. O resumo atual continua visível até o novo estar pronto.",
+    "regenerateWarning": "O resumo atual é substituído pelo novo, incluindo as alterações feitas à mão, e não pode ser recuperado.",
+    "regenerateConfirm": "Gerar novo resumo",
     "backToTranscript": "Voltar à Transcrição",
     "placeholder": "O resumo da IA vai aparecer aqui",
     "summaryHeading": "Resumo",

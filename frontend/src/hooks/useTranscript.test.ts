@@ -132,6 +132,41 @@ describe('useTranscript', () => {
     expect(result.current.transcript?.segments).toEqual(call);
   });
 
+  it('keeps the new speaker names when undoing an edit made before the rename', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+    await act(async () => {
+      await result.current.handleDeleteSegments([2]);
+    });
+
+    // The names are saved on the server; then the deletion is undone.
+    act(() => {
+      result.current.setTranscriptWithColors({
+        segments: result.current.transcript!.segments!.map((s) => ({
+          ...s,
+          speaker: s.speaker === 'SPEAKER_00' ? 'SPEAKER_01' : 'SPEAKER_00',
+        })),
+      });
+      result.current.renameSpeakersInHistory({
+        SPEAKER_00: 'SPEAKER_01',
+        SPEAKER_01: 'SPEAKER_00',
+      });
+    });
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+
+    const [, saved] = vi.mocked(api.updateTranscript).mock.calls.at(-1)!;
+    expect(saved.map((s) => [s.speaker, s.text])).toEqual([
+      ['SPEAKER_01', 'Hello'],
+      ['SPEAKER_00', 'Hi there'],
+      ['SPEAKER_01', 'How are you'],
+    ]);
+  });
+
   it('rolls back a move next to another segment if the API call fails', async () => {
     const setError = vi.fn();
     vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));

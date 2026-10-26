@@ -142,6 +142,57 @@ describe('useSummary', () => {
     expect(result.current.summaryTask).toBeNull();
   });
 
+  it('replaces the saved summary with a new one, keeping it on show meanwhile', async () => {
+    vi.useFakeTimers();
+    vi.mocked(api.generateSummary)
+      .mockResolvedValueOnce({ status: 'cached', summary: 'Old' })
+      .mockResolvedValueOnce({
+        status: 'queued',
+        summary: 'Old',
+        task: task({ status: 'queued' }),
+      });
+    vi.mocked(api.getSummary)
+      .mockResolvedValueOnce({ status: 'none', task: null }) // on mount
+      .mockResolvedValueOnce({ status: 'cached', summary: 'New', task: null });
+    const setCurrentStep = vi.fn();
+    const { result } = renderHook(() => useSummary('job1', setCurrentStep, vi.fn()));
+    await act(async () => {
+      await result.current.handleGenerateSummary();
+    });
+
+    let done: Promise<void> = Promise.resolve();
+    await act(async () => {
+      done = result.current.handleRegenerateSummary();
+    });
+    expect(api.generateSummary).toHaveBeenLastCalledWith('job1', null, true);
+    expect(result.current.generatingSummary).toBe(true);
+    expect(result.current.summary?.summary).toBe('Old');
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LLM_POLL_MS);
+      await done;
+    });
+    expect(result.current.summary?.summary).toBe('New');
+    expect(result.current.generatingSummary).toBe(false);
+  });
+
+  it('keeps the saved summary when a new one fails or is refused', async () => {
+    vi.mocked(api.generateSummary)
+      .mockResolvedValueOnce({ status: 'cached', summary: 'Old' })
+      .mockRejectedValueOnce(new Error('Only the administrator can do this'));
+    const { result } = renderHook(() => useSummary('job1', vi.fn(), vi.fn()));
+    await act(async () => {
+      await result.current.handleGenerateSummary();
+    });
+
+    await act(async () => {
+      await result.current.handleRegenerateSummary();
+    });
+    expect(result.current.summary?.summary).toBe('Old');
+    expect(result.current.summaryError).toBe('Only the administrator can do this');
+    expect(result.current.generatingSummary).toBe(false);
+  });
+
   it('explains why a background summary failed', async () => {
     vi.useFakeTimers();
     const setError = vi.fn();

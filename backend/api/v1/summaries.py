@@ -65,8 +65,9 @@ async def create_summary(
     """Summarize the transcript, in the background.
 
     A cached summary is returned at once (200), unless ``regenerate`` or
-    custom prompts ask for a new one. Otherwise a summary task is queued, or
-    the one under way returned (202), and the page polls GET .../summaries.
+    custom prompts ask for a new one, which only the administrator may do
+    (403 otherwise). Otherwise a summary task is queued, or the one under
+    way returned (202), and the page polls GET .../summaries.
     """
     request = request or SummarizeRequest()
     job = await job_repo.get(uuid)
@@ -83,13 +84,16 @@ async def create_summary(
                            ("system_prompt", request.system_prompt))
         if value
     }
-    if not custom and not request.regenerate:
-        cached = await summary_service.get_cached_summary(uuid)
-        if cached:
-            return SummaryResponse(
-                uuid=uuid, file_name=job["file_name"], status="cached", status_code=200,
-                summary=cached,
-            )
+    cached = await summary_service.get_cached_summary(uuid)
+    if cached and (custom or request.regenerate):
+        # A saved summary (perhaps edited by hand) is replaced by the administrator only.
+        if not principal.is_admin:
+            raise HTTPException(status_code=403, detail="Only the administrator can do this")
+    elif cached:
+        return SummaryResponse(
+            uuid=uuid, file_name=job["file_name"], status="cached", status_code=200,
+            summary=cached,
+        )
 
     task = await tasks.enqueue(uuid, "summary", custom, principal.username)
     wake_llm_queue(http_request)
