@@ -42,4 +42,35 @@ describe('SummaryView', () => {
     renderView({ summary: null });
     expect(screen.getByText('Edit').closest('button')).toBeDisabled();
   });
+
+  it('offers a new summary only when given the handler (the administrator)', () => {
+    renderView();
+    expect(screen.queryByText('New summary')).not.toBeInTheDocument();
+  });
+
+  it('asks before replacing the summary, and starts it once confirmed', () => {
+    const handleRegenerateSummary = vi.fn();
+    renderView({ handleRegenerateSummary });
+
+    fireEvent.click(screen.getByText('New summary'));
+    expect(screen.getByText(/including any changes made by hand/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(handleRegenerateSummary).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('New summary'));
+    fireEvent.click(screen.getByText('Generate new summary'));
+    expect(handleRegenerateSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a new summary being made, and why it failed', () => {
+    const { rerender, props } = renderView({
+      handleRegenerateSummary: vi.fn(),
+      generatingSummary: true,
+    });
+    expect(screen.getByText('Generating...').closest('button')).toBeDisabled();
+    expect(screen.getByText('Edit').closest('button')).toBeDisabled();
+
+    rerender(<SummaryView {...props} generatingSummary={false} summaryError="LLM down" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('LLM down');
+  });
 });

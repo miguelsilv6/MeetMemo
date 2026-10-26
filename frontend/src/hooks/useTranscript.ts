@@ -4,7 +4,7 @@ import * as api from '../services/api';
 import { initializeSpeakerColors } from '../utils/speakerColors';
 import { moveSegmentNextTo } from '../utils/moveSegment';
 import type { DropPlacement } from '../utils/moveSegment';
-import type { Transcript, TranscriptSegment } from '../types/api';
+import type { SpeakerMapping, Transcript, TranscriptSegment } from '../types/api';
 import type { SetError } from '../types/ui';
 
 export type EditingSegment = TranscriptSegment & { index: number };
@@ -318,6 +318,20 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     }
   };
 
+  // Speakers renamed on the server: the states undo can go back to use the new
+  // names too, or undoing an earlier edit would save the old names again.
+  const renameSpeakersInHistory = (mapping: SpeakerMapping) => {
+    setHistory((prev) =>
+      prev.map((segments) =>
+        segments.map((segment) =>
+          mapping[segment.speaker] && mapping[segment.speaker] !== segment.speaker
+            ? { ...segment, speaker: mapping[segment.speaker] }
+            : segment
+        )
+      )
+    );
+  };
+
   // Step back one entry in the undo history, restoring and persisting that
   // earlier segment array. Rolled back (both the local state and the popped
   // history entry) if the backend save fails.
@@ -362,5 +376,6 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     handleSplitSegment,
     canUndo: history.length > 0,
     handleUndo,
+    renameSpeakersInHistory,
   };
 }

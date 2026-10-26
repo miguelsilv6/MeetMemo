@@ -121,6 +121,7 @@ function App() {
     handleSplitSegment,
     canUndo,
     handleUndo,
+    renameSpeakersInHistory,
   } = useTranscript(jobId, setError);
 
   // Transcript translation (Portuguese)
@@ -144,7 +145,13 @@ function App() {
     beforeNextStep: speakerNamesBeforeSummary,
     handleSkipSpeakers,
     handleCancelEditSpeakers,
-  } = useSpeakerManagement(jobId, transcript, setTranscriptWithColors, setError);
+  } = useSpeakerManagement(
+    jobId,
+    transcript,
+    setTranscriptWithColors,
+    setError,
+    renameSpeakersInHistory
+  );
 
   // Transcript polling (defined before useFileUpload that depends on it)
   const { processingProgress, startPolling, stopPolling, setProcessingProgress } =
@@ -215,6 +222,7 @@ function App() {
     setShowEditSummaryModal,
     handleGenerateSummary,
     generateSummaryFor,
+    handleRegenerateSummary,
     handleEditSummary,
     handleSaveSummary,
   } = useSummary(jobId, setCurrentStep, setError);
@@ -532,6 +540,10 @@ function App() {
                 handleEditSummary={handleEditSummary}
                 handleStartNewMeeting={handleStartNewMeeting}
                 setCurrentStep={setCurrentStep}
+                handleRegenerateSummary={me?.is_admin ? handleRegenerateSummary : undefined}
+                generatingSummary={generatingSummary}
+                summaryTask={summaryTask}
+                summaryError={summaryError}
               />
             )}
           </>

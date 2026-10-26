@@ -172,7 +172,8 @@ def test_background_llm_tasks_against_real_postgres(monkeypatch, tmp_path):
         )
         again = client.post(f"{base}/transcripts/translate", headers=ana)
         assert again.json()["task"]["id"] == task["id"]
-        summary_ask = client.post(f"{base}/summaries", headers=ana, json={})
+        # With no summary saved yet, asking for a new one is anyone's to do.
+        summary_ask = client.post(f"{base}/summaries", headers=ana, json={"regenerate": True})
         assert summary_ask.status_code == 202
         assert summary_ask.json()["task"]["queue_position"] == 1  # behind the translation
         assert llm.calls == 0  # nothing ran inside the requests
@@ -200,12 +201,16 @@ def test_background_llm_tasks_against_real_postgres(monkeypatch, tmp_path):
         assert done["summary"].startswith("# Resumo")
         assert run(queue.run_next()) is False  # queue empty
 
-        # A cached summary is served at once, unless a new one is asked for.
+        # A cached summary is served at once, unless the administrator asks
+        # for a new one: only they may replace a saved summary.
         cached = client.post(f"{base}/summaries", headers=ana, json={})
         assert (cached.status_code, cached.json()["status"]) == (200, "cached")
-        redo = client.post(f"{base}/summaries", headers=ana, json={"regenerate": True})
+        for body in ({"regenerate": True}, {"custom_prompt": "Só os nomes."}):
+            assert client.post(f"{base}/summaries", headers=ana, json=body).status_code == 403
+        assert client.get(f"{base}/summaries", headers=ana).json()["task"] is None
+        redo = client.post(f"{base}/summaries", headers=admin, json={"regenerate": True})
         assert redo.status_code == 202
-        custom = client.post(f"{base}/summaries", headers=ana,
+        custom = client.post(f"{base}/summaries", headers=admin,
                              json={"custom_prompt": "Só os nomes."})
         assert custom.json()["task"]["id"] == redo.json()["task"]["id"]  # one at a time
         both = client.get(f"{base}/summaries", headers=ana).json()
@@ -222,7 +227,7 @@ def test_background_llm_tasks_against_real_postgres(monkeypatch, tmp_path):
         llm.fail_with = None
 
         # Asking again after a failure queues a new task.
-        retried = client.post(f"{base}/summaries", headers=ana, json={"regenerate": True})
+        retried = client.post(f"{base}/summaries", headers=admin, json={"regenerate": True})
         assert retried.json()["task"]["id"] != failed["task"]["id"]
         assert run(queue.run_next()) is True
         assert client.get(f"{base}/summaries", headers=ana).json()["task"] is None
