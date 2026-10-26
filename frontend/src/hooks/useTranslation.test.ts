@@ -80,7 +80,7 @@ describe('useTranslation', () => {
     expect(result.current.showTranslation).toBe(true);
   });
 
-  it('refetches when the underlying segments array changed since the last translation', async () => {
+  it('refetches once the transcript changed since the last translation, not for a copy', async () => {
     vi.mocked(api.translateTranscript).mockResolvedValue({
       status: 'cached',
       segments: translated,
@@ -93,10 +93,52 @@ describe('useTranslation', () => {
     await act(async () => {
       await result.current.handleToggleTranslation(segments);
     });
+    // The same lines in a new array (e.g. after renaming a speaker): still lines up.
     await act(async () => {
-      await result.current.handleToggleTranslation([...segments]);
+      await result.current.handleToggleTranslation(
+        segments.map((s) => ({ ...s, speaker: `${s.speaker} renamed` }))
+      );
     });
+    expect(api.translateTranscript).toHaveBeenCalledTimes(1);
 
+    await act(async () => {
+      await result.current.handleToggleTranslation(segments);
+    });
+    // A line edited: translated again.
+    await act(async () => {
+      await result.current.handleToggleTranslation([segments[0], { ...segments[1], text: 'Hi!' }]);
+    });
+    expect(api.translateTranscript).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops showing a translation that no longer lines up with the transcript', async () => {
+    vi.mocked(api.translateTranscript).mockResolvedValue({
+      status: 'cached',
+      segments: translated,
+    });
+    const { result, rerender } = renderHook(
+      ({ current }: { current: TranscriptSegment[] }) => useTranslation('job1', vi.fn(), current),
+      { initialProps: { current: segments } }
+    );
+
+    await act(async () => {
+      await result.current.handleToggleTranslation(segments);
+    });
+    expect(result.current.translatedSegments).toEqual(translated);
+
+    // Renaming a speaker keeps it lined up.
+    rerender({ current: segments.map((s) => ({ ...s, speaker: 'Ana' })) });
+    expect(result.current.translatedSegments).toEqual(translated);
+
+    // Moving a line (another order) would put translations under the wrong bubbles.
+    rerender({ current: [segments[1], segments[0]] });
+    expect(result.current.showTranslation).toBe(false);
+    expect(result.current.translatedSegments).toBeNull();
+
+    // The next toggle translates the transcript as it is now.
+    await act(async () => {
+      await result.current.handleToggleTranslation([segments[1], segments[0]]);
+    });
     expect(api.translateTranscript).toHaveBeenCalledTimes(2);
   });
 

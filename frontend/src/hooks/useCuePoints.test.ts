@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import useCuePoints from './useCuePoints';
 import * as api from '../services/api';
+import i18n from '../i18n';
 import type { CuePoint } from '../types/api';
 
 vi.mock('../services/api');
@@ -126,5 +127,60 @@ describe('useCuePoints', () => {
     const { result } = renderHook(() => useCuePoints(null));
     expect(result.current.cuePoints).toEqual([]);
     expect(api.listCuePoints).not.toHaveBeenCalled();
+  });
+
+  it('does not load the cue points again when the language changes', async () => {
+    await loaded([cue(1, 10)]);
+    await act(async () => {
+      await i18n.changeLanguage('pt');
+    });
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+    expect(api.listCuePoints).toHaveBeenCalledTimes(1);
+  });
+
+  it('brings back only the cue point whose removal failed', async () => {
+    const { result } = await loaded([cue(1, 10), cue(2, 80), cue(3, 90)]);
+    let refuse!: (err: Error) => void;
+    vi.mocked(api.deleteCuePoint)
+      .mockImplementationOnce(() => new Promise((_, reject) => (refuse = reject)))
+      .mockResolvedValueOnce(undefined);
+
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.removeCuePoint(1);
+    });
+    await act(async () => {
+      await result.current.removeCuePoint(2);
+    });
+    await act(async () => {
+      refuse(new Error('network down'));
+      await first;
+    });
+
+    expect(result.current.cuePoints.map((c) => c.id)).toEqual([1, 3]);
+  });
+
+  it('puts back only the note whose save failed', async () => {
+    const { result } = await loaded([cue(1, 10, 'a'), cue(2, 80, 'b')]);
+    let refuse!: (err: Error) => void;
+    vi.mocked(api.updateCuePoint)
+      .mockImplementationOnce(() => new Promise((_, reject) => (refuse = reject)))
+      .mockResolvedValueOnce(cue(2, 80, 'b2'));
+
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.updateNote(1, 'a2');
+    });
+    await act(async () => {
+      await result.current.updateNote(2, 'b2');
+    });
+    await act(async () => {
+      refuse(new Error('network down'));
+      await first;
+    });
+
+    expect(result.current.cuePoints.map((c) => c.note)).toEqual(['a', 'b2']);
   });
 });

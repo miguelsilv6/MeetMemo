@@ -208,4 +208,31 @@ describe('TranscriptView', () => {
     expect(active()).toContain('Então amanhã às nove');
     vi.unstubAllGlobals();
   });
+
+  it('keeps the highlight on the line being played when the lines change while paused', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    Element.prototype.scrollIntoView = vi.fn();
+    const lines: TranscriptSegmentType[] = [
+      { speaker: 'SPEAKER_00', start: 0, end: 2, text: 'first line' },
+      { speaker: 'SPEAKER_01', start: 2, end: 4, text: 'second line' },
+    ];
+    const { container, rerender, props } = renderView({ transcript: { segments: lines } });
+    const audio = container.querySelector('audio') as HTMLAudioElement;
+    Object.defineProperty(audio, 'currentTime', { get: () => 3, configurable: true });
+    fireEvent.timeUpdate(audio);
+    const active = () => container.querySelector('.transcript-segment-active')?.textContent ?? '';
+    expect(active()).toContain('second line');
+
+    // A line moved before them shifts every index; the highlight follows the line.
+    rerender(
+      <TranscriptView
+        {...props}
+        transcript={{
+          segments: [{ speaker: 'SPEAKER_01', start: 0, end: 1, text: 'moved line' }, ...lines],
+        }}
+      />
+    );
+    expect(active()).toContain('second line');
+    vi.unstubAllGlobals();
+  });
 });

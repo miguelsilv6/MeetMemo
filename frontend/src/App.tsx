@@ -131,7 +131,7 @@ function App() {
     translationEngine,
     showTranslation,
     handleToggleTranslation,
-  } = useTranslation(jobId, setError);
+  } = useTranslation(jobId, setError, transcript?.segments);
 
   // Speaker management
   const {
