@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { getSpeakerColor, getSpeakerBorderColor, initializeSpeakerColors } from './speakerColors';
+import type { TranscriptSegment } from '../types/api';
+
+const lines = (...speakers: string[]): TranscriptSegment[] =>
+  speakers.map((speaker, i) => ({ speaker, start: i, end: i + 1, text: `line ${i}` }));
+
+beforeEach(() => {
+  initializeSpeakerColors([]);
+});
 
 describe('getSpeakerColor', () => {
-  it('maps SPEAKER_NN labels to a palette entry by index (mod palette size)', () => {
-    const first = getSpeakerColor('SPEAKER_00');
-    const second = getSpeakerColor('SPEAKER_01');
-    expect(first).not.toEqual(second);
-    // Palette has 8 entries, so SPEAKER_08 wraps back to SPEAKER_00's color.
-    expect(getSpeakerColor('SPEAKER_08')).toEqual(first);
-  });
-
   it('returns a color with bg and text fields', () => {
     const color = getSpeakerColor('SPEAKER_00');
     expect(color).toHaveProperty('bg');
@@ -17,13 +17,20 @@ describe('getSpeakerColor', () => {
     expect(color.bg).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
-  it('is deterministic for the same label', () => {
+  it('is the same every time for the same speaker', () => {
     expect(getSpeakerColor('Alice')).toEqual(getSpeakerColor('Alice'));
   });
 
+  it('gives a speaker it has not seen a color no one has yet', () => {
+    initializeSpeakerColors(lines('Ana', 'Bruno'));
+    const others = [getSpeakerColor('Ana').bg, getSpeakerColor('Bruno').bg];
+    expect(others).not.toContain(getSpeakerColor('Carlos').bg);
+  });
+
   it('falls back to the first palette color for empty labels', () => {
-    expect(getSpeakerColor(null)).toEqual(getSpeakerColor('SPEAKER_00'));
-    expect(getSpeakerColor(undefined)).toEqual(getSpeakerColor('SPEAKER_00'));
+    initializeSpeakerColors(lines('Ana'));
+    expect(getSpeakerColor(null)).toEqual(getSpeakerColor('Ana'));
+    expect(getSpeakerColor(undefined)).toEqual(getSpeakerColor('Ana'));
   });
 });
 
@@ -39,11 +46,36 @@ describe('initializeSpeakerColors', () => {
     expect(() => initializeSpeakerColors(undefined)).not.toThrow();
   });
 
-  it('assigns stable colors to the speakers present in the segments', () => {
-    initializeSpeakerColors([
-      { speaker: 'SPEAKER_00', start: 0, end: 1, text: 'hi' },
-      { speaker: 'SPEAKER_01', start: 1, end: 2, text: 'there' },
-    ]);
-    expect(getSpeakerColor('SPEAKER_00')).not.toEqual(getSpeakerColor('SPEAKER_01'));
+  it('gives the two speakers of a call clearly different colors (indigo and cyan)', () => {
+    initializeSpeakerColors(lines('SPEAKER_00', 'SPEAKER_01', 'SPEAKER_00'));
+    expect(getSpeakerColor('SPEAKER_00').bg).toBe('#3b5bdb');
+    expect(getSpeakerColor('SPEAKER_01').bg).toBe('#0c8599');
+  });
+
+  it('never gives two speakers the same color, whatever their names', () => {
+    // These pairs shared a color when it came from a hash of the name.
+    for (const [a, b] of [
+      ['Ana', 'Carlos'],
+      ['Ana', 'Pedro'],
+      ['Bruno', 'Maria'],
+    ]) {
+      initializeSpeakerColors(lines(a, b, a));
+      expect(getSpeakerColor(a)).not.toEqual(getSpeakerColor(b));
+    }
+  });
+
+  it('keeps each speaker its color when they are renamed', () => {
+    initializeSpeakerColors(lines('SPEAKER_00', 'SPEAKER_01', 'SPEAKER_00'));
+    const before = [getSpeakerColor('SPEAKER_00'), getSpeakerColor('SPEAKER_01')];
+    initializeSpeakerColors(lines('Ana', 'Pedro', 'Ana'));
+    expect([getSpeakerColor('Ana'), getSpeakerColor('Pedro')]).toEqual(before);
+  });
+
+  it('gives eight speakers eight different colors, and only then repeats', () => {
+    const speakers = Array.from({ length: 9 }, (_, i) => `Speaker ${i}`);
+    initializeSpeakerColors(lines(...speakers));
+    const colors = speakers.map((s) => getSpeakerColor(s).bg);
+    expect(new Set(colors.slice(0, 8)).size).toBe(8);
+    expect(colors[8]).toBe(colors[0]);
   });
 });
