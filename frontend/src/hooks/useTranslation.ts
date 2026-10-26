@@ -19,6 +19,25 @@ const isReady = (response: TranslateResponse) =>
   response.status === 'original' || response.status === 'cached';
 
 /**
+ * Whether a translation made for `translated` still lines up with `current`:
+ * it is shown by position, so a line moved, inserted, split or deleted (or
+ * its text or times edited) puts other lines' translations under the wrong
+ * bubbles. Renaming a speaker keeps it lined up.
+ */
+export function translationLinesUp(
+  translated: TranscriptSegment[] | undefined,
+  current: TranscriptSegment[] | undefined
+): boolean {
+  if (!translated || !current || translated.length !== current.length) return false;
+  return translated.every(
+    (segment, i) =>
+      segment.text === current[i].text &&
+      Number(segment.start) === Number(current[i].start) &&
+      Number(segment.end) === Number(current[i].end)
+  );
+}
+
+/**
  * Custom hook for on-demand transcript translation into European Portuguese.
  *
  * The server translates in the background (a task it runs block by block,
@@ -27,13 +46,17 @@ const isReady = (response: TranslateResponse) =>
  * language model, so no proxy timeout can cut it, and leaving the page does
  * not stop it: opening the transcript again picks the progress back up.
  *
- * Translations are cached in component state keyed by the exact `segments`
- * array they were generated from; if the transcript changes (e.g. a segment is
- * edited), the cached translation is treated as stale and refetched on the
- * next toggle. The backend caches translations on disk as well, so re-fetching
- * an unchanged transcript is cheap.
+ * Translations are kept with the `segments` they were made for. Once the
+ * transcript no longer lines up with them (a line moved, edited, inserted,
+ * split or deleted; see translationLinesUp), the translation is no longer
+ * shown and the next toggle fetches it again. The backend caches
+ * translations on disk as well, so re-fetching an unchanged transcript is cheap.
  */
-export default function useTranslation(jobId: string | null, setError: SetError) {
+export default function useTranslation(
+  jobId: string | null,
+  setError: SetError,
+  segments?: TranscriptSegment[]
+) {
   const { t } = useI18n();
   const [translatedSegments, setTranslatedSegments] = useState<TranscriptSegment[] | null>(null);
   const [translatedFor, setTranslatedFor] = useState<TranscriptSegment[] | undefined>(undefined);
@@ -119,13 +142,18 @@ export default function useTranslation(jobId: string | null, setError: SetError)
     resume();
   }, [jobId]);
 
+  // Shown only while it still lines up with the transcript on screen (when
+  // the caller says which transcript that is).
+  const linesUp = segments === undefined || translationLinesUp(translatedFor, segments);
+  const shown = showTranslation && linesUp;
+
   const handleToggleTranslation = async (segments: TranscriptSegment[] | undefined) => {
-    if (showTranslation) {
+    if (shown) {
       setShowTranslation(false);
       return;
     }
 
-    const isStale = translatedFor !== segments;
+    const isStale = !translationLinesUp(translatedFor, segments);
     if (translatedSegments && !isStale) {
       setShowTranslation(true);
       return;
@@ -150,11 +178,11 @@ export default function useTranslation(jobId: string | null, setError: SetError)
   };
 
   return {
-    translatedSegments: showTranslation ? translatedSegments : null,
+    translatedSegments: shown ? translatedSegments : null,
     translating,
     translationProgress,
-    translationEngine: showTranslation ? translationEngine : null,
-    showTranslation,
+    translationEngine: shown ? translationEngine : null,
+    showTranslation: shown,
     handleToggleTranslation,
   };
 }

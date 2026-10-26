@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Row, Col, Card, Button, ButtonGroup, Modal, Form } from '@govtechsg/sgds-react';
 import {
   FileText,
@@ -175,8 +175,18 @@ export default function TranscriptView({
   }, [showTranslation, translatedSegments]);
 
   // Handle time update from audio player
+  // The last playback time seen, so the highlight can follow the lines when
+  // they change (a line moved, inserted or deleted) while the audio is paused.
+  const lastTimeRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (lastTimeRef.current === null || !transcript?.segments) return;
+    const newIndex = findActiveSegmentIndex(transcript.segments, lastTimeRef.current);
+    setActiveSegmentIndex((prev) => (newIndex !== prev ? newIndex : prev));
+  }, [transcript?.segments]);
+
   const handleTimeUpdate = useCallback(
     (currentTime: number) => {
+      lastTimeRef.current = currentTime;
       if (transcript?.segments) {
         const newIndex = findActiveSegmentIndex(transcript.segments, currentTime);
         setActiveSegmentIndex((prev) => (newIndex !== prev ? newIndex : prev));

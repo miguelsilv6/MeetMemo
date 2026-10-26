@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import type { CuePoint } from '../types/api';
@@ -17,6 +17,11 @@ export default function useCuePoints(jobId: string | null) {
   const [error, setError] = useState<string | null>(null);
   // The cue point just added, whose note the list opens for typing.
   const [addedId, setAddedId] = useState<number | null>(null);
+  // Only for the load error, so switching language does not load them again.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,12 +35,12 @@ export default function useCuePoints(jobId: string | null) {
         if (!cancelled) setCuePoints([...loaded].sort(byPosition));
       })
       .catch((err: Error) => {
-        if (!cancelled) setError(err.message || t('cuePoints.errors.load'));
+        if (!cancelled) setError(err.message || tRef.current('cuePoints.errors.load'));
       });
     return () => {
       cancelled = true;
     };
-  }, [jobId, t]);
+  }, [jobId]);
 
   const addCuePoint = useCallback(
     async (positionSeconds: number) => {
@@ -57,16 +62,19 @@ export default function useCuePoints(jobId: string | null) {
       // The new cue point's note was left: it no longer takes the focus.
       setAddedId(null);
       if (!jobId) return;
-      const previous = cuePoints;
-      const current = previous.find((c) => c.id === id);
-      if (!current || current.note === note.trim()) return;
-      setCuePoints(previous.map((c) => (c.id === id ? { ...c, note: note.trim() } : c)));
+      const current = cuePoints.find((c) => c.id === id);
+      const trimmed = note.trim();
+      if (!current || current.note === trimmed) return;
+      setCuePoints((prev) => prev.map((c) => (c.id === id ? { ...c, note: trimmed } : c)));
       try {
         setError(null);
         const saved = await api.updateCuePoint(jobId, id, note);
         setCuePoints((prev) => prev.map((c) => (c.id === id ? saved : c)));
       } catch (err) {
-        setCuePoints(previous);
+        // Only this note goes back, so other changes made meanwhile stay.
+        setCuePoints((prev) =>
+          prev.map((c) => (c.id === id && c.note === trimmed ? { ...c, note: current.note } : c))
+        );
         setError((err as Error).message || t('cuePoints.errors.save'));
       }
     },
@@ -76,13 +84,17 @@ export default function useCuePoints(jobId: string | null) {
   const removeCuePoint = useCallback(
     async (id: number) => {
       if (!jobId) return;
-      const previous = cuePoints;
-      setCuePoints(previous.filter((c) => c.id !== id));
+      const removed = cuePoints.find((c) => c.id === id);
+      if (!removed) return;
+      setCuePoints((prev) => prev.filter((c) => c.id !== id));
       try {
         setError(null);
         await api.deleteCuePoint(jobId, id);
       } catch (err) {
-        setCuePoints(previous);
+        // Only this cue point comes back, so others removed meanwhile stay gone.
+        setCuePoints((prev) =>
+          prev.some((c) => c.id === id) ? prev : [...prev, removed].sort(byPosition)
+        );
         setError((err as Error).message || t('cuePoints.errors.delete'));
       }
     },
