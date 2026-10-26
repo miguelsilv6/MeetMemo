@@ -235,19 +235,26 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     }
   };
 
-  // Move a segment next to another one (e.g. dropped between two Kanban
-  // bubbles of another speaker): it takes that speaker and, if needed, times
-  // between its new neighbours. Rolled back if the backend save fails.
+  // Move a segment next to another one (e.g. dropped in a Kanban column at
+  // the height of another bubble): it is said by `speaker` and, if needed,
+  // gets times between its new neighbours. Rolled back if the save fails.
   const handleMoveSegmentTo = async (
     index: number,
     targetIndex: number,
-    placement: DropPlacement
+    placement: DropPlacement,
+    speaker: string
   ) => {
     if (!transcript || !jobId) return;
 
     const previousTranscript = transcript;
     const previousSegments = transcript.segments ?? [];
-    const updatedSegments = moveSegmentNextTo(previousSegments, index, targetIndex, placement);
+    const updatedSegments = moveSegmentNextTo(
+      previousSegments,
+      index,
+      targetIndex,
+      placement,
+      speaker
+    );
     if (!updatedSegments) return;
 
     setTranscriptWithColors({ ...transcript, segments: updatedSegments });

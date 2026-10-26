@@ -17,7 +17,7 @@ import { getSpeakerColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
 import { buildKanbanRows } from '../../utils/kanbanRows';
 import type { DropPlacement } from '../../utils/moveSegment';
-import { dropTargetOf, nearestBubbleInColumn } from '../../utils/kanbanDrop';
+import { dropTargetOf, nearestDropPoint } from '../../utils/kanbanDrop';
 import type { DropTarget } from '../../utils/kanbanDrop';
 import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
 import OriginalTimes from './OriginalTimes';
@@ -36,8 +36,13 @@ interface TranscriptKanbanViewProps {
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onMoveSegmentSpeaker: (index: number, newSpeaker: string) => void;
-  /** Moves a segment before/after another one (it takes that line's speaker and place). */
-  onMoveSegmentTo?: (index: number, targetIndex: number, placement: DropPlacement) => void;
+  /** Moves a segment before/after another one, said by `speaker` (the column it was dropped in). */
+  onMoveSegmentTo?: (
+    index: number,
+    targetIndex: number,
+    placement: DropPlacement,
+    speaker: string
+  ) => void;
   onBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   onDeleteSegments: (indices: number[]) => void;
   onInsertSegmentAfter: (index: number) => void;
@@ -68,7 +73,6 @@ function KanbanBubble({
   selectMode,
   isSelected,
   onToggleSelect,
-  dropPlacement,
 }: {
   indexed: IndexedSegment;
   displayText?: string;
@@ -81,8 +85,6 @@ function KanbanBubble({
   selectMode: boolean;
   isSelected: boolean;
   onToggleSelect?: (index: number) => void;
-  /** Where a bubble being dragged would land next to this one, if here. */
-  dropPlacement?: DropPlacement | null;
 }) {
   const { t } = useTranslation();
   const { segment, index } = indexed;
@@ -116,9 +118,7 @@ function KanbanBubble({
       {...(selectMode ? {} : attributes)}
       className={`kanban-bubble ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
-      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''} ${
-        dropPlacement ? `kanban-bubble-drop-${dropPlacement}` : ''
-      }`}
+      } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''}`}
       onClick={handleClick}
       onDoubleClick={
         selectMode
@@ -428,6 +428,11 @@ export default function TranscriptKanbanView({
   }, [segments]);
 
   const draggingSegment = draggingIndex !== null ? segments[draggingIndex] : null;
+  // The row of the bubble a dragged line would go next to.
+  const dropRow =
+    dropTarget?.index != null
+      ? rows.findIndex((row) => row.kind === 'segment' && row.index === dropTarget.index)
+      : -1;
 
   const handleDragStart = (event: DragStartEvent) => {
     setDraggingIndex(Number(event.active.id));
@@ -449,9 +454,10 @@ export default function TranscriptKanbanView({
     setDropTarget(null);
   };
 
-  // Dropped next to a bubble: the line takes its speaker and its place (times
-  // included). Dropped on an empty column, or without that handler: only
-  // the speaker changes.
+  // Dropped at the height of a bubble (in any column): the line takes the
+  // speaker of the column it was dropped in and that place in the
+  // conversation (times included). With no bubble to go next to, or without
+  // that handler: only the speaker changes.
   const handleDragEnd = (event: DragEndEvent) => {
     endDrag();
     const target = dropTargetOf(event);
@@ -459,7 +465,7 @@ export default function TranscriptKanbanView({
 
     const index = Number(event.active.id);
     if (target.index !== null && onMoveSegmentTo) {
-      onMoveSegmentTo(index, target.index, target.placement);
+      onMoveSegmentTo(index, target.index, target.placement, target.speaker);
     } else if (target.speaker !== event.active.data.current?.speaker) {
       onMoveSegmentSpeaker(index, target.speaker);
     }
@@ -500,7 +506,7 @@ export default function TranscriptKanbanView({
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={nearestBubbleInColumn}
+        collisionDetection={nearestDropPoint}
         onDragStart={handleDragStart}
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
@@ -569,13 +575,24 @@ export default function TranscriptKanbanView({
                   selectMode={selectMode}
                   isSelected={selectedIndices.has(row.index)}
                   onToggleSelect={onToggleSelect}
-                  dropPlacement={
-                    onMoveSegmentTo && dropTarget?.index === row.index ? dropTarget.placement : null
-                  }
                 />
               </div>
             );
           })}
+
+          {/* Where the dragged line would land: a bar in the column it is
+              dropped in, at the top or bottom of the row it goes next to. */}
+          {onMoveSegmentTo && dropTarget && dropRow >= 0 && (
+            <div
+              className={`kanban-drop-bar kanban-drop-bar-${dropTarget.placement}`}
+              style={{
+                gridColumn: speakers.indexOf(dropTarget.speaker) + 1,
+                gridRow: FIRST_CONTENT_ROW + dropRow,
+              }}
+              data-testid="kanban-drop-bar"
+              aria-hidden="true"
+            />
+          )}
         </div>
         <DragOverlay>
           {draggingSegment ? (

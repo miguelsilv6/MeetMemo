@@ -118,7 +118,7 @@ describe('useTranscript', () => {
       result.current.setTranscriptWithColors({ segments: call });
     });
     await act(async () => {
-      await result.current.handleMoveSegmentTo(3, 1, 'after');
+      await result.current.handleMoveSegmentTo(3, 1, 'after', 'SPEAKER_00');
     });
 
     const [, saved] = vi.mocked(api.updateTranscript).mock.calls[0];
@@ -141,7 +141,7 @@ describe('useTranscript', () => {
       result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
     });
     await act(async () => {
-      await result.current.handleMoveSegmentTo(2, 0, 'before');
+      await result.current.handleMoveSegmentTo(2, 0, 'before', 'SPEAKER_00');
     });
 
     expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
