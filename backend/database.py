@@ -119,8 +119,8 @@ TOKENS_SCHEMA_PATHS = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "migrations", name)
     for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql",
                  "010_retranscription.sql",
-                 # Not about tokens, but a jobs column every install needs at startup.
-                 "011_num_speakers.sql")
+                 # Not about tokens, but jobs columns every install needs at startup.
+                 "011_num_speakers.sql", "013_job_expiry.sql")
 ]
 
 DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
@@ -361,7 +361,7 @@ async def get_job(uuid: str) -> Optional[dict]:
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, workflow_state, current_step_progress,
                       transcription_data, diarization_data, model_name, language, created_at,
-                      project_uuid, user_uuid, num_speakers
+                      project_uuid, user_uuid, num_speakers, expires_at
                FROM jobs WHERE uuid = $1""",
             uuid
         )
@@ -455,7 +455,8 @@ async def update_file_name(uuid: str, new_file_name: str) -> bool:
 
 async def cleanup_old_jobs(max_age_hours: int = 12) -> list[dict]:
     """
-    Find and delete jobs older than max_age_hours.
+    Find and delete jobs older than max_age_hours, or past the date the
+    administrator extended them to.
     Returns list of deleted jobs with their file_names and export files.
 
     Jobs in a project are left alone: they live until their project expires.
@@ -471,7 +472,7 @@ async def cleanup_old_jobs(max_age_hours: int = 12) -> list[dict]:
                FROM jobs j
                LEFT JOIN export_jobs e ON e.job_uuid = j.uuid
                WHERE j.project_uuid IS NULL
-                 AND j.created_at < NOW() - INTERVAL '1 hour' * $1
+                 AND COALESCE(j.expires_at, j.created_at + INTERVAL '1 hour' * $1) < NOW()
                GROUP BY j.uuid, j.file_name""",
             max_age_hours
         )

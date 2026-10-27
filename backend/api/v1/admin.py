@@ -10,6 +10,7 @@ which a cross-site form cannot send.
 import asyncio
 import hmac
 import logging
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -27,6 +28,8 @@ from config import Settings, get_settings
 from dependencies import (
     get_admin_repository,
     get_http_client,
+    get_job_repository,
+    get_project_repository,
     get_token_repository,
     get_user_repository,
 )
@@ -34,9 +37,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from llm_prompts import QWEN3_NO_THINK, TRANSLATION_OUTPUT_CONTRACT
 from pydantic import BaseModel, Field, field_validator
 from repositories.admin_repository import AdminRepository
+from repositories.job_repository import JobRepository
+from repositories.project_repository import ProjectRepository
 from repositories.token_repository import NegativeBalanceError, TokenRepository
 from repositories.user_repository import UsernameTakenError, UserRepository
 from runtime_settings import MAX_DAILY_TOKENS, WHISPER_LANGUAGE_CODES, RuntimeSettings
+from services.expiry import extension_error, job_expires_at
 from services.llm_status import llm_status
 from services.runtime_settings_service import RuntimeSettingsService
 from services.user_service import UserService
@@ -439,10 +445,86 @@ async def user_content(
     user_uuid: UUID,
     _admin: dict = Depends(require_admin),
     users: UserRepository = Depends(get_user_repository),
+    settings: Settings = Depends(get_settings),
 ) -> dict:
     """The account's projects and audios (outside projects), to open in the app."""
     await _user_or_404(users, user_uuid)
-    return await users.content(str(user_uuid))
+    runtime = await RuntimeSettingsService(settings).get()
+    return await users.content(str(user_uuid), runtime.job_retention_hours)
+
+
+class ExpiryRequest(BaseModel):
+    """The new date an audio or project is deleted on (with its time zone)."""
+
+    expires_at: datetime
+
+
+def _check_extension(current: datetime, new: datetime) -> None:
+    error = extension_error(current, new)
+    if error:
+        raise HTTPException(status_code=422, detail=error)
+
+
+@router.put("/jobs/{job_uuid}/expiry", dependencies=[Depends(require_admin_header)])
+async def extend_job_expiry(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    job_uuid: UUID,
+    body: ExpiryRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    jobs: JobRepository = Depends(get_job_repository),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Keep an audio (outside a project) until a later date."""
+    job = await jobs.get(str(job_uuid))
+    if not job:
+        raise HTTPException(status_code=404, detail="Audio not found")
+    if job.get("project_uuid"):
+        raise HTTPException(
+            status_code=409,
+            detail="This audio lives until its project expires: extend the project instead",
+        )
+    runtime = await RuntimeSettingsService(settings).get()
+    current = job_expires_at(job, runtime.job_retention_hours)
+    _check_extension(current, body.expires_at)
+    if not await jobs.set_expiry(str(job_uuid), body.expires_at):
+        raise HTTPException(status_code=404, detail="Audio not found")
+    await repo.record_audit(
+        admin["username"], "expiry_job",
+        f"{job['file_name']}: {current.isoformat()}",
+        f"{job['file_name']}: {body.expires_at.isoformat()}",
+    )
+    logger.info(
+        "Admin %s extended audio %s to %s", admin["username"], job_uuid, body.expires_at
+    )
+    return {"expires_at": body.expires_at}
+
+
+@router.put("/projects/{project_uuid}/expiry", dependencies=[Depends(require_admin_header)])
+async def extend_project_expiry(
+    project_uuid: UUID,
+    body: ExpiryRequest,
+    admin: dict = Depends(require_admin),
+    repo: AdminRepository = Depends(get_admin_repository),
+    projects: ProjectRepository = Depends(get_project_repository),
+) -> dict:
+    """Keep a project (and its audios) until a later date."""
+    project = await projects.get(str(project_uuid))
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    _check_extension(project["expires_at"], body.expires_at)
+    updated = await projects.set_expiry(str(project_uuid), body.expires_at)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Project not found")
+    await repo.record_audit(
+        admin["username"], "expiry_project",
+        f"{project['name']}: {project['expires_at'].isoformat()}",
+        f"{project['name']}: {updated['expires_at'].isoformat()}",
+    )
+    logger.info(
+        "Admin %s extended project %s to %s",
+        admin["username"], project_uuid, updated["expires_at"],
+    )
+    return {"expires_at": updated["expires_at"]}
 
 
 @router.post("/users/{user_uuid}/tokens", dependencies=[Depends(require_admin_header)])

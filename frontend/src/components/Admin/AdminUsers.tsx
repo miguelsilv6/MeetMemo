@@ -8,6 +8,8 @@ import {
   changeUserTokens,
   createUser,
   deleteUser,
+  extendJobExpiry,
+  extendProjectExpiry,
   getUserContent,
   getUserTokens,
   listUsers,
@@ -20,6 +22,7 @@ import { availableTokens, dailyRemaining } from '../../utils/tokens';
 import { jobRoute, projectRoute } from '../../hooks/useHashRoute';
 import { formatDateTime } from '../../utils/projectDates';
 import type { AdminUser, TokenTransaction, UserContent } from '../../types/admin';
+import ExtendExpiryForm from '../Common/ExtendExpiryForm';
 
 export const MIN_PASSWORD_LENGTH = 12;
 /** Most tokens given or taken at once (mirrors the backend). */
@@ -62,6 +65,38 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
   const [creating, setCreating] = useState(false);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [dialogInput, setDialogInput] = useState('');
+  // The project or audio of the content dialog being extended ("project:<uuid>" / "audio:<uuid>").
+  const [extending, setExtending] = useState<string | null>(null);
+
+  // Keep a project or audio of the content dialog until a later date.
+  const extendContent = async (kind: 'project' | 'audio', uuid: string, expiresAt: string) => {
+    const saved =
+      kind === 'project'
+        ? await extendProjectExpiry(uuid, expiresAt)
+        : await extendJobExpiry(uuid, expiresAt);
+    setDialog((current) => {
+      if (current?.kind !== 'content' || !current.content) return current;
+      const content = current.content;
+      return {
+        ...current,
+        content:
+          kind === 'project'
+            ? {
+                ...content,
+                projects: content.projects.map((p) =>
+                  p.uuid === uuid ? { ...p, expires_at: saved.expires_at } : p
+                ),
+              }
+            : {
+                ...content,
+                audios: content.audios.map((a) =>
+                  a.uuid === uuid ? { ...a, expires_at: saved.expires_at } : a
+                ),
+              },
+      };
+    });
+    setExtending(null);
+  };
   const [busy, setBusy] = useState(false);
 
   const fail = useCallback(
@@ -216,6 +251,7 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
 
   const openDialog = async (next: Dialog) => {
     setDialog(next);
+    setExtending(null);
     setDialogInput('');
     setTokenChange({ amount: '', note: '' });
     if (next.kind === 'tokens') {
@@ -551,6 +587,13 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
                           ({t('projects.audios.title', { count: project.audio_count })},{' '}
                           {date(project.created_at)})
                         </small>
+                        <ContentExpiry
+                          expiresAt={project.expires_at}
+                          extending={extending === `project:${project.uuid}`}
+                          onStart={() => setExtending(`project:${project.uuid}`)}
+                          onCancel={() => setExtending(null)}
+                          onSave={(expiresAt) => extendContent('project', project.uuid, expiresAt)}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -566,6 +609,13 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
                           {audio.file_name}
                         </a>
                         <small className="text-muted"> ({date(audio.created_at)})</small>
+                        <ContentExpiry
+                          expiresAt={audio.expires_at}
+                          extending={extending === `audio:${audio.uuid}`}
+                          onStart={() => setExtending(`audio:${audio.uuid}`)}
+                          onCancel={() => setExtending(null)}
+                          onSave={(expiresAt) => extendContent('audio', audio.uuid, expiresAt)}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -777,5 +827,35 @@ export default function AdminUsers({ onChanged, onUnauthorized, active = true }:
         )}
       </Modal>
     </Card>
+  );
+}
+
+/** When a project or audio of the content dialog is deleted, and extending it there. */
+function ContentExpiry({
+  expiresAt,
+  extending,
+  onStart,
+  onCancel,
+  onSave,
+}: {
+  expiresAt: string;
+  extending: boolean;
+  onStart: () => void;
+  onCancel: () => void;
+  onSave: (expiresAt: string) => Promise<void>;
+}) {
+  const { t, i18n } = useTranslation();
+  if (extending) {
+    return <ExtendExpiryForm currentExpiry={expiresAt} onSave={onSave} onCancel={onCancel} />;
+  }
+  return (
+    <div className="small">
+      <span className="text-muted">
+        {t('expiry.expiresOn', { date: formatDateTime(expiresAt, i18n.language) })}
+      </span>{' '}
+      <Button variant="link" size="sm" className="p-0 align-baseline" onClick={onStart}>
+        {t('expiry.extend')}
+      </Button>
+    </div>
   );
 }

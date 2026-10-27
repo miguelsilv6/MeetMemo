@@ -151,6 +151,22 @@ export function changeUserTokens(
   return adminRequest(`/users/${uuid}/tokens`, { method: 'POST', body: { delta, note } });
 }
 
+/** Keep an audio (outside a project) until a later date (ISO, at most a year from now). */
+export function extendJobExpiry(uuid: string, expiresAt: string): Promise<{ expires_at: string }> {
+  return adminRequest(`/jobs/${uuid}/expiry`, { method: 'PUT', body: { expires_at: expiresAt } });
+}
+
+/** Keep a project (and its audios) until a later date (ISO, at most a year from now). */
+export function extendProjectExpiry(
+  uuid: string,
+  expiresAt: string
+): Promise<{ expires_at: string }> {
+  return adminRequest(`/projects/${uuid}/expiry`, {
+    method: 'PUT',
+    body: { expires_at: expiresAt },
+  });
+}
+
 /** The account's own daily quota, or null to follow the panel's default. */
 export function setUserDailyQuota(
   uuid: string,

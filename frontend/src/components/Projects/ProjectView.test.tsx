@@ -2,12 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import ProjectView, { PROJECT_POLL_MS } from './ProjectView';
 import * as projectsApi from '../../services/projectsApi';
+import * as adminApi from '../../services/adminApi';
 import type { ProjectAudio, ProjectDetail } from '../../types/projects';
 import { formatDateTime } from '../../utils/projectDates';
 
 vi.mock('../../services/api', () => ({
   getPublicConfig: vi.fn().mockResolvedValue({ default_language: null, max_upload_mb: 1 }),
 }));
+
+vi.mock('../../services/adminApi', () => ({ extendProjectExpiry: vi.fn() }));
 
 vi.mock('../../services/projectsApi', () => ({
   getProject: vi.fn(),
@@ -294,5 +297,30 @@ describe('ProjectView', () => {
     );
     renderView();
     expect(await screen.findByText(/does not exist or has already expired/)).toBeInTheDocument();
+  });
+
+  it('lets only the administrator extend the project', async () => {
+    vi.mocked(projectsApi.getProject).mockResolvedValue(project([]));
+    renderView();
+    await screen.findByText('Inquiry 12');
+    expect(screen.queryByText('Extend')).not.toBeInTheDocument();
+  });
+
+  it('extends the project to a later date for the administrator', async () => {
+    const later = new Date(Date.now() + 40 * 24 * 3600 * 1000).toISOString();
+    vi.mocked(projectsApi.getProject).mockResolvedValue(project([]));
+    vi.mocked(adminApi.extendProjectExpiry).mockResolvedValue({ expires_at: later });
+    renderView({ canExtend: true, canUpload: false });
+
+    fireEvent.click(await screen.findByText('Extend'));
+    expect(screen.getByText('Extend expiry — Inquiry 12')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('+30 days'));
+    fireEvent.click(screen.getByText('Save new date'));
+
+    await waitFor(() => expect(adminApi.extendProjectExpiry).toHaveBeenCalled());
+    expect(vi.mocked(adminApi.extendProjectExpiry).mock.calls[0][0]).toBe('p1');
+    expect(
+      await screen.findByText(new RegExp(`on ${formatDateTime(later, 'en').replace(/[()]/g, '.')}`))
+    ).toBeInTheDocument();
   });
 });

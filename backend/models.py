@@ -152,6 +152,9 @@ class JobStatusResponse(BaseModel):
     workflow_state: Optional[str] = "uploaded"
     current_step_progress: Optional[int] = 0
     available_actions: Optional[list[str]] = []
+    # When an audio outside a project is deleted (None in a project: it lives
+    # until its project expires).
+    expires_at: Optional[datetime] = None
 
     # Legacy fields (for backwards compatibility)
     progress_percentage: Optional[int] = 0

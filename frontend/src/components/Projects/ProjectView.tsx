@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Alert, Button, Card, Col, Form, Modal, Row } from '@govtechsg/sgds-react';
-import { ArrowLeft, Clock, Pencil, Server, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarClock, Clock, Pencil, Server, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ErrorAlert from '../Common/ErrorAlert';
+import ExtendExpiryModal from '../Common/ExtendExpiryModal';
+import { extendProjectExpiry } from '../../services/adminApi';
 import ProjectAudioList from './ProjectAudioList';
 import ProjectUploadCard from './ProjectUploadCard';
 import {
@@ -24,6 +26,8 @@ interface ProjectViewProps {
   projectUuid: string;
   /** False for the administrator, who sees the project but uploads nothing. */
   canUpload?: boolean;
+  /** The administrator can keep the project until a later date. */
+  canExtend?: boolean;
   /** The user's tokens left, and a way to refresh it after uploads and retries. */
   tokenBalance?: number | null;
   onBalanceChange?: () => void;
@@ -37,6 +41,7 @@ type PendingDelete = { kind: 'project' } | { kind: 'audio'; audio: ProjectAudio 
 export default function ProjectView({
   projectUuid,
   canUpload = true,
+  canExtend = false,
   tokenBalance = null,
   onBalanceChange,
   onBack,
@@ -50,6 +55,7 @@ export default function ProjectView({
   const [draft, setDraft] = useState({ name: '', reference: '', description: '' });
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [busy, setBusy] = useState(false);
+  const [extending, setExtending] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Audios seen failed so far: a new failure means its token came back.
@@ -273,13 +279,40 @@ export default function ProjectView({
               className="mt-3 mb-0 d-flex align-items-start gap-2"
             >
               <Clock size={18} className="flex-shrink-0 mt-1" />
-              <div>
+              <div className="flex-grow-1">
                 {t('projects.expiry.notice', {
                   date: formatDateTime(project.expires_at, i18n.language),
                   count: days,
                 })}
               </div>
+              {canExtend && (
+                <Button
+                  variant="outline-secondary"
+                  size="sm"
+                  className="flex-shrink-0"
+                  onClick={() => setExtending(true)}
+                  title={t('expiry.extendTitle')}
+                >
+                  <CalendarClock size={14} className="me-1" />
+                  {t('expiry.extend')}
+                </Button>
+              )}
             </Alert>
+            {canExtend && (
+              <ExtendExpiryModal
+                show={extending}
+                name={project.name}
+                currentExpiry={project.expires_at}
+                onHide={() => setExtending(false)}
+                onSave={async (date) => {
+                  const saved = await extendProjectExpiry(project.uuid, date);
+                  setProject((current) =>
+                    current ? { ...current, expires_at: saved.expires_at } : current
+                  );
+                  setExtending(false);
+                }}
+              />
+            )}
           </Card.Body>
         </Card>
 

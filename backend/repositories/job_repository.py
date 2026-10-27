@@ -4,6 +4,7 @@ Job repository for data access operations.
 This repository wraps database.py functions with a domain-focused interface
 for managing transcription jobs.
 """
+from datetime import datetime
 from typing import Optional
 
 from database import (
@@ -227,6 +228,15 @@ class JobRepository:
             new_file_name: New file name
         """
         await update_file_name(uuid, new_file_name)
+
+    async def set_expiry(self, uuid: str, expires_at: datetime) -> bool:
+        """Give an audio outside a project its own deletion date (the administrator extends it)."""
+        async with get_db() as conn:
+            result = await conn.execute(
+                "UPDATE jobs SET expires_at = $2 WHERE uuid = $1 AND project_uuid IS NULL",
+                uuid, expires_at,
+            )
+        return result.endswith(" 1")
 
     async def update_status(self, uuid: str, status_code: int) -> None:
         """

@@ -1,3 +1,4 @@
+import AudioExpiry from './AudioExpiry';
 import { useState } from 'react';
 import { Alert, Card, Button, Badge } from '@govtechsg/sgds-react';
 import {
@@ -34,6 +35,8 @@ interface MeetingInfoSidebarProps {
   retranscribeLanguage?: string | null;
   /** Process the audio again from the very start (given to the administrator only). */
   onReprocess?: () => Promise<void>;
+  /** The administrator: can keep an audio outside a project until a later date. */
+  isAdmin?: boolean;
 }
 
 export default function MeetingInfoSidebar({
@@ -48,6 +51,7 @@ export default function MeetingInfoSidebar({
   onRetranscribe,
   retranscribeLanguage = null,
   onReprocess,
+  isAdmin = false,
 }: MeetingInfoSidebarProps) {
   const { t } = useTranslation();
   const [showRetranscribe, setShowRetranscribe] = useState(false);
@@ -75,6 +79,14 @@ export default function MeetingInfoSidebar({
             <small className="text-muted">{t('meetingInfo.fileName')}</small>
             <div>{selectedFile?.name || t('common.unknown')}</div>
           </div>
+          {jobId && (
+            <AudioExpiry
+              key={jobId}
+              jobId={jobId}
+              fileName={selectedFile?.name || t('common.unknown')}
+              isAdmin={isAdmin}
+            />
+          )}
           <div className="info-item mb-3">
             <small className="text-muted">{t('meetingInfo.duration')}</small>
             <div>

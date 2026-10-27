@@ -594,7 +594,9 @@
         "user_tokens": "User tokens changed",
         "user_daily_tokens": "User daily quota changed",
         "user_unlimited_on": "Unlimited tokens turned on",
-        "user_unlimited_off": "Unlimited tokens turned off"
+        "user_unlimited_off": "Unlimited tokens turned off",
+        "expiry_job": "Audio expiry extended",
+        "expiry_project": "Project expiry extended"
       }
     },
     "users": {
@@ -931,6 +933,23 @@
     "retryNow": "Try now",
     "retry": "Try again",
     "unsavedBeforeSummary": "There are transcript changes not yet saved on the server. Save them before generating the summary, so it includes them."
+  },
+  "expiry": {
+    "extend": "Extend",
+    "extendTitle": "Extend the expiry date",
+    "title": "Extend expiry — {{name}}",
+    "current": "Currently expires on {{date}}.",
+    "expiresOn": "expires on {{date}}",
+    "audioLabel": "Deleted automatically on",
+    "newDate": "New expiry date",
+    "plusDays_one": "+{{count}} day",
+    "plusDays_other": "+{{count}} days",
+    "hint": "At most 1 year from today. It is recorded in the audit log.",
+    "save": "Save new date",
+    "saving": "Saving…",
+    "mustBeLater": "The new date must be later than the current expiry.",
+    "tooFar": "The new date can be at most 365 days from now.",
+    "failed": "Could not extend the expiry."
   },
   "loading": {
     "openingTranscript": "Opening the transcript…"

@@ -452,6 +452,7 @@ function App() {
             key={openProjectUuid}
             projectUuid={openProjectUuid}
             canUpload={!me?.is_admin}
+            canExtend={!!me?.is_admin}
             tokenBalance={me ? availableTokens(me) : null}
             onBalanceChange={refreshSession}
             onBack={openProjects}
@@ -550,6 +551,7 @@ function App() {
                 handleRetranscribe={handleRetranscribe}
                 retranscribeLanguage={selectedLanguage}
                 handleReprocess={me?.is_admin ? handleReprocess : undefined}
+                isAdmin={!!me?.is_admin}
               />
             )}
 

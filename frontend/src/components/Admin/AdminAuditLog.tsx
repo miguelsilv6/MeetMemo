@@ -35,7 +35,7 @@ export default function AdminAuditLog({ entries, loading, onRefresh }: AdminAudi
   const settingLabel = (key: string) =>
     key === 'admin_password'
       ? t('admin.audit.passwordChanged')
-      : key.startsWith('user_')
+      : key.startsWith('user_') || key.startsWith('expiry_')
         ? t(`admin.audit.events.${key}`, { defaultValue: key })
         : t(`admin.settings.fields.${key}.label`, { defaultValue: key });
 

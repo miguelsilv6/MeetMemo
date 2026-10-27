@@ -86,6 +86,8 @@ interface TranscriptViewProps {
   retranscribeLanguage?: string | null;
   /** Process the audio again from the very start (administrator only). */
   handleReprocess?: () => Promise<void>;
+  /** The administrator: can keep an audio outside a project until a later date. */
+  isAdmin?: boolean;
 }
 
 export default function TranscriptView({
@@ -119,6 +121,7 @@ export default function TranscriptView({
   saveError = null,
   retrySaveAt = null,
   retrySave = () => {},
+  isAdmin = false,
   handleRetranscribe,
   retranscribeLanguage = null,
   handleReprocess,
@@ -446,6 +449,7 @@ export default function TranscriptView({
             onRetranscribe={handleRetranscribe}
             retranscribeLanguage={retranscribeLanguage}
             onReprocess={handleReprocess}
+            isAdmin={isAdmin}
           />
         </Col>
 

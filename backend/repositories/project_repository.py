@@ -91,13 +91,24 @@ class ProjectRepository:
     async def update(
         self, uuid: str, name: str, reference: Optional[str], description: Optional[str]
     ) -> Optional[dict]:
-        """Change a project's details (never its expiry date)."""
+        """Change a project's details (not its expiry date: see set_expiry)."""
         async with get_db() as conn:
             row = await conn.fetchrow(
                 f"""UPDATE projects SET name = $2, reference = $3, description = $4
                     WHERE uuid = $1 AND expires_at > NOW()
                     RETURNING {_PROJECT_COLUMNS}""",
                 uuid, name, reference, description,
+            )
+        return dict(row) if row else None
+
+    async def set_expiry(self, uuid: str, expires_at: datetime) -> Optional[dict]:
+        """Give an unexpired project a new expiry date (the administrator extends it)."""
+        async with get_db() as conn:
+            row = await conn.fetchrow(
+                f"""UPDATE projects SET expires_at = $2
+                    WHERE uuid = $1 AND expires_at > NOW()
+                    RETURNING {_PROJECT_COLUMNS}""",
+                uuid, expires_at,
             )
         return dict(row) if row else None
 
