@@ -6,20 +6,29 @@ import type { DropPlacement } from './moveSegment';
 // before or after. Bubbles register as droppables with
 // `{ type: 'segment', index, speaker }` and columns with `{ type: 'column', speaker }`.
 
-/** Where a dragged bubble would land: its column (speaker), and the bubble it goes next to. */
+/**
+ * Where a dragged bubble would land: its column (speaker), and the bubble it
+ * goes next to, or is merged into (`'merge'`).
+ */
 export interface DropTarget {
   speaker: string;
   index: number | null;
-  placement: DropPlacement;
+  placement: DropPlacement | 'merge';
 }
+
+// Over the middle of a bubble (between these fractions of its height), a
+// dragged bubble is merged into it; above or below, it goes before or after.
+const MERGE_FROM = 0.25;
+const MERGE_TO = 0.75;
 
 /**
  * Pointer over a column: the column says who the line is said by, and the
  * height says where it goes in the conversation. Its place is next to the
  * bubble nearest the pointer, in any column (before it in its upper half,
  * after it in its lower half), so a line can go between two lines of another
- * speaker, or in the gap between them, while staying in its own column. With
- * no other bubble at all, it is just the column.
+ * speaker, or in the gap between them, while staying in its own column.
+ * Right over the middle of a bubble, it is merged into that bubble. With no
+ * other bubble at all, it is just the column.
  */
 export const nearestDropPoint: CollisionDetection = (args) => {
   const hits = pointerWithin(args);
@@ -39,7 +48,14 @@ export const nearestDropPoint: CollisionDetection = (args) => {
     const distance = Math.max(rect.top - pointer.y, pointer.y - rect.bottom, 0);
     if (distance < bestDistance) {
       bestDistance = distance;
-      const placement: DropPlacement = pointer.y < rect.top + rect.height / 2 ? 'before' : 'after';
+      const over = pointer.x >= rect.left && pointer.x <= rect.right;
+      const height = (pointer.y - rect.top) / rect.height;
+      const placement: DropTarget['placement'] =
+        over && height >= MERGE_FROM && height <= MERGE_TO
+          ? 'merge'
+          : height < 0.5
+            ? 'before'
+            : 'after';
       best = {
         id: container.id,
         data: { droppableContainer: container, value: distance, placement, speaker },

@@ -83,6 +83,8 @@
     "etaNotice": "Processing time depends on your hardware: on a GPU it usually takes a few minutes per 10 minutes of audio; on a CPU it can take as long as the recording itself, or longer."
   },
   "transcript": {
+    "mergedFrom": "merged from {{start}} – {{end}}",
+    "mergedFromHint": "A line merged into this one. Click to hear it where it was spoken.",
     "title": "Communication Transcript",
     "listViewTitle": "List view",
     "kanbanViewTitle": "Kanban view (drag between speakers)",
@@ -116,6 +118,7 @@
     "wordConfidence": "The model's confidence in this word: {{percent}}%. Check it against the audio."
   },
   "kanban": {
+    "mergeHere": "Merge",
     "dropHere": "Drop here",
     "removeSpeaker": "Remove {{speaker}}",
     "addSpeaker": "Add speaker",
@@ -309,6 +312,7 @@
     "switchToPortuguese": "Mudar para Português"
   },
   "errors": {
+    "mergeSegments": "Failed to merge the lines",
     "network": "Unable to connect to the server. Please check your internet connection.",
     "notFound": "The requested resource was not found.",
     "unauthorized": "You are not authorized to access this resource.",
@@ -915,6 +919,17 @@
     "confirm": "Transcribe again",
     "starting": "Restarting…",
     "failed": "The processing could not be restarted."
+  },
+  "saveStatus": {
+    "saved": "Saved",
+    "saving": "Saving…",
+    "pending": "Not saved yet",
+    "failed": "Not saved",
+    "pendingDetail": "Your latest changes are not on the server yet ({{error}}). They stay here and are saved automatically — next attempt in {{seconds}} s.",
+    "failedDetail": "Your latest changes could not be saved on the server: {{error}}. They stay here until they can be saved.",
+    "retryNow": "Try now",
+    "retry": "Try again",
+    "unsavedBeforeSummary": "There are transcript changes not yet saved on the server. Save them before generating the summary, so it includes them."
   },
   "loading": {
     "openingTranscript": "Opening the transcript…"

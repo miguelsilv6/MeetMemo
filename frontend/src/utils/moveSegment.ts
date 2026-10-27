@@ -1,4 +1,4 @@
-import type { TranscriptSegment } from '../types/api';
+import type { MergedLine, TranscriptSegment } from '../types/api';
 
 /** Where a dropped segment goes relative to the bubble it was dropped on. */
 export type DropPlacement = 'before' | 'after';
@@ -98,4 +98,75 @@ export function moveSegmentNextTo(
   while (at < high && Number(rest[at].start) <= newStart) at++;
   rest.splice(at, 0, moved);
   return rest;
+}
+
+/**
+ * The segments after merging one into another (e.g. dragged onto the middle
+ * of another bubble in the Kanban view), or null when it is the same one.
+ *
+ * The target keeps its place and speaker; the moved line's text goes after
+ * its own. When no other line starts between the two, the merged line spans
+ * both. Otherwise it keeps the target's start and grows by the moved line's
+ * length (a second at least), but not past the start of the target's next
+ * line; the moved words are re-timed into that added span. The moved line's
+ * speaker, times (as transcribed) and text are kept in `merged`.
+ */
+export function mergeSegmentInto(
+  segments: TranscriptSegment[],
+  index: number,
+  targetIndex: number
+): TranscriptSegment[] | null {
+  const moving = segments[index];
+  const target = segments[targetIndex];
+  if (!moving || !target || index === targetIndex) return null;
+
+  const targetStart = Number(target.start);
+  const targetEnd = Number(target.end);
+  const start = Number(moving.start);
+  const end = Number(moving.end);
+  const length = Math.max(end - start, 0);
+  const others = segments.filter((_, i) => i !== index && i !== targetIndex);
+  const low = Math.min(start, targetStart);
+  const high = Math.max(start, targetStart);
+  const adjacent = !others.some((s) => Number(s.start) > low && Number(s.start) < high);
+
+  let newStart: number;
+  let newEnd: number;
+  let words = moving.words;
+  if (adjacent) {
+    newStart = Math.min(targetStart, start);
+    newEnd = Math.max(targetEnd, end);
+  } else {
+    newStart = targetStart;
+    const nextStart = Math.min(
+      ...others.map((s) => Number(s.start)).filter((t) => t > targetStart),
+      Infinity
+    );
+    newEnd = Math.max(targetEnd, Math.min(targetEnd + length, nextStart));
+    newEnd = Math.max(newEnd, targetEnd + Math.min(length, MIN_LENGTH_SECONDS));
+    const scale = length > 0 ? (newEnd - targetEnd) / length : 0;
+    const retime = (t: number) => round(targetEnd + (t - start) * scale);
+    words = moving.words?.map((w) => ({ ...w, start: retime(w.start), end: retime(w.end) }));
+  }
+
+  const mergedLine: MergedLine = {
+    speaker: moving.original?.speaker ?? moving.speaker,
+    start: moving.original?.start ?? start,
+    end: moving.original?.end ?? end,
+    text: moving.text.trim(),
+  };
+  const merged: TranscriptSegment = {
+    ...target,
+    start: round(newStart),
+    end: round(newEnd),
+    text: `${target.text.trim()} ${moving.text.trim()}`.trim(),
+    merged: [...(target.merged ?? []), mergedLine, ...(moving.merged ?? [])],
+    ...(target.low_confidence || moving.low_confidence ? { low_confidence: true } : {}),
+    ...(target.words || words ? { words: [...(target.words ?? []), ...(words ?? [])] } : {}),
+  };
+
+  const updated = [...segments];
+  updated[targetIndex] = merged;
+  updated.splice(index, 1);
+  return updated;
 }

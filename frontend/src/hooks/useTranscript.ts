@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import * as api from '../services/api';
 import { initializeSpeakerColors } from '../utils/speakerColors';
-import { moveSegmentNextTo } from '../utils/moveSegment';
+import useTranscriptSaver from './useTranscriptSaver';
+import { mergeSegmentInto, moveSegmentNextTo } from '../utils/moveSegment';
 import type { DropPlacement } from '../utils/moveSegment';
 import type { SpeakerMapping, Transcript, TranscriptSegment } from '../types/api';
 import type { SetError } from '../types/ui';
@@ -17,7 +16,6 @@ const MAX_UNDO_HISTORY = 20;
  * Handles transcript state and segment editing
  */
 export default function useTranscript(jobId: string | null, setError: SetError) {
-  const { t } = useTranslation();
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [editingSegment, setEditingSegment] = useState<EditingSegment | null>(null);
   const [showEditTextModal, setShowEditTextModal] = useState(false);
@@ -46,12 +44,25 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     setHistory((prev) => [...prev.slice(-(MAX_UNDO_HISTORY - 1)), segments]);
   };
 
+  // Edits show at once and are kept until the server has them: a failed save
+  // is tried again, never undone on screen (see useTranscriptSaver).
+  const saver = useTranscriptSaver();
+
   // Helper function to set transcript and initialize speaker colors
   const setTranscriptWithColors = (transcriptData: Transcript | null) => {
     setTranscript(transcriptData);
     if (transcriptData?.segments) {
       initializeSpeakerColors(transcriptData.segments);
     }
+  };
+
+  // Show an edit, make it undoable, and save it.
+  const commit = (previous: TranscriptSegment[], updated: TranscriptSegment[]) => {
+    if (!transcript || !jobId) return;
+    setTranscriptWithColors({ ...transcript, segments: updated });
+    pushHistory(previous);
+    setError(null);
+    saver.queueSave(jobId, updated);
   };
 
   // Open edit text modal
@@ -61,42 +72,32 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
   };
 
   // Save edited segment text, speaker, and timing
-  const handleSaveSegmentText = async () => {
+  const handleSaveSegmentText = () => {
     if (!editingSegment || !transcript || !jobId) return;
 
-    try {
-      setError(null);
+    // The undo target is the last *persisted* state. If this save is
+    // completing a pending insert, that placeholder was never saved, so it
+    // must not become what undo restores to.
+    const previouslyPersisted =
+      pendingNewSegmentIndex !== null
+        ? (transcript.segments ?? []).filter((_, i) => i !== pendingNewSegmentIndex)
+        : (transcript.segments ?? []);
 
-      // The undo target is the last *persisted* state. If this save is
-      // completing a pending insert, that placeholder was never saved, so it
-      // must not become what undo restores to.
-      const previouslyPersisted =
-        pendingNewSegmentIndex !== null
-          ? (transcript.segments ?? []).filter((_, i) => i !== pendingNewSegmentIndex)
-          : (transcript.segments ?? []);
+    const updatedSegments = [...(transcript.segments ?? [])];
+    const { words, ...unedited } = updatedSegments[editingSegment.index];
+    updatedSegments[editingSegment.index] = {
+      // The words (and their confidence) only describe the text as heard.
+      ...(editingSegment.text === unedited.text ? { ...unedited, words } : unedited),
+      text: editingSegment.text,
+      speaker: editingSegment.speaker,
+      start: editingSegment.start,
+      end: editingSegment.end,
+    };
 
-      const updatedSegments = [...(transcript.segments ?? [])];
-      const { words, ...unedited } = updatedSegments[editingSegment.index];
-      updatedSegments[editingSegment.index] = {
-        // The words (and their confidence) only describe the text as heard.
-        ...(editingSegment.text === unedited.text ? { ...unedited, words } : unedited),
-        text: editingSegment.text,
-        speaker: editingSegment.speaker,
-        start: editingSegment.start,
-        end: editingSegment.end,
-      };
-
-      // Call backend API to persist transcript changes (including speaker reassignment)
-      await api.updateTranscript(jobId, updatedSegments);
-      pushHistory(previouslyPersisted);
-
-      setTranscriptWithColors({ ...transcript, segments: updatedSegments });
-      setShowEditTextModal(false);
-      setEditingSegment(null);
-      setPendingNewSegmentIndex(null);
-    } catch (err) {
-      setError((err as Error).message || t('errors.updateSegment'));
-    }
+    commit(previouslyPersisted, updatedSegments);
+    setShowEditTextModal(false);
+    setEditingSegment(null);
+    setPendingNewSegmentIndex(null);
   };
 
   // Close the edit modal without saving. If the segment being edited was a
@@ -157,7 +158,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
   // segment, picked on the modal's waveform scrubber) when given; otherwise
   // falls back to dividing proportionally to how the text was split, which
   // is only an approximation (no waveform to align to).
-  const handleSplitSegment = async (
+  const handleSplitSegment = (
     index: number,
     firstText: string,
     secondText: string,
@@ -192,53 +193,32 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       end,
     };
 
-    const previousTranscript = transcript;
     const updatedSegments = [...segments];
     updatedSegments.splice(index, 1, firstSegment, secondSegment);
 
-    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
-
-    try {
-      setError(null);
-      await api.updateTranscript(jobId, updatedSegments);
-      pushHistory(segments);
-      setShowSplitModal(false);
-      setSplittingSegment(null);
-    } catch (err) {
-      setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || t('errors.splitSegment'));
-    }
+    commit(segments, updatedSegments);
+    setShowSplitModal(false);
+    setSplittingSegment(null);
   };
 
   // Reassign a segment to a different speaker (e.g. dragged to another Kanban column).
-  // Applies the change optimistically and rolls back if the backend save fails.
-  const handleMoveSegmentSpeaker = async (index: number, newSpeaker: string) => {
+  const handleMoveSegmentSpeaker = (index: number, newSpeaker: string) => {
     if (!transcript || !jobId) return;
 
     const segment = transcript.segments?.[index];
     if (!segment || segment.speaker === newSpeaker) return;
 
-    const previousTranscript = transcript;
     const previousSegments = transcript.segments ?? [];
     const updatedSegments = [...previousSegments];
     updatedSegments[index] = { ...updatedSegments[index], speaker: newSpeaker };
 
-    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
-
-    try {
-      setError(null);
-      await api.updateTranscript(jobId, updatedSegments);
-      pushHistory(previousSegments);
-    } catch (err) {
-      setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || t('errors.moveSegment'));
-    }
+    commit(previousSegments, updatedSegments);
   };
 
   // Move a segment next to another one (e.g. dropped in a Kanban column at
   // the height of another bubble): it is said by `speaker` and, if needed,
-  // gets times between its new neighbours. Rolled back if the save fails.
-  const handleMoveSegmentTo = async (
+  // gets times between its new neighbours.
+  const handleMoveSegmentTo = (
     index: number,
     targetIndex: number,
     placement: DropPlacement,
@@ -246,7 +226,6 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
   ) => {
     if (!transcript || !jobId) return;
 
-    const previousTranscript = transcript;
     const previousSegments = transcript.segments ?? [];
     const updatedSegments = moveSegmentNextTo(
       previousSegments,
@@ -257,25 +236,26 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     );
     if (!updatedSegments) return;
 
-    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+    commit(previousSegments, updatedSegments);
+  };
 
-    try {
-      setError(null);
-      await api.updateTranscript(jobId, updatedSegments);
-      pushHistory(previousSegments);
-    } catch (err) {
-      setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || t('errors.moveSegment'));
-    }
+  // Merge a segment into another (dropped onto it in the Kanban view): its text
+  // goes after the target's.
+  const handleMergeSegmentInto = (index: number, targetIndex: number) => {
+    if (!transcript || !jobId) return;
+
+    const previousSegments = transcript.segments ?? [];
+    const updatedSegments = mergeSegmentInto(previousSegments, index, targetIndex);
+    if (!updatedSegments) return;
+
+    commit(previousSegments, updatedSegments);
   };
 
   // Reassign several segments to a different speaker at once (e.g. removing a
-  // speaker column and moving all its lines to another one). One optimistic
-  // update + one API call for the whole batch, rolled back together on failure.
-  const handleBulkMoveSegments = async (indices: number[], newSpeaker: string) => {
+  // speaker column and moving all its lines to another one), in one save.
+  const handleBulkMoveSegments = (indices: number[], newSpeaker: string) => {
     if (!transcript || !jobId || indices.length === 0) return;
 
-    const previousTranscript = transcript;
     const previousSegments = transcript.segments ?? [];
     const updatedSegments = [...previousSegments];
     for (const index of indices) {
@@ -284,74 +264,46 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
       }
     }
 
-    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
-
-    try {
-      setError(null);
-      await api.updateTranscript(jobId, updatedSegments);
-      pushHistory(previousSegments);
-    } catch (err) {
-      setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || t('errors.moveSegments'));
-    }
+    commit(previousSegments, updatedSegments);
   };
 
   // Permanently remove segments from the transcript (e.g. deleting a speaker
-  // and its lines instead of reassigning them). Rolled back on failure.
-  const handleDeleteSegments = async (indices: number[]) => {
+  // and its lines instead of reassigning them).
+  const handleDeleteSegments = (indices: number[]) => {
     if (!transcript || !jobId || indices.length === 0) return;
 
-    const previousTranscript = transcript;
     const previousSegments = transcript.segments ?? [];
     const indexSet = new Set(indices);
     const updatedSegments = previousSegments.filter((_, i) => !indexSet.has(i));
 
-    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
-
-    try {
-      setError(null);
-      await api.updateTranscript(jobId, updatedSegments);
-      pushHistory(previousSegments);
-    } catch (err) {
-      setTranscriptWithColors(previousTranscript);
-      setError((err as Error).message || t('errors.deleteSegments'));
-    }
+    commit(previousSegments, updatedSegments);
   };
 
-  // Speakers renamed on the server: the states undo can go back to use the new
-  // names too, or undoing an earlier edit would save the old names again.
+  // Speakers renamed on the server: the states undo can go back to (and any
+  // edit still to be saved) use the new names too, or they would save the old
+  // names again.
   const renameSpeakersInHistory = (mapping: SpeakerMapping) => {
-    setHistory((prev) =>
-      prev.map((segments) =>
-        segments.map((segment) =>
-          mapping[segment.speaker] && mapping[segment.speaker] !== segment.speaker
-            ? { ...segment, speaker: mapping[segment.speaker] }
-            : segment
-        )
-      )
-    );
+    const rename = (segments: TranscriptSegment[]) =>
+      segments.map((segment) =>
+        mapping[segment.speaker] && mapping[segment.speaker] !== segment.speaker
+          ? { ...segment, speaker: mapping[segment.speaker] }
+          : segment
+      );
+    setHistory((prev) => prev.map(rename));
+    // An edit not saved yet must not bring the old names back on the server.
+    if (jobId) saver.updatePending(jobId, rename);
   };
 
-  // Step back one entry in the undo history, restoring and persisting that
-  // earlier segment array. Rolled back (both the local state and the popped
-  // history entry) if the backend save fails.
-  const handleUndo = async () => {
+  // Step back one entry in the undo history, restoring and saving that
+  // earlier segment array.
+  const handleUndo = () => {
     if (!transcript || !jobId || history.length === 0) return;
 
     const targetSegments = history[history.length - 1];
-    const currentSegments = transcript.segments ?? [];
-
     setHistory((prev) => prev.slice(0, -1));
     setTranscriptWithColors({ ...transcript, segments: targetSegments });
-
-    try {
-      setError(null);
-      await api.updateTranscript(jobId, targetSegments);
-    } catch (err) {
-      setTranscriptWithColors({ ...transcript, segments: currentSegments });
-      setHistory((prev) => [...prev, targetSegments]);
-      setError((err as Error).message || t('errors.undo'));
-    }
+    setError(null);
+    saver.queueSave(jobId, targetSegments);
   };
 
   return {
@@ -367,6 +319,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
     handleMoveSegmentTo,
+    handleMergeSegmentInto,
     handleBulkMoveSegments,
     handleDeleteSegments,
     splittingSegment,
@@ -377,5 +330,10 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     canUndo: history.length > 0,
     handleUndo,
     renameSpeakersInHistory,
+    saveState: saver.saveState,
+    saveError: saver.saveError,
+    retrySaveAt: saver.retryAt,
+    retrySave: saver.retryNow,
+    flushSaves: saver.flush,
   };
 }

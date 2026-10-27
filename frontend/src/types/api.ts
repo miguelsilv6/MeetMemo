@@ -12,6 +12,16 @@ export interface TranscriptSegment {
   words?: TranscriptWord[];
   /** The speaker and times it was transcribed with, kept once it is moved to other times. */
   original?: { speaker: string; start: number; end: number };
+  /** Lines merged into this one (dropped onto it), with the speaker, times and text they had. */
+  merged?: MergedLine[];
+}
+
+/** A line merged into another: who said it, when the audio has it, and what it said. */
+export interface MergedLine {
+  speaker: string;
+  start: number;
+  end: number;
+  text: string;
 }
 
 /** An instant of an audio a reviewer marked to come back to, with an optional note. */

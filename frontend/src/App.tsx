@@ -112,6 +112,7 @@ function App() {
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
     handleMoveSegmentTo,
+    handleMergeSegmentInto,
     handleBulkMoveSegments,
     handleDeleteSegments,
     splittingSegment,
@@ -122,6 +123,11 @@ function App() {
     canUndo,
     handleUndo,
     renameSpeakersInHistory,
+    saveState,
+    saveError,
+    retrySaveAt,
+    retrySave,
+    flushSaves,
   } = useTranscript(jobId, setError);
 
   // Transcript translation (Portuguese)
@@ -231,7 +237,17 @@ function App() {
   // SPEAKER_xx label, ask for them first (the user may go on without).
   const handleGenerateSummaryWithNames = () => {
     if (!summary?.summary && hasDefaultSpeakerNames(transcript?.segments)) {
-      askSpeakerNamesBefore(handleGenerateSummary);
+      askSpeakerNamesBefore(generateSummaryOfSavedEdits);
+      return;
+    }
+    generateSummaryOfSavedEdits();
+  };
+
+  // The summary is made from the transcript on the server: edits not saved yet
+  // are saved first, and without them no summary is asked for.
+  const generateSummaryOfSavedEdits = async () => {
+    if (!(await flushSaves())) {
+      setError(t('saveStatus.unsavedBeforeSummary'));
       return;
     }
     handleGenerateSummary();
@@ -507,6 +523,7 @@ function App() {
                 handleEditText={handleEditText}
                 handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
                 handleMoveSegmentTo={handleMoveSegmentTo}
+                handleMergeSegmentInto={handleMergeSegmentInto}
                 handleBulkMoveSegments={handleBulkMoveSegments}
                 handleDeleteSegments={handleDeleteSegments}
                 handleInsertSegmentAfter={handleInsertSegmentAfter}
@@ -524,6 +541,10 @@ function App() {
                 handleToggleTranslation={handleToggleTranslation}
                 canUndo={canUndo}
                 handleUndo={handleUndo}
+                saveState={saveState}
+                saveError={saveError}
+                retrySaveAt={retrySaveAt}
+                retrySave={retrySave}
                 handleRetranscribe={handleRetranscribe}
                 retranscribeLanguage={selectedLanguage}
                 handleReprocess={me?.is_admin ? handleReprocess : undefined}

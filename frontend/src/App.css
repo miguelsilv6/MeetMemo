@@ -1530,6 +1530,54 @@ button.kanban-add-column:hover {
   border-color: var(--mm-low-confidence-border);
 }
 
+/* Transcript edits not yet on the server: always in sight while editing. */
+.save-status-toast {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  z-index: 1050;
+  width: min(40rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.save-status {
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.save-status-saved {
+  color: var(--text-secondary);
+}
+
+.save-status-pending {
+  color: var(--mm-warning, #b45309);
+}
+
+.save-status-failed {
+  color: var(--mm-danger, #dc3545);
+}
+
+/* A dragged line would be merged into this bubble if dropped now. */
+.kanban-bubble-merge-target .kanban-bubble-text {
+  position: relative;
+  outline: 2px dashed var(--primary);
+  outline-offset: 2px;
+}
+
+/* Floats over the bubble's corner, so showing it never moves the bubbles. */
+.kanban-merge-label {
+  position: absolute;
+  top: -0.7rem;
+  right: 0.5rem;
+  padding: 0 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--primary);
+}
+
 /* A word the speech model was unsure of: check it against the audio. */
 .low-confidence-word {
   text-decoration: underline dotted var(--mm-warning, #d39e00);
