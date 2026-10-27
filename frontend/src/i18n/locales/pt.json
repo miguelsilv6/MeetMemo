@@ -920,6 +920,17 @@
     "starting": "A recomeçar…",
     "failed": "Não foi possível recomeçar o processamento."
   },
+  "saveStatus": {
+    "saved": "Gravado",
+    "saving": "A gravar…",
+    "pending": "Por gravar",
+    "failed": "Não gravado",
+    "pendingDetail": "As últimas alterações ainda não foram gravadas no servidor ({{error}}). Continuam aqui e são gravadas automaticamente — nova tentativa em {{seconds}} s.",
+    "failedDetail": "Não foi possível gravar as últimas alterações no servidor: {{error}}. Continuam aqui até ser possível gravá-las.",
+    "retryNow": "Tentar agora",
+    "retry": "Tentar de novo",
+    "unsavedBeforeSummary": "Há alterações à transcrição por gravar no servidor. Grava-as antes de gerar o resumo, para que o resumo as inclua."
+  },
   "loading": {
     "openingTranscript": "A abrir a transcrição…"
   }

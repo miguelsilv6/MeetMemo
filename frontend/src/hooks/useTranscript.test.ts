@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import useTranscript from './useTranscript';
+import { RETRY_DELAYS_MS } from './useTranscriptSaver';
 import * as api from '../services/api';
 import type { TranscriptSegment } from '../types/api';
 
@@ -86,22 +87,6 @@ describe('useTranscript', () => {
     expect(uuid).toBe('job1');
     expect(updated[0].speaker).toBe('SPEAKER_01');
     expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_01');
-  });
-
-  it('rolls back the speaker change if the API call fails', async () => {
-    const setError = vi.fn();
-    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
-    const { result } = renderHook(() => useTranscript('job1', setError));
-
-    act(() => {
-      result.current.setTranscriptWithColors({ segments });
-    });
-    await act(async () => {
-      await result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
-    });
-
-    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_00');
-    expect(setError).toHaveBeenCalledWith('network down');
   });
 
   it('moves a segment between two lines of another speaker, saves it and can undo it', async () => {
@@ -190,38 +175,6 @@ describe('useTranscript', () => {
     expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
   });
 
-  it('rolls back a merge if the API call fails', async () => {
-    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
-    const setError = vi.fn();
-    const { result } = renderHook(() => useTranscript('job1', setError));
-    act(() => {
-      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
-    });
-
-    await act(async () => {
-      await result.current.handleMergeSegmentInto(1, 0);
-    });
-    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
-    expect(setError).toHaveBeenLastCalledWith('network down');
-    expect(result.current.canUndo).toBe(false);
-  });
-
-  it('rolls back a move next to another segment if the API call fails', async () => {
-    const setError = vi.fn();
-    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
-    const { result } = renderHook(() => useTranscript('job1', setError));
-
-    act(() => {
-      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
-    });
-    await act(async () => {
-      await result.current.handleMoveSegmentTo(2, 0, 'before', 'SPEAKER_00');
-    });
-
-    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
-    expect(setError).toHaveBeenCalledWith('network down');
-  });
-
   it('bulk-reassigns several segments to another speaker in one API call', async () => {
     vi.mocked(api.updateTranscript).mockResolvedValue({});
     const { result } = renderHook(() => useTranscript('job1', vi.fn()));
@@ -243,23 +196,6 @@ describe('useTranscript', () => {
     expect(result.current.transcript?.segments?.[2].speaker).toBe('SPEAKER_01');
   });
 
-  it('rolls back a bulk speaker reassignment if the API call fails', async () => {
-    const setError = vi.fn();
-    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
-    const { result } = renderHook(() => useTranscript('job1', setError));
-
-    act(() => {
-      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
-    });
-    await act(async () => {
-      await result.current.handleBulkMoveSegments([0, 2], 'SPEAKER_01');
-    });
-
-    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_00');
-    expect(result.current.transcript?.segments?.[2].speaker).toBe('SPEAKER_00');
-    expect(setError).toHaveBeenCalledWith('network down');
-  });
-
   it('deletes the given segments through the API and updates state', async () => {
     vi.mocked(api.updateTranscript).mockResolvedValue({});
     const { result } = renderHook(() => useTranscript('job1', vi.fn()));
@@ -276,22 +212,6 @@ describe('useTranscript', () => {
     expect(uuid).toBe('job1');
     expect(updated).toEqual([threeSpeakerSegments[1]]);
     expect(result.current.transcript?.segments).toEqual([threeSpeakerSegments[1]]);
-  });
-
-  it('rolls back a segment deletion if the API call fails', async () => {
-    const setError = vi.fn();
-    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
-    const { result } = renderHook(() => useTranscript('job1', setError));
-
-    act(() => {
-      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
-    });
-    await act(async () => {
-      await result.current.handleDeleteSegments([0, 2]);
-    });
-
-    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
-    expect(setError).toHaveBeenCalledWith('network down');
   });
 
   it('saves edited start/end alongside text and speaker', async () => {
@@ -417,22 +337,6 @@ describe('useTranscript', () => {
     expect(updated?.[1]).toMatchObject({ start: 2, end: 10 });
   });
 
-  it('rolls back a split if the API call fails', async () => {
-    const setError = vi.fn();
-    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
-    const { result } = renderHook(() => useTranscript('job1', setError));
-
-    act(() => {
-      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
-    });
-    await act(async () => {
-      await result.current.handleSplitSegment(0, 'Hel', 'lo', 'SPEAKER_01');
-    });
-
-    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
-    expect(setError).toHaveBeenCalledWith('network down');
-  });
-
   it('has no undo history for a freshly-loaded transcript', () => {
     const { result } = renderHook(() => useTranscript('job1', vi.fn()));
     act(() => {
@@ -477,29 +381,6 @@ describe('useTranscript', () => {
 
     expect(api.updateTranscript).not.toHaveBeenCalled();
     expect(result.current.transcript?.segments).toEqual(segments);
-  });
-
-  it('rolls back an undo if the API call fails, restoring the history entry', async () => {
-    const setError = vi.fn();
-    vi.mocked(api.updateTranscript).mockResolvedValueOnce({});
-    const { result } = renderHook(() => useTranscript('job1', setError));
-
-    act(() => {
-      result.current.setTranscriptWithColors({ segments });
-    });
-    await act(async () => {
-      await result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
-    });
-    expect(result.current.canUndo).toBe(true);
-
-    vi.mocked(api.updateTranscript).mockRejectedValueOnce(new Error('network down'));
-    await act(async () => {
-      await result.current.handleUndo();
-    });
-
-    expect(result.current.transcript?.segments?.[0].speaker).toBe('SPEAKER_01');
-    expect(result.current.canUndo).toBe(true);
-    expect(setError).toHaveBeenCalledWith('network down');
   });
 
   it('does not add an unsaved, cancelled insert to the undo history', () => {
@@ -597,5 +478,127 @@ describe('useTranscript', () => {
       await result.current.handleSplitSegment(1, 'O', 'lá', 'SPEAKER_00');
     });
     expect(result.current.transcript?.segments?.[1].words).toBeUndefined();
+  });
+
+  describe('when the server does not save an edit', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const load = () => {
+      const setError = vi.fn();
+      const hook = renderHook(() => useTranscript('job1', setError));
+      act(() => {
+        hook.result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+      });
+      return { ...hook, setError };
+    };
+
+    type Hook = ReturnType<typeof load>['result']['current'];
+    const edits: [string, (h: Hook) => void][] = [
+      ['a speaker change', (h) => h.handleMoveSegmentSpeaker(0, 'SPEAKER_01')],
+      ['a move next to another line', (h) => h.handleMoveSegmentTo(2, 0, 'after', 'SPEAKER_00')],
+      ['a merge', (h) => h.handleMergeSegmentInto(1, 0)],
+      ['a bulk speaker change', (h) => h.handleBulkMoveSegments([0, 2], 'SPEAKER_01')],
+      ['a deletion', (h) => h.handleDeleteSegments([1])],
+      ['a split', (h) => h.handleSplitSegment(0, 'Hel', 'lo', 'SPEAKER_01')],
+    ];
+
+    it.each(edits)('keeps %s on screen and undoable, waiting to be saved', async (_, edit) => {
+      vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
+      const { result, setError } = load();
+
+      await act(async () => {
+        edit(result.current);
+      });
+
+      const shown = result.current.transcript?.segments;
+      expect(shown).not.toEqual(threeSpeakerSegments);
+      expect(api.updateTranscript).toHaveBeenLastCalledWith('job1', shown);
+      expect(result.current.saveState).toBe('pending');
+      expect(result.current.saveError).toBe('network down');
+      expect(result.current.canUndo).toBe(true);
+      expect(setError).not.toHaveBeenCalledWith('network down');
+    });
+
+    it('keeps an edited text and closes the editor at once', async () => {
+      vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
+      const { result } = load();
+      act(() => {
+        result.current.handleEditText(threeSpeakerSegments[0], 0);
+      });
+      act(() => {
+        result.current.setEditingSegment({ ...result.current.editingSegment!, text: 'Olá' });
+      });
+      await act(async () => {
+        result.current.handleSaveSegmentText();
+      });
+
+      expect(result.current.transcript?.segments?.[0].text).toBe('Olá');
+      expect(result.current.showEditTextModal).toBe(false);
+      expect(result.current.saveState).toBe('pending');
+    });
+
+    it('saves it on the next attempt', async () => {
+      vi.useFakeTimers();
+      vi.mocked(api.updateTranscript)
+        .mockRejectedValueOnce(new Error('network down'))
+        .mockResolvedValue({});
+      const { result } = load();
+
+      await act(async () => {
+        result.current.handleMergeSegmentInto(1, 0);
+      });
+      expect(result.current.saveState).toBe('pending');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
+      });
+      expect(result.current.saveState).toBe('saved');
+      expect(api.updateTranscript).toHaveBeenCalledTimes(2);
+      expect(api.updateTranscript).toHaveBeenLastCalledWith(
+        'job1',
+        result.current.transcript?.segments
+      );
+    });
+
+    it('saves an edit still waiting with the speakers renamed meanwhile', async () => {
+      vi.useFakeTimers();
+      vi.mocked(api.updateTranscript)
+        .mockRejectedValueOnce(new Error('network down'))
+        .mockResolvedValue({});
+      const { result } = load();
+      await act(async () => {
+        result.current.handleDeleteSegments([2]);
+      });
+
+      act(() => {
+        result.current.renameSpeakersInHistory({ SPEAKER_00: 'Ana' });
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(RETRY_DELAYS_MS[0]);
+      });
+
+      const [, saved] = vi.mocked(api.updateTranscript).mock.calls.at(-1)!;
+      expect(saved.map((s) => s.speaker)).toEqual(['Ana', 'SPEAKER_01']);
+    });
+
+    it('keeps an undo too, and saves it with the edits', async () => {
+      vi.mocked(api.updateTranscript).mockResolvedValueOnce({});
+      const { result } = load();
+      await act(async () => {
+        result.current.handleMoveSegmentSpeaker(0, 'SPEAKER_01');
+      });
+
+      vi.mocked(api.updateTranscript).mockRejectedValueOnce(new Error('network down'));
+      await act(async () => {
+        result.current.handleUndo();
+      });
+
+      expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
+      expect(result.current.canUndo).toBe(false);
+      expect(result.current.saveState).toBe('pending');
+      expect(api.updateTranscript).toHaveBeenLastCalledWith('job1', threeSpeakerSegments);
+    });
   });
 });

@@ -1530,6 +1530,34 @@ button.kanban-add-column:hover {
   border-color: var(--mm-low-confidence-border);
 }
 
+/* Transcript edits not yet on the server: always in sight while editing. */
+.save-status-toast {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  z-index: 1050;
+  width: min(40rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+.save-status {
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.save-status-saved {
+  color: var(--text-secondary);
+}
+
+.save-status-pending {
+  color: var(--mm-warning, #b45309);
+}
+
+.save-status-failed {
+  color: var(--mm-danger, #dc3545);
+}
+
 /* A dragged line would be merged into this bubble if dropped now. */
 .kanban-bubble-merge-target .kanban-bubble-text {
   position: relative;

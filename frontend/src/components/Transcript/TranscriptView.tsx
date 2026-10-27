@@ -13,6 +13,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import TranscriptSegment from './TranscriptSegment';
 import MeetingInfoSidebar from './MeetingInfoSidebar';
+import SaveStatus, { SaveStatusBadge } from './SaveStatus';
+import type { SaveState } from '../../hooks/useTranscriptSaver';
 import AudioPlayer from './AudioPlayer';
 import type { AudioPlayerHandle } from './AudioPlayer';
 import { formatTime } from '../../utils/timeFormat';
@@ -71,6 +73,11 @@ interface TranscriptViewProps {
   handleToggleTranslation: (segments: TranscriptSegmentType[] | undefined) => void;
   canUndo: boolean;
   handleUndo: () => void;
+  /** Whether the edits are on the server yet (see useTranscriptSaver). */
+  saveState?: SaveState;
+  saveError?: string | null;
+  retrySaveAt?: number | null;
+  retrySave?: () => void;
   /** Transcribe the audio again in another language (offered on low confidence). */
   handleRetranscribe?: (language: string) => Promise<void>;
   /** Pre-selected language for that. */
@@ -105,6 +112,10 @@ export default function TranscriptView({
   handleToggleTranslation,
   canUndo,
   handleUndo,
+  saveState = 'saved',
+  saveError = null,
+  retrySaveAt = null,
+  retrySave = () => {},
   handleRetranscribe,
   retranscribeLanguage = null,
   handleReprocess,
@@ -222,6 +233,7 @@ export default function TranscriptView({
               <h5 className="mb-0 text-nowrap">
                 <FileText size={20} className="me-2" />
                 {t('transcript.title')}
+                <SaveStatusBadge saveState={saveState} />
               </h5>
               <div className="d-flex flex-wrap gap-2 align-items-center transcript-toolbar">
                 <ButtonGroup>
@@ -296,6 +308,12 @@ export default function TranscriptView({
                 </Button>
               </div>
             </Card.Header>
+            <SaveStatus
+              saveState={saveState}
+              saveError={saveError}
+              retryAt={retrySaveAt}
+              onRetry={retrySave}
+            />
             {showTranslation && translationEngine && (
               <div
                 className="translation-engine-note small text-muted px-3 py-2 border-bottom"
