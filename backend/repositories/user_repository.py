@@ -219,8 +219,12 @@ class UserRepository:
                 await conn.execute("DELETE FROM jobs WHERE user_uuid = $1", uuid)
                 await conn.execute("DELETE FROM projects WHERE user_uuid = $1", uuid)
 
-    async def content(self, uuid: str) -> dict:
-        """The account's projects and its audios outside projects, newest first."""
+    async def content(self, uuid: str, retention_hours: int) -> dict:
+        """
+        The account's projects and its audios outside projects, newest first,
+        each with when it is deleted (an audio: its own date, or
+        `retention_hours` after it was uploaded).
+        """
         async with get_db() as conn:
             projects = await conn.fetch(
                 """SELECT p.uuid, p.name, p.reference, p.created_at, p.expires_at,
@@ -232,11 +236,12 @@ class UserRepository:
                 uuid,
             )
             audios = await conn.fetch(
-                """SELECT uuid, file_name, workflow_state, created_at
+                """SELECT uuid, file_name, workflow_state, created_at,
+                          COALESCE(expires_at, created_at + INTERVAL '1 hour' * $2) AS expires_at
                    FROM jobs
                    WHERE user_uuid = $1 AND project_uuid IS NULL
                    ORDER BY created_at DESC""",
-                uuid,
+                uuid, retention_hours,
             )
         return {
             "projects": [dict(row) for row in projects],

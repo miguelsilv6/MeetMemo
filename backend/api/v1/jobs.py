@@ -59,6 +59,7 @@ from runtime_settings import WHISPER_LANGUAGE_CODES
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
+from services.expiry import job_expires_at
 from services.job_files import (
     asr_file_paths,
     derived_file_paths,
@@ -219,12 +220,15 @@ async def list_jobs(
 @router.get("/jobs/{uuid}", response_model=JobStatusResponse)
 async def get_job_status(
     uuid: str,
-    job_repo: JobRepository = Depends(get_job_repository)
+    job_repo: JobRepository = Depends(get_job_repository),
+    settings: Settings = Depends(get_settings),
 ) -> JobStatusResponse:
     """Get job status and workflow state."""
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
+
+    runtime = await RuntimeSettingsService(settings).get()
 
     # Determine available actions based on workflow state
     workflow_state = job.get('workflow_state', 'uploaded')
@@ -247,6 +251,7 @@ async def get_job_status(
         workflow_state=workflow_state,
         current_step_progress=job.get('current_step_progress', 0),
         available_actions=available_actions,
+        expires_at=job_expires_at(job, runtime.job_retention_hours),
         progress_percentage=job.get('progress_percentage', 0),
         processing_stage=job.get('processing_stage', 'pending'),
         error_message=job.get('error_message')

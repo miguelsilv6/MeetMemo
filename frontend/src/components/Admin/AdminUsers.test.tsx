@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import AdminUsers from './AdminUsers';
 import * as adminApi from '../../services/adminApi';
 import type { AdminUser } from '../../types/admin';
+import { formatDateTime } from '../../utils/projectDates';
 
 vi.mock('../../services/adminApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/adminApi')>();
@@ -18,6 +19,8 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
     getUserContent: vi.fn(),
     setUserDailyQuota: vi.fn(),
     setUserUnlimitedTokens: vi.fn(),
+    extendJobExpiry: vi.fn(),
+    extendProjectExpiry: vi.fn(),
   };
 });
 
@@ -150,6 +153,7 @@ describe('AdminUsers', () => {
           file_name: 'call.wav',
           workflow_state: 'completed',
           created_at: '2026-09-28T10:00:00Z',
+          expires_at: '2026-09-28T22:00:00Z',
         },
       ],
     });
@@ -162,6 +166,26 @@ describe('AdminUsers', () => {
       '/#/projects/p1'
     );
     expect(screen.getByRole('link', { name: 'call.wav' })).toHaveAttribute('href', '/#/jobs/j1');
+
+    // Each one says when it is deleted, and can be kept longer right there.
+    const audioItem = screen.getByRole('link', { name: 'call.wav' }).closest('li') as HTMLElement;
+    expect(audioItem).toHaveTextContent(/expires on/);
+    vi.mocked(adminApi.extendJobExpiry).mockResolvedValue({ expires_at: '2027-01-01T10:00:00Z' });
+    fireEvent.click(within(audioItem).getByText('Extend'));
+    fireEvent.change(within(audioItem).getByLabelText('New expiry date'), {
+      target: { value: '2026-12-31T23:00' },
+    });
+    fireEvent.click(within(audioItem).getByText('Save new date'));
+    await waitFor(() =>
+      expect(adminApi.extendJobExpiry).toHaveBeenCalledWith(
+        'j1',
+        new Date('2026-12-31T23:00').toISOString()
+      )
+    );
+    expect(
+      await within(audioItem).findByText(new RegExp(formatDateTime('2027-01-01T10:00:00Z', 'en')))
+    ).toBeInTheDocument();
+    expect(within(audioItem).queryByLabelText('New expiry date')).not.toBeInTheDocument();
   });
 
   it('gives and takes tokens and shows their history', async () => {

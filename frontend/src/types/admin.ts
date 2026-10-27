@@ -130,7 +130,14 @@ export interface UserContent {
     expires_at: string;
     audio_count: number;
   }[];
-  audios: { uuid: string; file_name: string; workflow_state: string; created_at: string }[];
+  audios: {
+    uuid: string;
+    file_name: string;
+    workflow_state: string;
+    created_at: string;
+    /** When it is deleted (its own date, or the panel's retention after upload). */
+    expires_at: string;
+  }[];
 }
 
 /** A model on the LLM server (Ollama reports sizes; other servers just names). */

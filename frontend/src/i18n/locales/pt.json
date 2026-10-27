@@ -594,7 +594,9 @@
         "user_tokens": "Tokens de utilizador alterados",
         "user_daily_tokens": "Quota diária de utilizador alterada",
         "user_unlimited_on": "Tokens ilimitados ativados",
-        "user_unlimited_off": "Tokens ilimitados desativados"
+        "user_unlimited_off": "Tokens ilimitados desativados",
+        "expiry_job": "Expiração de áudio prolongada",
+        "expiry_project": "Expiração de projeto prolongada"
       }
     },
     "users": {
@@ -931,6 +933,23 @@
     "retryNow": "Tentar agora",
     "retry": "Tentar de novo",
     "unsavedBeforeSummary": "Há alterações à transcrição por gravar no servidor. Grava-as antes de gerar o resumo, para que o resumo as inclua."
+  },
+  "expiry": {
+    "extend": "Prolongar",
+    "extendTitle": "Prolongar a data de expiração",
+    "title": "Prolongar expiração — {{name}}",
+    "current": "Expira atualmente em {{date}}.",
+    "expiresOn": "expira em {{date}}",
+    "audioLabel": "Apagado automaticamente em",
+    "newDate": "Nova data de expiração",
+    "plusDays_one": "+{{count}} dia",
+    "plusDays_other": "+{{count}} dias",
+    "hint": "No máximo 1 ano a partir de hoje. Fica registado no registo de auditoria.",
+    "save": "Guardar nova data",
+    "saving": "A guardar…",
+    "mustBeLater": "A nova data tem de ser posterior à data atual de expiração.",
+    "tooFar": "A nova data pode ser, no máximo, daqui a 365 dias.",
+    "failed": "Não foi possível prolongar a expiração."
   },
   "loading": {
     "openingTranscript": "A abrir a transcrição…"
