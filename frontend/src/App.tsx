@@ -108,6 +108,7 @@ function App() {
     showEditTextModal,
     handleEditText,
     handleSaveSegmentText,
+    handleUpdateSegmentText,
     handleCancelEditText,
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
@@ -523,6 +524,7 @@ function App() {
                 handleEditText={handleEditText}
                 handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
                 handleMoveSegmentTo={handleMoveSegmentTo}
+                handleUpdateSegmentText={handleUpdateSegmentText}
                 handleMergeSegmentInto={handleMergeSegmentInto}
                 handleBulkMoveSegments={handleBulkMoveSegments}
                 handleDeleteSegments={handleDeleteSegments}

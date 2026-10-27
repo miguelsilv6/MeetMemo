@@ -480,6 +480,53 @@ describe('useTranscript', () => {
     expect(result.current.transcript?.segments?.[1].words).toBeUndefined();
   });
 
+  it("changes only a line's text, saved without its words, and can undo it", async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const withWords: TranscriptSegment[] = [
+      {
+        ...segments[0],
+        words: [{ word: ' Hello', start: 0, end: 2, probability: 0.4 }],
+        low_confidence: true,
+      },
+      segments[1],
+    ];
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: withWords });
+    });
+
+    await act(async () => {
+      result.current.handleUpdateSegmentText(0, '  Hello, world ');
+    });
+    const [, saved] = vi.mocked(api.updateTranscript).mock.calls[0];
+    expect(saved[0]).toEqual({
+      speaker: 'SPEAKER_00',
+      start: 0,
+      end: 2,
+      text: 'Hello, world',
+      low_confidence: true,
+    });
+    expect(saved[1]).toBe(withWords[1]);
+
+    await act(async () => {
+      result.current.handleUndo();
+    });
+    expect(result.current.transcript?.segments).toEqual(withWords);
+  });
+
+  it('saves nothing for an unchanged or empty text', async () => {
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments });
+    });
+    await act(async () => {
+      result.current.handleUpdateSegmentText(0, ' Hello ');
+      result.current.handleUpdateSegmentText(0, '   ');
+    });
+    expect(api.updateTranscript).not.toHaveBeenCalled();
+    expect(result.current.canUndo).toBe(false);
+  });
+
   describe('when the server does not save an edit', () => {
     afterEach(() => {
       vi.useRealTimers();

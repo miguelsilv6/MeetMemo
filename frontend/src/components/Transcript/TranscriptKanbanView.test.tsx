@@ -65,7 +65,7 @@ describe('TranscriptKanbanView', () => {
     fireEvent.click(screen.getByText('Ola a todos'));
     expect(onSeekToSegment).toHaveBeenCalledWith(0);
 
-    fireEvent.click(screen.getAllByTitle('Edit this segment')[0]);
+    fireEvent.click(screen.getAllByTitle('Edit text, times and speaker')[0]);
     expect(handleEditText).toHaveBeenCalledWith(segments[0], 0);
   });
 
@@ -158,6 +158,25 @@ describe('TranscriptKanbanView', () => {
     expect(handleEditText).toHaveBeenCalledWith(segments[1], 1);
   });
 
+  it('edits the text right in the bubble on double-click, and still opens the editor from the pencil', () => {
+    const handleEditText = vi.fn();
+    const onUpdateText = vi.fn();
+    renderKanban({ handleEditText, onUpdateText });
+
+    fireEvent.doubleClick(screen.getByText('Hi there'));
+    const field = screen.getByLabelText('Line text');
+    expect(field).toHaveValue('Hi there');
+    // Not announced as disabled because the bubble stops dragging meanwhile.
+    expect(field.closest('[aria-disabled="true"]')).toBeNull();
+    fireEvent.change(field, { target: { value: 'Hi there!' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(onUpdateText).toHaveBeenCalledWith(1, 'Hi there!');
+    expect(handleEditText).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getAllByTitle('Edit text, times and speaker')[1]);
+    expect(handleEditText).toHaveBeenCalledWith(segments[1], 1);
+  });
+
   it('requests inserting a segment after a bubble', () => {
     const onInsertSegmentAfter = vi.fn();
     renderKanban({ onInsertSegmentAfter });
@@ -180,7 +199,7 @@ describe('TranscriptKanbanView', () => {
     renderKanban({ selectMode: true });
 
     expect(screen.getAllByRole('checkbox')).toHaveLength(segments.length);
-    expect(screen.queryByTitle('Edit this segment')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Edit text, times and speaker')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Insert segment after this one')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /add speaker/i })).not.toBeInTheDocument();
   });

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import { Badge, Button, Form } from '@govtechsg/sgds-react';
 import { AlertTriangle, Pencil, Play, Plus, Scissors, Trash2 } from 'lucide-react';
@@ -8,13 +8,17 @@ import { formatTime } from '../../utils/timeFormat';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 import { LOW_WORD_PROBABILITY, matchingWords } from '../../utils/wordConfidence';
 import OriginalTimes from './OriginalTimes';
+import InlineTextEditor from './InlineTextEditor';
 
 interface TranscriptSegmentProps {
   segment: TranscriptSegmentType;
   /** Text to render instead of `segment.text` (e.g. an active translation). */
   displayText?: string;
   index: number;
+  /** Opens the full editor (text, times and speaker): the pencil button. */
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
+  /** Saves a new text edited right in the bubble (double click); without it, a double click opens the full editor. */
+  onUpdateText?: (index: number, text: string) => void;
   isActive: boolean;
   onSeekToSegment: (time: number) => void;
   onInsertSegmentAfter: (index: number) => void;
@@ -32,6 +36,7 @@ export default function TranscriptSegment({
   displayText,
   index,
   handleEditText,
+  onUpdateText,
   isActive,
   onSeekToSegment,
   onInsertSegmentAfter,
@@ -43,6 +48,7 @@ export default function TranscriptSegment({
 }: TranscriptSegmentProps) {
   const { t } = useTranslation();
   const segmentRef = useRef<HTMLDivElement | null>(null);
+  const [editingText, setEditingText] = useState(false);
 
   // Auto-scroll to active segment
   useEffect(() => {
@@ -77,10 +83,11 @@ export default function TranscriptSegment({
           ? undefined
           : (e) => {
               e.stopPropagation();
-              handleEditText(segment, index);
+              if (onUpdateText) setEditingText(true);
+              else handleEditText(segment, index);
             }
       }
-      title={selectMode ? undefined : t('transcript.editHint')}
+      title={selectMode || editingText ? undefined : t('transcript.editHint')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -193,7 +200,18 @@ export default function TranscriptSegment({
           </div>
         )}
       </div>
-      <p className="mb-0">{displayText ?? <SegmentText segment={segment} />}</p>
+      {editingText && onUpdateText ? (
+        <InlineTextEditor
+          text={segment.text}
+          onSave={(text) => {
+            setEditingText(false);
+            onUpdateText(index, text);
+          }}
+          onCancel={() => setEditingText(false)}
+        />
+      ) : (
+        <p className="mb-0">{displayText ?? <SegmentText segment={segment} />}</p>
+      )}
     </div>
   );
 }
