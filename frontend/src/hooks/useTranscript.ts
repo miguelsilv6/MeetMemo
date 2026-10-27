@@ -100,6 +100,22 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     setPendingNewSegmentIndex(null);
   };
 
+  // Change only a line's text (edited right in its bubble). Nothing is saved
+  // for an unchanged or empty text: a line is deleted with its own button.
+  const handleUpdateSegmentText = (index: number, text: string) => {
+    if (!transcript) return;
+    const segments = transcript.segments ?? [];
+    const segment = segments[index];
+    const trimmed = text.trim();
+    if (!segment || !trimmed || trimmed === segment.text.trim()) return;
+
+    // The words (and their confidence) only describe the text as heard.
+    const { words: _words, ...unedited } = segment;
+    const updatedSegments = [...segments];
+    updatedSegments[index] = { ...unedited, text: trimmed };
+    commit(segments, updatedSegments);
+  };
+
   // Close the edit modal without saving. If the segment being edited was a
   // fresh insert (handleInsertSegmentAfter) that was never persisted, remove
   // it rather than leaving an empty bubble behind.
@@ -315,6 +331,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     setShowEditTextModal,
     handleEditText,
     handleSaveSegmentText,
+    handleUpdateSegmentText,
     handleCancelEditText,
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,

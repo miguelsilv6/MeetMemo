@@ -21,6 +21,7 @@ import { dropTargetOf, nearestDropPoint } from '../../utils/kanbanDrop';
 import type { DropTarget } from '../../utils/kanbanDrop';
 import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
 import OriginalTimes from './OriginalTimes';
+import InlineTextEditor from './InlineTextEditor';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 
 interface IndexedSegment {
@@ -43,6 +44,8 @@ interface TranscriptKanbanViewProps {
     placement: DropPlacement,
     speaker: string
   ) => void;
+  /** Saves a new text edited right in a bubble (double click). */
+  onUpdateText?: (index: number, text: string) => void;
   /** Merges a segment into another one (dropped onto the middle of its bubble). */
   onMergeSegmentInto?: (index: number, targetIndex: number) => void;
   onBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
@@ -69,6 +72,7 @@ function KanbanBubble({
   isActive,
   isMergeTarget = false,
   handleEditText,
+  onUpdateText,
   onSeekToSegment,
   onInsertSegmentAfter,
   onSplitSegment,
@@ -82,6 +86,7 @@ function KanbanBubble({
   isActive: boolean;
   /** A dragged line would be merged into this one if dropped now. */
   isMergeTarget?: boolean;
+  onUpdateText?: (index: number, text: string) => void;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onInsertSegmentAfter: (index: number) => void;
@@ -93,10 +98,12 @@ function KanbanBubble({
 }) {
   const { t } = useTranslation();
   const { segment, index } = indexed;
+  // Its text being edited right in the bubble (double click): it does not drag meanwhile.
+  const [editingText, setEditingText] = useState(false);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: String(index),
     data: { index, speaker: segment.speaker },
-    disabled: selectMode,
+    disabled: selectMode || editingText,
   });
   // Also a drop target: another line dropped on it goes before or after it.
   const { setNodeRef: setDropRef } = useDroppable({
@@ -119,8 +126,8 @@ function KanbanBubble({
   return (
     <div
       ref={setRefs}
-      {...(selectMode ? {} : listeners)}
-      {...(selectMode ? {} : attributes)}
+      {...(selectMode || editingText ? {} : listeners)}
+      {...(selectMode || editingText ? {} : attributes)}
       className={`kanban-bubble ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
       } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''} ${
@@ -132,10 +139,11 @@ function KanbanBubble({
           ? undefined
           : (e) => {
               e.stopPropagation();
-              handleEditText(segment, index);
+              if (onUpdateText) setEditingText(true);
+              else handleEditText(segment, index);
             }
       }
-      title={selectMode ? undefined : t('transcript.editHint')}
+      title={selectMode || editingText ? undefined : t('transcript.editHint')}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -143,7 +151,18 @@ function KanbanBubble({
       }}
     >
       <div className="kanban-bubble-text">
-        <p className="mb-0">{displayText ?? segment.text}</p>
+        {editingText && onUpdateText ? (
+          <InlineTextEditor
+            text={segment.text}
+            onSave={(text) => {
+              setEditingText(false);
+              onUpdateText(index, text);
+            }}
+            onCancel={() => setEditingText(false)}
+          />
+        ) : (
+          <p className="mb-0">{displayText ?? segment.text}</p>
+        )}
         {isMergeTarget && (
           <span className="kanban-merge-label" data-testid="kanban-merge-label">
             {t('kanban.mergeHere')}
@@ -392,6 +411,7 @@ export default function TranscriptKanbanView({
   onMoveSegmentSpeaker,
   onMoveSegmentTo,
   onMergeSegmentInto,
+  onUpdateText,
   onBulkMoveSegments,
   onDeleteSegments,
   onInsertSegmentAfter,
@@ -589,6 +609,7 @@ export default function TranscriptKanbanView({
                     dropTarget.index === row.index
                   }
                   handleEditText={handleEditText}
+                  onUpdateText={onUpdateText}
                   onSeekToSegment={onSeekToSegment}
                   onInsertSegmentAfter={onInsertSegmentAfter}
                   onSplitSegment={onSplitSegment}

@@ -50,6 +50,8 @@ interface TranscriptViewProps {
     placement: DropPlacement,
     speaker: string
   ) => void;
+  /** Changes only a segment's text (edited right in its bubble). */
+  handleUpdateSegmentText?: (index: number, text: string) => void;
   /** Merges a segment into another one (Kanban drag onto a bubble). */
   handleMergeSegmentInto?: (index: number, targetIndex: number) => void;
   handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
@@ -94,6 +96,7 @@ export default function TranscriptView({
   handleEditText,
   handleMoveSegmentSpeaker,
   handleMoveSegmentTo,
+  handleUpdateSegmentText,
   handleMergeSegmentInto,
   handleBulkMoveSegments,
   handleDeleteSegments,
@@ -387,6 +390,7 @@ export default function TranscriptView({
                       onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
                       onMoveSegmentTo={handleMoveSegmentTo}
                       onMergeSegmentInto={handleMergeSegmentInto}
+                      onUpdateText={handleUpdateSegmentText}
                       onBulkMoveSegments={handleBulkMoveSegments}
                       onDeleteSegments={handleDeleteSegments}
                       onInsertSegmentAfter={handleInsertSegmentAfter}
@@ -406,6 +410,7 @@ export default function TranscriptView({
                         displayText={displayTextByIndex?.[index]}
                         index={index}
                         handleEditText={handleEditText}
+                        onUpdateText={handleUpdateSegmentText}
                         isActive={index === activeSegmentIndex}
                         onSeekToSegment={handleSeekToSegment}
                         onInsertSegmentAfter={handleInsertSegmentAfter}

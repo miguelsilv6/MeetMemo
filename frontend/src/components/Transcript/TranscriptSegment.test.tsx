@@ -49,7 +49,7 @@ describe('TranscriptSegment', () => {
   it('hands the original segment to the edit modal even while displayText is shown', () => {
     const handleEditText = vi.fn();
     renderSegment({ displayText: 'Bem-vindos a todos', handleEditText });
-    fireEvent.click(screen.getByTitle('Edit this segment'));
+    fireEvent.click(screen.getByTitle('Edit text, times and speaker'));
     expect(handleEditText).toHaveBeenCalledWith(segment, 0);
   });
 
@@ -57,7 +57,7 @@ describe('TranscriptSegment', () => {
     const handleEditText = vi.fn();
     const onSeekToSegment = vi.fn();
     renderSegment({ index: 3, handleEditText, onSeekToSegment });
-    fireEvent.click(screen.getByTitle('Edit this segment'));
+    fireEvent.click(screen.getByTitle('Edit text, times and speaker'));
     expect(handleEditText).toHaveBeenCalledWith(segment, 3);
     expect(onSeekToSegment).not.toHaveBeenCalled();
   });
@@ -86,7 +86,7 @@ describe('TranscriptSegment', () => {
   it('shows a checkbox and hides the action buttons in select mode', () => {
     renderSegment({ selectMode: true });
     expect(screen.getByRole('checkbox')).toBeInTheDocument();
-    expect(screen.queryByTitle('Edit this segment')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Edit text, times and speaker')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Insert segment after this one')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Split into two speakers')).not.toBeInTheDocument();
   });
@@ -181,5 +181,44 @@ describe('TranscriptSegment', () => {
     expect(container.querySelector('.transcript-segment')).not.toHaveClass(
       'transcript-segment-low-confidence'
     );
+  });
+
+  it('edits the text right in the bubble on double-click, and saves it on Enter', () => {
+    const onUpdateText = vi.fn();
+    const onSeekToSegment = vi.fn();
+    const { props } = renderSegment({ onUpdateText, onSeekToSegment });
+
+    fireEvent.doubleClick(screen.getByText('Welcome everyone'));
+    const field = screen.getByLabelText('Line text');
+    expect(field).toHaveValue('Welcome everyone');
+    expect(props.handleEditText).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: 'Welcome, everyone' } });
+    fireEvent.keyDown(field, { key: 'Enter' });
+    expect(onUpdateText).toHaveBeenCalledWith(0, 'Welcome, everyone');
+    expect(screen.queryByLabelText('Line text')).not.toBeInTheDocument();
+    expect(onSeekToSegment).not.toHaveBeenCalled();
+  });
+
+  it('closes the in-bubble editor on Escape without saving', () => {
+    const onUpdateText = vi.fn();
+    renderSegment({ onUpdateText });
+    fireEvent.doubleClick(screen.getByText('Welcome everyone'));
+    fireEvent.keyDown(screen.getByLabelText('Line text'), { key: 'Escape' });
+    expect(onUpdateText).not.toHaveBeenCalled();
+    expect(screen.getByText('Welcome everyone')).toBeInTheDocument();
+  });
+
+  it('edits the original text even while a translation is shown', () => {
+    renderSegment({ onUpdateText: vi.fn(), displayText: 'Bem-vindos todos' });
+    fireEvent.doubleClick(screen.getByText('Bem-vindos todos'));
+    expect(screen.getByLabelText('Line text')).toHaveValue('Welcome everyone');
+  });
+
+  it('still opens the full editor (text, times and speaker) from the pencil', () => {
+    const handleEditText = vi.fn();
+    renderSegment({ handleEditText, onUpdateText: vi.fn() });
+    fireEvent.click(screen.getByTitle('Edit text, times and speaker'));
+    expect(handleEditText).toHaveBeenCalledWith(segment, 0);
   });
 });

@@ -1558,6 +1558,16 @@ button.kanban-add-column:hover {
   color: var(--mm-danger, #dc3545);
 }
 
+/* A line's text edited right in its bubble (double click). */
+.inline-text-editor {
+  width: 100%;
+  min-width: 12rem;
+  resize: none;
+  overflow: hidden;
+  font: inherit;
+  line-height: inherit;
+}
+
 /* A dragged line would be merged into this bubble if dropped now. */
 .kanban-bubble-merge-target .kanban-bubble-text {
   position: relative;
