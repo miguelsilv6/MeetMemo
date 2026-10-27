@@ -167,6 +167,45 @@ describe('useTranscript', () => {
     ]);
   });
 
+  it('merges a line into another, saves it and can undo it', async () => {
+    vi.mocked(api.updateTranscript).mockResolvedValue({});
+    const { result } = renderHook(() => useTranscript('job1', vi.fn()));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+
+    await act(async () => {
+      await result.current.handleMergeSegmentInto(1, 0);
+    });
+    const [, saved] = vi.mocked(api.updateTranscript).mock.calls[0];
+    expect(saved.map((s) => [s.speaker, s.text])).toEqual([
+      ['SPEAKER_00', 'Hello Hi there'],
+      ['SPEAKER_00', 'How are you'],
+    ]);
+    expect(result.current.transcript?.segments).toEqual(saved);
+
+    await act(async () => {
+      await result.current.handleUndo();
+    });
+    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
+  });
+
+  it('rolls back a merge if the API call fails', async () => {
+    vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));
+    const setError = vi.fn();
+    const { result } = renderHook(() => useTranscript('job1', setError));
+    act(() => {
+      result.current.setTranscriptWithColors({ segments: threeSpeakerSegments });
+    });
+
+    await act(async () => {
+      await result.current.handleMergeSegmentInto(1, 0);
+    });
+    expect(result.current.transcript?.segments).toEqual(threeSpeakerSegments);
+    expect(setError).toHaveBeenLastCalledWith('network down');
+    expect(result.current.canUndo).toBe(false);
+  });
+
   it('rolls back a move next to another segment if the API call fails', async () => {
     const setError = vi.fn();
     vi.mocked(api.updateTranscript).mockRejectedValue(new Error('network down'));

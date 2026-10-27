@@ -48,6 +48,8 @@ interface TranscriptViewProps {
     placement: DropPlacement,
     speaker: string
   ) => void;
+  /** Merges a segment into another one (Kanban drag onto a bubble). */
+  handleMergeSegmentInto?: (index: number, targetIndex: number) => void;
   handleBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   handleDeleteSegments: (indices: number[]) => void;
   handleInsertSegmentAfter: (index: number) => void;
@@ -85,6 +87,7 @@ export default function TranscriptView({
   handleEditText,
   handleMoveSegmentSpeaker,
   handleMoveSegmentTo,
+  handleMergeSegmentInto,
   handleBulkMoveSegments,
   handleDeleteSegments,
   handleInsertSegmentAfter,
@@ -365,6 +368,7 @@ export default function TranscriptView({
                       onSeekToSegment={handleSeekToSegment}
                       onMoveSegmentSpeaker={handleMoveSegmentSpeaker}
                       onMoveSegmentTo={handleMoveSegmentTo}
+                      onMergeSegmentInto={handleMergeSegmentInto}
                       onBulkMoveSegments={handleBulkMoveSegments}
                       onDeleteSegments={handleDeleteSegments}
                       onInsertSegmentAfter={handleInsertSegmentAfter}

@@ -43,6 +43,8 @@ interface TranscriptKanbanViewProps {
     placement: DropPlacement,
     speaker: string
   ) => void;
+  /** Merges a segment into another one (dropped onto the middle of its bubble). */
+  onMergeSegmentInto?: (index: number, targetIndex: number) => void;
   onBulkMoveSegments: (indices: number[], newSpeaker: string) => void;
   onDeleteSegments: (indices: number[]) => void;
   onInsertSegmentAfter: (index: number) => void;
@@ -65,6 +67,7 @@ function KanbanBubble({
   indexed,
   displayText,
   isActive,
+  isMergeTarget = false,
   handleEditText,
   onSeekToSegment,
   onInsertSegmentAfter,
@@ -77,6 +80,8 @@ function KanbanBubble({
   indexed: IndexedSegment;
   displayText?: string;
   isActive: boolean;
+  /** A dragged line would be merged into this one if dropped now. */
+  isMergeTarget?: boolean;
   handleEditText: (segment: TranscriptSegmentType, index: number) => void;
   onSeekToSegment: (time: number) => void;
   onInsertSegmentAfter: (index: number) => void;
@@ -120,7 +125,7 @@ function KanbanBubble({
         isDragging ? 'kanban-bubble-dragging' : ''
       } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''} ${
         segment.low_confidence ? 'kanban-bubble-low-confidence' : ''
-      }`}
+      } ${isMergeTarget ? 'kanban-bubble-merge-target' : ''}`}
       onClick={handleClick}
       onDoubleClick={
         selectMode
@@ -139,6 +144,11 @@ function KanbanBubble({
     >
       <div className="kanban-bubble-text">
         <p className="mb-0">{displayText ?? segment.text}</p>
+        {isMergeTarget && (
+          <span className="kanban-merge-label" data-testid="kanban-merge-label">
+            {t('kanban.mergeHere')}
+          </span>
+        )}
       </div>
       <div className="kanban-bubble-meta d-flex flex-wrap align-items-center gap-1">
         {selectMode && (
@@ -381,6 +391,7 @@ export default function TranscriptKanbanView({
   onSeekToSegment,
   onMoveSegmentSpeaker,
   onMoveSegmentTo,
+  onMergeSegmentInto,
   onBulkMoveSegments,
   onDeleteSegments,
   onInsertSegmentAfter,
@@ -456,18 +467,21 @@ export default function TranscriptKanbanView({
     setDropTarget(null);
   };
 
-  // Dropped at the height of a bubble (in any column): the line takes the
-  // speaker of the column it was dropped in and that place in the
-  // conversation (times included). With no bubble to go next to, or without
-  // that handler: only the speaker changes.
+  // Dropped onto the middle of a bubble: merged into it. Dropped at the height
+  // of a bubble (in any column): the line takes the speaker of the column it
+  // was dropped in and that place in the conversation (times included). With
+  // no bubble to go next to, or without that handler: only the speaker changes.
   const handleDragEnd = (event: DragEndEvent) => {
     endDrag();
     const target = dropTargetOf(event);
     if (!target) return;
 
     const index = Number(event.active.id);
-    if (target.index !== null && onMoveSegmentTo) {
-      onMoveSegmentTo(index, target.index, target.placement, target.speaker);
+    if (target.placement === 'merge' && target.index !== null && onMergeSegmentInto) {
+      onMergeSegmentInto(index, target.index);
+    } else if (target.index !== null && onMoveSegmentTo) {
+      const placement = target.placement === 'merge' ? 'after' : target.placement;
+      onMoveSegmentTo(index, target.index, placement, target.speaker);
     } else if (target.speaker !== event.active.data.current?.speaker) {
       onMoveSegmentSpeaker(index, target.speaker);
     }
@@ -569,6 +583,11 @@ export default function TranscriptKanbanView({
                   indexed={{ segment, index: row.index }}
                   displayText={displayTextByIndex?.[row.index]}
                   isActive={row.index === activeSegmentIndex}
+                  isMergeTarget={
+                    !!onMergeSegmentInto &&
+                    dropTarget?.placement === 'merge' &&
+                    dropTarget.index === row.index
+                  }
                   handleEditText={handleEditText}
                   onSeekToSegment={onSeekToSegment}
                   onInsertSegmentAfter={onInsertSegmentAfter}
@@ -584,17 +603,20 @@ export default function TranscriptKanbanView({
 
           {/* Where the dragged line would land: a bar in the column it is
               dropped in, at the top or bottom of the row it goes next to. */}
-          {onMoveSegmentTo && dropTarget && dropRow >= 0 && (
-            <div
-              className={`kanban-drop-bar kanban-drop-bar-${dropTarget.placement}`}
-              style={{
-                gridColumn: speakers.indexOf(dropTarget.speaker) + 1,
-                gridRow: FIRST_CONTENT_ROW + dropRow,
-              }}
-              data-testid="kanban-drop-bar"
-              aria-hidden="true"
-            />
-          )}
+          {onMoveSegmentTo &&
+            dropTarget &&
+            dropRow >= 0 &&
+            !(dropTarget.placement === 'merge' && onMergeSegmentInto) && (
+              <div
+                className={`kanban-drop-bar kanban-drop-bar-${dropTarget.placement === 'merge' ? 'after' : dropTarget.placement}`}
+                style={{
+                  gridColumn: speakers.indexOf(dropTarget.speaker) + 1,
+                  gridRow: FIRST_CONTENT_ROW + dropRow,
+                }}
+                data-testid="kanban-drop-bar"
+                aria-hidden="true"
+              />
+            )}
         </div>
         <DragOverlay>
           {draggingSegment ? (

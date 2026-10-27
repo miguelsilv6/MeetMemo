@@ -112,6 +112,7 @@ function App() {
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
     handleMoveSegmentTo,
+    handleMergeSegmentInto,
     handleBulkMoveSegments,
     handleDeleteSegments,
     splittingSegment,
@@ -507,6 +508,7 @@ function App() {
                 handleEditText={handleEditText}
                 handleMoveSegmentSpeaker={handleMoveSegmentSpeaker}
                 handleMoveSegmentTo={handleMoveSegmentTo}
+                handleMergeSegmentInto={handleMergeSegmentInto}
                 handleBulkMoveSegments={handleBulkMoveSegments}
                 handleDeleteSegments={handleDeleteSegments}
                 handleInsertSegmentAfter={handleInsertSegmentAfter}

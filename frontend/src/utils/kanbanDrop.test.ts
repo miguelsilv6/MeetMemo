@@ -50,6 +50,16 @@ const targetAt = (x: number, y: number, activeIndex?: number, items?: typeof lay
   dropTargetOf({ collisions: detect(x, y, activeIndex, items) } as unknown as DragEndEvent);
 
 describe('nearestDropPoint', () => {
+  it('merges into a bubble when right over its middle', () => {
+    expect(targetAt(100, 120, 2)).toEqual({ speaker: 'A', index: 1, placement: 'merge' });
+    expect(targetAt(300, 320, 0)).toEqual({ speaker: 'B', index: 2, placement: 'merge' });
+  });
+
+  it("never merges at the height of another column's bubble", () => {
+    expect(targetAt(300, 110, 2)).toEqual({ speaker: 'B', index: 1, placement: 'before' });
+    expect(targetAt(300, 130, 2)).toEqual({ speaker: 'B', index: 1, placement: 'after' });
+  });
+
   it('goes before a bubble in its upper half and after it in its lower half', () => {
     expect(targetAt(100, 105)).toEqual({ speaker: 'A', index: 1, placement: 'before' });
     expect(targetAt(100, 135)).toEqual({ speaker: 'A', index: 1, placement: 'after' });

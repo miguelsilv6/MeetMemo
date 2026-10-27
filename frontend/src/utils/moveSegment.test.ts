@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { TranscriptSegment } from '../types/api';
-import { moveSegmentNextTo } from './moveSegment';
+import { mergeSegmentInto, moveSegmentNextTo } from './moveSegment';
 
 const seg = (speaker: string, start: number, end: number, text = `${speaker} ${start}`) =>
   ({ speaker, start, end, text }) as TranscriptSegment;
@@ -120,5 +120,77 @@ describe('moveSegmentNextTo', () => {
     const once = moveSegmentNextTo(call(), 3, 1, 'after', 'A')!;
     const twice = moveSegmentNextTo(once, 2, 0, 'before', 'A')!;
     expect(twice[0].original).toEqual({ speaker: 'B', start: 40, end: 43 });
+  });
+});
+
+describe('mergeSegmentInto', () => {
+  it("puts the dropped line's text after the target's, said by the target's speaker", () => {
+    const merged = mergeSegmentInto(call(), 3, 1)!;
+    expect(merged.map((s) => s.text)).toEqual(['A1', 'A2 B1', 'A3']);
+    expect(merged[1].speaker).toBe('A');
+  });
+
+  it('spans both lines when no other line comes between them', () => {
+    const lines = [seg('A', 0, 2, 'A1'), seg('B', 2.5, 4, 'B1'), seg('A', 5, 6, 'A2')];
+    expect(mergeSegmentInto(lines, 1, 0)).toEqual([
+      expect.objectContaining({ text: 'A1 B1', start: 0, end: 4 }),
+      seg('A', 5, 6, 'A2'),
+    ]);
+    // Dropped onto the line after it: still both, the target's text first.
+    expect(mergeSegmentInto(lines, 0, 1)![0]).toMatchObject({ text: 'B1 A1', start: 0, end: 4 });
+  });
+
+  it('far apart, keeps the target times and grows only up to its next line', () => {
+    // B1 (40-43) dropped onto A2 (3-5): 3 more seconds, but A3 starts at 10.
+    expect(mergeSegmentInto(call(), 3, 1)![1]).toMatchObject({ start: 3, end: 8 });
+    // Onto A1 (0-2), with A2 at 3: only one more second fits.
+    expect(mergeSegmentInto(call(), 3, 0)![0]).toMatchObject({ start: 0, end: 3 });
+  });
+
+  it('keeps a second at least for the merged text, even with no room before the next line', () => {
+    const lines = [seg('A', 0, 2, 'A1'), seg('A', 2, 4, 'A2'), seg('B', 40, 43, 'B1')];
+    expect(mergeSegmentInto(lines, 2, 0)![0]).toMatchObject({ start: 0, end: 3 });
+  });
+
+  it("keeps what the dropped line was, and the target's earlier merges", () => {
+    const once = mergeSegmentInto(call(), 3, 1)!;
+    expect(once[1].merged).toEqual([{ speaker: 'B', start: 40, end: 43, text: 'B1' }]);
+    const twice = mergeSegmentInto(once, 2, 1)!;
+    expect(twice.map((s) => s.text)).toEqual(['A1', 'A2 B1 A3']);
+    expect(twice[1].merged?.map((m) => m.text)).toEqual(['B1', 'A3']);
+  });
+
+  it('remembers where a moved line was transcribed, not where it was moved to', () => {
+    const moved = { ...seg('A', 20, 22, 'B1'), original: { speaker: 'B', start: 40, end: 43 } };
+    const merged = mergeSegmentInto([seg('A', 0, 2, 'A1'), moved, seg('A', 50, 51)], 1, 0)!;
+    expect(merged[0].merged).toEqual([{ speaker: 'B', start: 40, end: 43, text: 'B1' }]);
+  });
+
+  it('joins the words, re-timing the dropped ones into the added time', () => {
+    const word = (w: string, start: number, end: number) => ({
+      word: w,
+      start,
+      end,
+      probability: 0.9,
+    });
+    const lines = call();
+    lines[1] = { ...lines[1], words: [word('A2', 3, 5)] };
+    lines[3] = { ...lines[3], words: [word('B', 40, 41.5), word('1', 41.5, 43)] };
+    expect(mergeSegmentInto(lines, 3, 1)![1].words).toEqual([
+      word('A2', 3, 5),
+      word('B', 5, 6.5),
+      word('1', 6.5, 8),
+    ]);
+  });
+
+  it('is doubtful if either line was', () => {
+    const lines = call();
+    lines[3] = { ...lines[3], low_confidence: true };
+    expect(mergeSegmentInto(lines, 3, 1)![1].low_confidence).toBe(true);
+    expect(mergeSegmentInto(call(), 3, 1)![1].low_confidence).toBeUndefined();
+  });
+
+  it('does nothing when dropped onto itself', () => {
+    expect(mergeSegmentInto(call(), 1, 1)).toBeNull();
   });
 });

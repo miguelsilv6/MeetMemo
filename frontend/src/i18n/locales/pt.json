@@ -83,6 +83,8 @@
     "etaNotice": "O tempo de processamento depende do hardware: numa GPU demora normalmente alguns minutos por cada 10 minutos de áudio; num CPU pode demorar tanto como a própria gravação, ou mais."
   },
   "transcript": {
+    "mergedFrom": "juntado de {{start}} – {{end}}",
+    "mergedFromHint": "Fala juntada a esta. Clica para a ouvir onde foi dita.",
     "title": "Transcrição da Comunicação",
     "listViewTitle": "Vista de lista",
     "kanbanViewTitle": "Vista Kanban (arrasta entre interlocutores)",
@@ -116,6 +118,7 @@
     "wordConfidence": "Confiança do modelo nesta palavra: {{percent}}%. Confirma com o áudio."
   },
   "kanban": {
+    "mergeHere": "Juntar",
     "dropHere": "Larga aqui",
     "removeSpeaker": "Remover {{speaker}}",
     "addSpeaker": "Adicionar interlocutor",
@@ -309,6 +312,7 @@
     "switchToPortuguese": "Mudar para Português"
   },
   "errors": {
+    "mergeSegments": "Falha ao juntar as falas",
     "network": "Não foi possível ligar ao servidor. Verifica a tua ligação à internet.",
     "notFound": "O recurso pedido não foi encontrado.",
     "unauthorized": "Não tens autorização para aceder a este recurso.",

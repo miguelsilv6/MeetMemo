@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { initializeSpeakerColors } from '../utils/speakerColors';
-import { moveSegmentNextTo } from '../utils/moveSegment';
+import { mergeSegmentInto, moveSegmentNextTo } from '../utils/moveSegment';
 import type { DropPlacement } from '../utils/moveSegment';
 import type { SpeakerMapping, Transcript, TranscriptSegment } from '../types/api';
 import type { SetError } from '../types/ui';
@@ -269,6 +269,28 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     }
   };
 
+  // Merge a segment into another (dropped onto it in the Kanban view): its text
+  // goes after the target's. Rolled back if the save fails.
+  const handleMergeSegmentInto = async (index: number, targetIndex: number) => {
+    if (!transcript || !jobId) return;
+
+    const previousTranscript = transcript;
+    const previousSegments = transcript.segments ?? [];
+    const updatedSegments = mergeSegmentInto(previousSegments, index, targetIndex);
+    if (!updatedSegments) return;
+
+    setTranscriptWithColors({ ...transcript, segments: updatedSegments });
+
+    try {
+      setError(null);
+      await api.updateTranscript(jobId, updatedSegments);
+      pushHistory(previousSegments);
+    } catch (err) {
+      setTranscriptWithColors(previousTranscript);
+      setError((err as Error).message || t('errors.mergeSegments'));
+    }
+  };
+
   // Reassign several segments to a different speaker at once (e.g. removing a
   // speaker column and moving all its lines to another one). One optimistic
   // update + one API call for the whole batch, rolled back together on failure.
@@ -367,6 +389,7 @@ export default function useTranscript(jobId: string | null, setError: SetError) 
     handleInsertSegmentAfter,
     handleMoveSegmentSpeaker,
     handleMoveSegmentTo,
+    handleMergeSegmentInto,
     handleBulkMoveSegments,
     handleDeleteSegments,
     splittingSegment,
