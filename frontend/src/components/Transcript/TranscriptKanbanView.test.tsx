@@ -226,6 +226,38 @@ describe('TranscriptKanbanView', () => {
     expect(within(flaggedBubble).getByText('Hello everyone')).toBeInTheDocument();
   });
 
+  it('underlines doubtful words and colours their bubble, as the list does', () => {
+    renderKanban({
+      segments: [
+        segments[0],
+        {
+          ...segments[1],
+          text: 'Hi there',
+          words: [
+            { start: 2, end: 3, word: ' Hi', probability: 0.95 },
+            { start: 3, end: 4, word: ' there', probability: 0.37 },
+          ],
+        },
+        {
+          ...segments[2],
+          words: [{ start: 4, end: 6, word: ` ${segments[2].text}`, probability: 0.9 }],
+        },
+      ],
+    });
+
+    const doubtful = screen.getByText('there');
+    expect(doubtful).toHaveClass('low-confidence-word');
+    expect(doubtful).toHaveAttribute('title', expect.stringContaining('37%'));
+    const bubble = doubtful.closest('.kanban-bubble') as HTMLElement;
+    expect(bubble).toHaveClass('kanban-bubble-low-confidence');
+    expect(
+      within(bubble).getByLabelText('1 word with low confidence: check it against the audio')
+    ).toBeInTheDocument();
+    // Every word sure enough: no flag.
+    const sure = screen.getByText(segments[2].text).closest('.kanban-bubble') as HTMLElement;
+    expect(sure).not.toHaveClass('kanban-bubble-low-confidence');
+  });
+
   it('reflects selectedIndices on the matching bubble checkbox', () => {
     renderKanban({ selectMode: true, selectedIndices: new Set([1]) });
 
