@@ -154,6 +154,25 @@ describe('TranscriptSegment', () => {
     expect(document.querySelectorAll('.low-confidence-word')).toHaveLength(1);
   });
 
+  it('flags and colours a line with a doubtful word, saying how many', () => {
+    const { container } = renderSegment({
+      segment: {
+        ...segment,
+        words: [
+          { start: 65, end: 66, word: ' Welcome', probability: 0.97 },
+          { start: 66, end: 67, word: ' everyone', probability: 0.37 },
+        ],
+      },
+    });
+    expect(screen.getByText('Review')).toHaveAttribute(
+      'title',
+      '1 word with low confidence: check it against the audio'
+    );
+    expect(container.querySelector('.transcript-segment')).toHaveClass(
+      'transcript-segment-low-confidence'
+    );
+  });
+
   it('shows plain text once the words no longer match (edited)', () => {
     renderSegment({
       segment: {

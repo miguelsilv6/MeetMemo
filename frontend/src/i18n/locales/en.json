@@ -116,6 +116,8 @@
     "selectSegment": "Select this segment",
     "lowConfidence": "Review",
     "lowConfidenceHint": "Low confidence: check this line against the audio",
+    "lowConfidenceWords_one": "{{count}} word with low confidence: check it against the audio",
+    "lowConfidenceWords_other": "{{count}} words with low confidence: check them against the audio",
     "wordConfidence": "The model's confidence in this word: {{percent}}%. Check it against the audio."
   },
   "kanban": {

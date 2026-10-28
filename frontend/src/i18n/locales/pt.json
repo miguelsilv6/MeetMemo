@@ -116,6 +116,8 @@
     "selectSegment": "Selecionar este segmento",
     "lowConfidence": "Rever",
     "lowConfidenceHint": "Baixa confiança: confirma esta frase com o áudio",
+    "lowConfidenceWords_one": "{{count}} palavra com baixa confiança: confirma com o áudio",
+    "lowConfidenceWords_other": "{{count}} palavras com baixa confiança: confirma com o áudio",
     "wordConfidence": "Confiança do modelo nesta palavra: {{percent}}%. Confirma com o áudio."
   },
   "kanban": {

@@ -21,6 +21,8 @@ import { dropTargetOf, nearestDropPoint } from '../../utils/kanbanDrop';
 import type { DropTarget } from '../../utils/kanbanDrop';
 import RemoveSpeakerModal from '../Modals/RemoveSpeakerModal';
 import OriginalTimes from './OriginalTimes';
+import SegmentText from './SegmentText';
+import { reviewHint } from '../../utils/wordConfidence';
 import InlineTextEditor from './InlineTextEditor';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
 
@@ -98,6 +100,8 @@ function KanbanBubble({
 }) {
   const { t } = useTranslation();
   const { segment, index } = indexed;
+  // The whole line, or some of its words, to check against the audio.
+  const review = reviewHint(segment, t);
   // Its text being edited right in the bubble (double click): it does not drag meanwhile.
   const [editingText, setEditingText] = useState(false);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -131,7 +135,7 @@ function KanbanBubble({
       className={`kanban-bubble ${isActive ? 'kanban-bubble-active' : ''} ${
         isDragging ? 'kanban-bubble-dragging' : ''
       } ${selectMode ? 'kanban-bubble-selectable' : ''} ${isSelected ? 'kanban-bubble-selected' : ''} ${
-        segment.low_confidence ? 'kanban-bubble-low-confidence' : ''
+        review ? 'kanban-bubble-low-confidence' : ''
       } ${isMergeTarget ? 'kanban-bubble-merge-target' : ''}`}
       onClick={handleClick}
       onDoubleClick={
@@ -161,7 +165,7 @@ function KanbanBubble({
             onCancel={() => setEditingText(false)}
           />
         ) : (
-          <p className="mb-0">{displayText ?? segment.text}</p>
+          <p className="mb-0">{displayText ?? <SegmentText segment={segment} />}</p>
         )}
         {isMergeTarget && (
           <span className="kanban-merge-label" data-testid="kanban-merge-label">
@@ -183,12 +187,12 @@ function KanbanBubble({
           {formatTime(segment.start)} - {formatTime(segment.end)}
         </small>
         <OriginalTimes segment={segment} onSeekToSegment={onSeekToSegment} />
-        {segment.low_confidence && (
+        {review && (
           <span
             className="d-inline-flex text-warning"
             role="img"
-            title={t('transcript.lowConfidenceHint')}
-            aria-label={t('transcript.lowConfidenceHint')}
+            title={review}
+            aria-label={review}
           >
             <AlertTriangle size={12} />
           </span>

@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { getSpeakerColor, getSpeakerBorderColor } from '../../utils/speakerColors';
 import { formatTime } from '../../utils/timeFormat';
 import type { TranscriptSegment as TranscriptSegmentType } from '../../types/api';
-import { LOW_WORD_PROBABILITY, matchingWords } from '../../utils/wordConfidence';
+import { reviewHint } from '../../utils/wordConfidence';
+import SegmentText from './SegmentText';
 import OriginalTimes from './OriginalTimes';
 import InlineTextEditor from './InlineTextEditor';
 
@@ -48,6 +49,8 @@ export default function TranscriptSegment({
 }: TranscriptSegmentProps) {
   const { t } = useTranslation();
   const segmentRef = useRef<HTMLDivElement | null>(null);
+  // The whole line, or some of its words, to check against the audio.
+  const review = reviewHint(segment, t);
   const [editingText, setEditingText] = useState(false);
 
   // Auto-scroll to active segment
@@ -75,7 +78,7 @@ export default function TranscriptSegment({
   return (
     <div
       ref={segmentRef}
-      className={`transcript-segment mb-3 p-3 border-start border-3 ${isActive ? 'transcript-segment-active' : ''} ${selectMode ? 'transcript-segment-selectable' : ''} ${isSelected ? 'transcript-segment-selected' : ''} ${segment.low_confidence ? 'transcript-segment-low-confidence' : ''}`}
+      className={`transcript-segment mb-3 p-3 border-start border-3 ${isActive ? 'transcript-segment-active' : ''} ${selectMode ? 'transcript-segment-selectable' : ''} ${isSelected ? 'transcript-segment-selected' : ''} ${review ? 'transcript-segment-low-confidence' : ''}`}
       style={{ borderColor: getSpeakerBorderColor(segment.speaker) }}
       onClick={handleClick}
       onDoubleClick={
@@ -115,8 +118,8 @@ export default function TranscriptSegment({
           >
             {segment.speaker}
           </Badge>
-          {segment.low_confidence && (
-            <Badge bg="warning" title={t('transcript.lowConfidenceHint')}>
+          {review && (
+            <Badge bg="warning" title={review}>
               <AlertTriangle size={12} className="me-1" />
               {t('transcript.lowConfidence')}
             </Badge>
@@ -213,38 +216,5 @@ export default function TranscriptSegment({
         <p className="mb-0">{displayText ?? <SegmentText segment={segment} />}</p>
       )}
     </div>
-  );
-}
-
-/**
- * The segment's text, with the words the speech model was unsure of
- * underlined (their confidence in a tooltip) so a reviewer checks them
- * against the audio.
- */
-function SegmentText({ segment }: { segment: TranscriptSegmentType }) {
-  const { t } = useTranslation();
-  const words = matchingWords(segment.words, segment.text);
-  if (!words) return <>{segment.text}</>;
-  return (
-    <>
-      {words.map((word, i) => {
-        const text = i === 0 ? word.word.trimStart() : word.word;
-        if (word.probability >= LOW_WORD_PROBABILITY) return text;
-        const leading = text.match(/^\s*/)?.[0] ?? '';
-        return (
-          <span key={i}>
-            {leading}
-            <span
-              className="low-confidence-word"
-              title={t('transcript.wordConfidence', {
-                percent: Math.round(word.probability * 100),
-              })}
-            >
-              {text.slice(leading.length)}
-            </span>
-          </span>
-        );
-      })}
-    </>
   );
 }
