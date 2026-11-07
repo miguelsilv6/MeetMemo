@@ -7,6 +7,7 @@ initiation (transcription, diarization, alignment).
 import logging
 import os
 import uuid as uuid_lib
+from datetime import datetime, timezone
 from typing import Optional
 
 import aiofiles
@@ -59,6 +60,7 @@ from runtime_settings import WHISPER_LANGUAGE_CODES
 from services.alignment_service import AlignmentService
 from services.audio_service import AudioService
 from services.diarization_service import DiarizationService
+from services.eta import STEPS_LEFT, eta_fields, job_remaining, load_step_rates
 from services.expiry import job_expires_at
 from services.job_files import (
     asr_file_paths,
@@ -69,6 +71,7 @@ from services.job_files import (
 from services.pipeline import prepare_audio, resolve_transcription_options
 from services.runtime_settings_service import RuntimeSettingsService
 from services.transcription_service import TranscriptionService
+from utils.audio_info import wav_seconds
 from utils.file_utils import get_unique_filename
 
 logger = logging.getLogger(__name__)
@@ -163,6 +166,10 @@ async def create_job(
             if await aiofiles.os.path.exists(stored):
                 await aiofiles.os.remove(stored)
             raise HTTPException(status_code=402, detail=NO_TOKENS_DETAIL) from e
+        # Its length, for the estimate of how long it takes to process.
+        await job_repo.set_audio_seconds(
+            job_uuid, wav_seconds(os.path.join(settings.upload_dir, file_name))
+        )
         logger.info("Job %s created successfully with model=%s, language=%s", job_uuid, model, language)
 
         return JobResponse(
@@ -217,6 +224,14 @@ async def list_jobs(
         ) from e
 
 
+async def _processing_eta(job: dict, runtime) -> dict:
+    """How long the audio still takes to process, while it is processed."""
+    now = datetime.now(timezone.utc)
+    if job.get("workflow_state") not in STEPS_LEFT:
+        return eta_fields(None, now)
+    return eta_fields(job_remaining(job, await load_step_rates(), runtime, now), now)
+
+
 @router.get("/jobs/{uuid}", response_model=JobStatusResponse)
 async def get_job_status(
     uuid: str,
@@ -252,6 +267,7 @@ async def get_job_status(
         current_step_progress=job.get('current_step_progress', 0),
         available_actions=available_actions,
         expires_at=job_expires_at(job, runtime.job_retention_hours),
+        **(await _processing_eta(job, runtime)),
         progress_percentage=job.get('progress_percentage', 0),
         processing_stage=job.get('processing_stage', 'pending'),
         error_message=job.get('error_message')

@@ -1,12 +1,15 @@
 import { Row, Col, Card } from '@govtechsg/sgds-react';
 import { Users, CheckCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import EtaText from '../Common/EtaText';
 
 interface ProcessingViewProps {
   processingProgress: number;
+  /** The server's estimate of how long it still takes (null seconds: none yet). */
+  eta?: { seconds: number | null; at: string | null };
 }
 
-export default function ProcessingView({ processingProgress }: ProcessingViewProps) {
+export default function ProcessingView({ processingProgress, eta }: ProcessingViewProps) {
   const { t } = useTranslation();
 
   return (
@@ -83,6 +86,12 @@ export default function ProcessingView({ processingProgress }: ProcessingViewPro
                 {processingProgress}%
               </div>
             </div>
+
+            {eta && processingProgress < 100 && (
+              <div className="text-center mb-2">
+                <EtaText seconds={eta.seconds} at={eta.at} className="fs-6" />
+              </div>
+            )}
 
             <div className="text-center">
               <small className="text-muted">{t('processing.etaNotice')}</small>

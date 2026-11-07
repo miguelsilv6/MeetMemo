@@ -6,6 +6,7 @@ import DetectedLanguage from '../Common/DetectedLanguage';
 import SortOrderSelect from '../Common/SortOrderSelect';
 import { formatDateTime } from '../../utils/projectDates';
 import { sortByDate, useSortOrder } from '../../utils/sortOrder';
+import EtaText from '../Common/EtaText';
 
 const SORT_STORAGE_KEY = 'meetmemo-project-audios-sort';
 
@@ -99,6 +100,9 @@ export default function ProjectAudioList({
                   className="mt-1 project-audio-progress"
                   aria-label={t('projects.audios.progress', { progress: audio.progress })}
                 />
+              )}
+              {(audio.status === 'processing' || audio.status === 'queued') && (
+                <EtaText seconds={audio.eta_seconds} at={audio.eta_at} className="mt-1" />
               )}
               {audio.status === 'error' && audio.error_message && (
                 <small className="d-block text-danger mt-1">{audio.error_message}</small>

@@ -199,6 +199,9 @@ class _FakeTasks:
         matching = [t for t in self.tasks if (t["job_uuid"], t["kind"]) == (job_uuid, kind)]
         return matching[-1] if matching else None
 
+    async def with_eta(self, task):
+        return task  # no timings yet: no estimate
+
     async def set_progress(self, task_id, done, total):
         self.tasks[task_id - 1].update(progress_done=done, progress_total=total)
 

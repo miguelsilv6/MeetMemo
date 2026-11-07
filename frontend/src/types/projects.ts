@@ -35,6 +35,9 @@ export interface ProjectAudio {
   progress: number;
   /** 1 for the audio processed next; null unless queued. */
   queue_position: number | null;
+  /** Queued or processing: seconds until it is processed, and when (null: no estimate yet). */
+  eta_seconds?: number | null;
+  eta_at?: string | null;
   error_message: string | null;
   /** The language asked for at upload (null: detect it). */
   language: string | null;

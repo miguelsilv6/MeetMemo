@@ -246,7 +246,7 @@ def task_info(task: Optional[dict]) -> Optional[dict]:
         return None
     return {key: task.get(key) for key in (
         "id", "kind", "status", "progress_done", "progress_total", "queue_position",
-        "error_code", "error",
+        "error_code", "error", "eta_seconds", "eta_at",
     )}
 
 

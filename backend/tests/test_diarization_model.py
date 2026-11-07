@@ -167,7 +167,7 @@ class _JobRepo:
     async def get_transcription(self, job_uuid):
         return self.transcription
 
-    async def update_workflow_state(self, job_uuid, state, progress):
+    async def update_workflow_state(self, job_uuid, state, progress, step_model=None):
         self.states.append(state)
 
     async def update_step_progress(self, job_uuid, progress):

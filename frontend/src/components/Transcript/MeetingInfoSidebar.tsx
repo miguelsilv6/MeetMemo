@@ -1,4 +1,5 @@
 import AudioExpiry from './AudioExpiry';
+import EtaText from '../Common/EtaText';
 import { useState } from 'react';
 import { Alert, Card, Button, Badge } from '@govtechsg/sgds-react';
 import {
@@ -232,6 +233,11 @@ export default function MeetingInfoSidebar({
               </>
             )}
           </Button>
+          {generatingSummary && summaryTask && (
+            <div className="text-center mb-2">
+              <EtaText seconds={summaryTask.eta_seconds} at={summaryTask.eta_at} />
+            </div>
+          )}
           {summaryError && !generatingSummary && (
             <Alert
               show

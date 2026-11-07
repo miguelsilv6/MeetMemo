@@ -17,6 +17,11 @@ export default function useTranscriptPolling(
 ) {
   const { t } = useTranslation();
   const [processingProgress, setProcessingProgress] = useState(0);
+  // The server's estimate of how long the audio still takes (null: none yet).
+  const [processingEta, setProcessingEta] = useState<{
+    seconds: number | null;
+    at: string | null;
+  }>({ seconds: null, at: null });
 
   // Track which workflow steps have been started (to prevent race conditions)
   const workflowStepsStarted = useRef<Set<string>>(new Set());
@@ -44,6 +49,7 @@ export default function useTranscriptPolling(
 
     // Reset the workflow steps tracker for this new job
     workflowStepsStarted.current = new Set();
+    setProcessingEta({ seconds: null, at: null });
 
     // Reset retry count for new polling session
     retryCountRef.current = 0;
@@ -74,6 +80,7 @@ export default function useTranscriptPolling(
         // Reset retry count on successful poll
         retryCountRef.current = 0;
 
+        setProcessingEta({ seconds: status.eta_seconds ?? null, at: status.eta_at ?? null });
         const workflowState = status.workflow_state || 'uploaded';
         const stepProgress = status.current_step_progress || 0;
 
@@ -230,6 +237,7 @@ export default function useTranscriptPolling(
 
   return {
     processingProgress,
+    processingEta,
     startPolling,
     stopPolling,
     setProcessingProgress,

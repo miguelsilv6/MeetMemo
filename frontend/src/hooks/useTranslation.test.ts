@@ -170,7 +170,7 @@ describe('useTranslation', () => {
         status: 'running',
         segments: [],
         total: 20,
-        task: task({ progress_done: 15 }),
+        task: task({ progress_done: 15, eta_seconds: 40, eta_at: '2026-11-07T12:00:40Z' }),
       })
       .mockResolvedValueOnce({ status: 'cached', segments: translated, total: 2, task: null });
     const { result } = renderHook(() => useTranslation('job1', vi.fn()));
@@ -186,6 +186,8 @@ describe('useTranslation', () => {
       queued: true,
       position: 1,
       preparing: false,
+      etaSeconds: null,
+      etaAt: null,
     });
 
     await act(async () => {
@@ -197,6 +199,8 @@ describe('useTranslation', () => {
       queued: false,
       position: null,
       preparing: false,
+      etaSeconds: 40,
+      etaAt: '2026-11-07T12:00:40Z',
     });
 
     await act(async () => {

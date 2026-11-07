@@ -115,6 +115,9 @@ export interface LlmTask {
   /** On failure: timeout, unavailable, unusable, transcript_missing, ... */
   error_code: string | null;
   error: string | null;
+  /** While queued or running: seconds left and when it should be done (null: no estimate yet). */
+  eta_seconds?: number | null;
+  eta_at?: string | null;
 }
 
 export interface Summary {
@@ -207,6 +210,9 @@ export interface JobStatus {
   error_message?: string;
   /** When an audio outside a project is deleted (null in a project: it lives as long as the project). */
   expires_at?: string | null;
+  /** While processed: seconds left and when it should be done (null: no estimate yet). */
+  eta_seconds?: number | null;
+  eta_at?: string | null;
 }
 
 /** The currently selected file — either a real `File` or a lightweight stub. */

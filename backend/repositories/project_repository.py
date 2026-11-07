@@ -312,6 +312,20 @@ class ProjectRepository:
                 await charge_token(conn, owner, job_uuid)
         return True
 
+    async def estimate_rows(self, uuids: list[str]) -> dict[str, dict]:
+        """What estimating each of these audios needs (services/eta.py), by UUID."""
+        if not uuids:
+            return {}
+        async with get_db() as conn:
+            rows = await conn.fetch(
+                """SELECT uuid, workflow_state, current_step_progress, audio_seconds,
+                          step_started_at, step_model, model_name,
+                          transcription_data->>'channel_mode' AS channel_mode
+                   FROM jobs WHERE uuid = ANY($1::uuid[])""",
+                uuids,
+            )
+        return {str(row["uuid"]): dict(row) for row in rows}
+
     async def queue_order(self) -> list[str]:
         """UUIDs of the audios waiting in the queue, the next to run first."""
         async with get_db() as conn:

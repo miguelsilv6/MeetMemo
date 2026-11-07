@@ -299,7 +299,7 @@ class TranscriptionService:
             Exception: If transcription fails
         """
         try:
-            await self.job_repo.update_workflow_state(job_uuid, 'transcribing', 0)
+            await self.job_repo.update_workflow_state(job_uuid, 'transcribing', 0, model_name)
             if runtime is None:
                 runtime = await RuntimeSettingsService(self.settings).get()
             logger.info(
@@ -340,6 +340,9 @@ class TranscriptionService:
                     job_uuid,
                 )
             await self.job_repo.save_transcription(job_uuid, transcription_data)
+            # The decoder's own measure of the audio's length, which the timing
+            # of this step and the estimates of the next ones are based on.
+            await self.job_repo.set_audio_seconds(job_uuid, transcription_data.get("duration"))
 
             # Update state to transcribed
             await self.job_repo.update_step_progress(job_uuid, 100)

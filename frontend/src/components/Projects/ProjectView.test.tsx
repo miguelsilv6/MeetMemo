@@ -68,7 +68,11 @@ describe('ProjectView', () => {
       project([
         audio('done', 'completed'),
         audio('running', 'processing', { progress: 45 }),
-        audio('waiting', 'queued', { queue_position: 2 }),
+        audio('waiting', 'queued', {
+          queue_position: 2,
+          eta_seconds: 12 * 60,
+          eta_at: new Date(Date.now() + 12 * 60_000).toISOString(),
+        }),
         audio('broken', 'error', { error_message: 'Transcription failed: bad file' }),
       ])
     );
@@ -87,6 +91,12 @@ describe('ProjectView', () => {
     expect(within(row('done')).getByText('Completed')).toBeInTheDocument();
     expect(within(row('running')).getByText('Processing · 45%')).toBeInTheDocument();
     expect(within(row('waiting')).getByText('Queued (no. 2)')).toBeInTheDocument();
+    // Waiting and processing audios say how long they still take; done ones do not.
+    expect(within(row('waiting')).getByTestId('eta')).toHaveTextContent(/About 12 min left/);
+    expect(within(row('running')).getByTestId('eta')).toHaveTextContent(
+      'Working out the time left…'
+    );
+    expect(within(row('done')).queryByTestId('eta')).not.toBeInTheDocument();
     expect(within(row('broken')).getByText('Transcription failed: bad file')).toBeInTheDocument();
   });
 

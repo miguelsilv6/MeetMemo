@@ -953,6 +953,20 @@
     "tooFar": "A nova data pode ser, no máximo, daqui a 365 dias.",
     "failed": "Não foi possível prolongar a expiração."
   },
+  "eta": {
+    "calculating": "A calcular o tempo restante…",
+    "finishing": "A terminar…",
+    "lessThanMinute": "menos de 1 min",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} h",
+    "hours_other": "{{count}} h",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "remaining": "Faltam cerca de {{duration}} (termina por volta das {{time}})",
+    "remainingUnderMinute": "Falta menos de 1 min (termina por volta das {{time}})",
+    "compact": "≈ {{duration}}",
+    "compactUnderMinute": "< 1 min"
+  },
   "loading": {
     "openingTranscript": "A abrir a transcrição…"
   }

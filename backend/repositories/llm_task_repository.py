@@ -5,9 +5,11 @@ The table is the queue: a task is claimed by moving it from 'queued' to
 'running', and tasks a restart interrupted go back to 'queued'.
 """
 import json
+from datetime import datetime, timezone
 from typing import Optional
 
 from database import get_db
+from services.eta import eta_fields, load_task_durations, task_eta
 
 _COLUMNS = """t.id, t.job_uuid, t.kind, t.status, t.progress_done, t.progress_total,
               t.params, t.error_code, t.error, t.requested_by, t.created_at,
@@ -65,6 +67,19 @@ class LlmTaskRepository:
                 job_uuid, kind,
             )
         return _task(row)
+
+    async def with_eta(self, task: Optional[dict]) -> Optional[dict]:
+        """The task with how long it has left (`eta_seconds`, `eta_at`) while queued or running."""
+        if task is None or task.get("status") not in ("queued", "running"):
+            return task
+        async with get_db() as conn:
+            rows = await conn.fetch(
+                f"""SELECT {_COLUMNS} FROM llm_tasks t
+                    WHERE t.status IN ('queued', 'running') ORDER BY t.id"""
+            )
+        active = [_task(row) for row in rows]
+        now = datetime.now(timezone.utc)
+        return {**task, **eta_fields(task_eta(task, active, await load_task_durations(), now), now)}
 
     async def get(self, task_id: int) -> Optional[dict]:
         async with get_db() as conn:
