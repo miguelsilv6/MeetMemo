@@ -232,7 +232,9 @@ async def translate_transcript(
     _, status, segments = await _translation_state(uuid, job_repo, settings, engine)
     if status is not None:
         return _translation_response(uuid, status, segments, request, len(segments), engine)
-    task = await tasks.enqueue(uuid, "translation", {"engine": engine}, principal.username)
+    task = await tasks.with_eta(
+        await tasks.enqueue(uuid, "translation", {"engine": engine}, principal.username)
+    )
     wake_llm_queue(http_request)
     response.status_code = 202
     return _translation_response(
@@ -254,7 +256,7 @@ async def get_translation(
     (the page follows the task it started even if the panel switches engines
     meanwhile); otherwise the selected engine's.
     """
-    task = await tasks.latest(uuid, "translation")
+    task = await tasks.with_eta(await tasks.latest(uuid, "translation"))
     if task and task["status"] != "error":
         engine = task_engine(task)
     _, status, segments = await _translation_state(uuid, job_repo, settings, engine)

@@ -21,6 +21,7 @@ import { formatTime } from '../../utils/timeFormat';
 import { findActiveSegmentIndex } from '../../utils/activeSegment';
 import type { DropPlacement } from '../../utils/moveSegment';
 import type { TranslationProgress } from '../../hooks/useTranslation';
+import { etaText } from '../../utils/eta';
 import type {
   LlmTask,
   SelectedFile,
@@ -126,7 +127,7 @@ export default function TranscriptView({
   retranscribeLanguage = null,
   handleReprocess,
 }: TranscriptViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [activeSegmentIndex, setActiveSegmentIndex] = useState(-1);
   const [displayMode, setDisplayMode] = useState<TranscriptDisplayMode>('list');
   const [selectMode, setSelectMode] = useState(false);
@@ -268,7 +269,16 @@ export default function TranscriptView({
                     size="sm"
                     onClick={() => handleToggleTranslation(transcript?.segments)}
                     disabled={translating || !transcript?.segments?.length}
-                    title={t('transcript.translateToPortuguese')}
+                    title={
+                      translating && translationProgress
+                        ? etaText(
+                            translationProgress.etaSeconds,
+                            translationProgress.etaAt,
+                            t,
+                            i18n.language
+                          )
+                        : t('transcript.translateToPortuguese')
+                    }
                   >
                     {translating ? (
                       <span
@@ -288,6 +298,14 @@ export default function TranscriptView({
                           : showTranslation
                             ? t('transcript.showOriginal')
                             : t('transcript.translateToPortuguese')}
+                    {translating && translationProgress?.etaSeconds != null && (
+                      <span className="ms-1" data-testid="translation-eta">
+                        ·{' '}
+                        {etaText(translationProgress.etaSeconds, null, t, i18n.language, {
+                          compact: true,
+                        })}
+                      </span>
+                    )}
                   </Button>
                 )}
                 <Button variant="outline-primary" size="sm" onClick={handleEditSpeakers}>

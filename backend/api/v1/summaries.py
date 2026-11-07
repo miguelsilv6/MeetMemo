@@ -37,7 +37,7 @@ async def get_summary(
     job = await job_repo.get(uuid)
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {uuid} not found")
-    task = await tasks.latest(uuid, "summary")
+    task = await tasks.with_eta(await tasks.latest(uuid, "summary"))
     cached = await summary_service.get_cached_summary(uuid)
     if cached:
         return SummaryResponse(
@@ -95,7 +95,9 @@ async def create_summary(
             summary=cached,
         )
 
-    task = await tasks.enqueue(uuid, "summary", custom, principal.username)
+    task = await tasks.with_eta(
+        await tasks.enqueue(uuid, "summary", custom, principal.username)
+    )
     wake_llm_queue(http_request)
     response.status_code = 202
     return SummaryResponse(

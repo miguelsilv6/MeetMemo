@@ -16,4 +16,18 @@ describe('ProcessingView', () => {
     rerender(<ProcessingView processingProgress={100} />);
     expect(screen.getByText('100%')).toBeInTheDocument();
   });
+
+  it('shows how long it still takes, or that it is being worked out', () => {
+    const at = new Date(Date.now() + 5 * 60_000).toISOString();
+    const { rerender } = render(
+      <ProcessingView processingProgress={20} eta={{ seconds: 300, at }} />
+    );
+    expect(screen.getByTestId('eta')).toHaveTextContent(/About 5 min left \(done around .+\)/);
+
+    rerender(<ProcessingView processingProgress={20} eta={{ seconds: null, at: null }} />);
+    expect(screen.getByTestId('eta')).toHaveTextContent('Working out the time left…');
+
+    rerender(<ProcessingView processingProgress={100} eta={{ seconds: 0, at: null }} />);
+    expect(screen.queryByTestId('eta')).not.toBeInTheDocument();
+  });
 });

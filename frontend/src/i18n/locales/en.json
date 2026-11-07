@@ -953,6 +953,20 @@
     "tooFar": "The new date can be at most 365 days from now.",
     "failed": "Could not extend the expiry."
   },
+  "eta": {
+    "calculating": "Working out the time left…",
+    "finishing": "Finishing…",
+    "lessThanMinute": "less than 1 min",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} h",
+    "hours_other": "{{count}} h",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "remaining": "About {{duration}} left (done around {{time}})",
+    "remainingUnderMinute": "Less than 1 min left (done around {{time}})",
+    "compact": "≈ {{duration}}",
+    "compactUnderMinute": "< 1 min"
+  },
   "loading": {
     "openingTranscript": "Opening the transcript…"
   }

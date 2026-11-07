@@ -248,15 +248,22 @@ class _JobRepo:
         self.saved = None
         self.states = []
         self.progress = []
+        self.step_models = []
+        self.audio_seconds = None
 
-    async def update_workflow_state(self, job_uuid, state, progress):
+    async def update_workflow_state(self, job_uuid, state, progress, step_model=None):
         self.states.append(state)
+        if step_model is not None:
+            self.step_models.append(step_model)
 
     async def update_step_progress(self, job_uuid, progress):
         self.progress.append(progress)
 
     async def save_transcription(self, job_uuid, data):
         self.saved = data
+
+    async def set_audio_seconds(self, job_uuid, seconds):
+        self.audio_seconds = seconds
 
 
 def test_the_pipeline_step_saves_the_same_result(service_module):
@@ -275,6 +282,9 @@ def test_the_pipeline_step_saves_the_same_result(service_module):
     assert data["language_detection"]["language"] == "pt"
     assert repo.states == ["transcribing", "transcribed"]
     assert repo.progress[0] == 10 and repo.progress[-1] == 100
+    # What times this step: its model, and the audio's length as decoded.
+    assert repo.step_models == ["large-v3"]
+    assert repo.audio_seconds == data["duration"]
 
 
 def test_the_evaluation_script_writes_a_report(service_module, monkeypatch, tmp_path):

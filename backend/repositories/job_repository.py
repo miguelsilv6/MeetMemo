@@ -20,6 +20,7 @@ from database import (
     get_transcription_data,
     save_diarization_data,
     save_transcription_data,
+    set_audio_seconds,
     update_file_name,
     update_status,
     update_step_progress,
@@ -101,7 +102,8 @@ class JobRepository:
         self,
         uuid: str,
         state: str,
-        progress: int = 0
+        progress: int = 0,
+        step_model: Optional[str] = None,
     ) -> None:
         """
         Update job workflow state and progress.
@@ -110,8 +112,14 @@ class JobRepository:
             uuid: Job UUID
             state: New workflow state
             progress: Progress percentage (0-100)
+            step_model: For a step starting, what runs it (e.g. the Whisper
+                model), which its timing is estimated and recorded by
         """
-        await update_workflow_state(uuid, state, progress)
+        await update_workflow_state(uuid, state, progress, step_model)
+
+    async def set_audio_seconds(self, uuid: str, seconds: Optional[float]) -> None:
+        """Note how long the job's audio is (when it could be read)."""
+        await set_audio_seconds(uuid, seconds)
 
     async def update_step_progress(self, uuid: str, progress: int) -> None:
         """

@@ -115,13 +115,17 @@ class DiarizationService:
             Exception: If diarization fails
         """
         try:
-            await self.job_repo.update_workflow_state(job_uuid, 'diarizing', 0)
+            model_name = model_name or self.settings.pyannote_model_name
+            transcription = await self.job_repo.get_transcription(job_uuid)
+            split = bool(transcription and transcription.get("channel_mode") == "split")
+            # Taken from the channels, this step takes no time at all: its
+            # timing is kept apart from pyannote's.
+            await self.job_repo.update_workflow_state(
+                job_uuid, 'diarizing', 0, "split" if split else model_name
+            )
             logger.info("Starting diarization for job %s", job_uuid)
 
-            model_name = model_name or self.settings.pyannote_model_name
-
-            transcription = await self.job_repo.get_transcription(job_uuid)
-            if transcription and transcription.get("channel_mode") == "split":
+            if split:
                 # One speaker per channel: the channels are the diarization,
                 # with no pyannote guesswork.
                 diarization_data = channel_diarization(transcription)

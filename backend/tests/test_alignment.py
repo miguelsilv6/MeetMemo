@@ -16,7 +16,7 @@ class _Repo:
         self.transcription, self.diarization = transcription, diarization
         self.states = []
 
-    async def update_workflow_state(self, job_uuid, state, progress):
+    async def update_workflow_state(self, job_uuid, state, progress, step_model=None):
         self.states.append(state)
 
     async def update_step_progress(self, job_uuid, progress):

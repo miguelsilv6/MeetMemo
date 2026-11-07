@@ -62,6 +62,10 @@ class LlmTaskInfo(BaseModel):
     queue_position: Optional[int] = None
     error_code: Optional[str] = None
     error: Optional[str] = None
+    # While queued or running: seconds left and when it should be done (None
+    # until this server has the timings to tell; see services/eta.py).
+    eta_seconds: Optional[int] = None
+    eta_at: Optional[datetime] = None
 
 
 class UpdateSummaryRequest(BaseModel):
@@ -155,6 +159,10 @@ class JobStatusResponse(BaseModel):
     # When an audio outside a project is deleted (None in a project: it lives
     # until its project expires).
     expires_at: Optional[datetime] = None
+    # While it is processed: seconds left and when it should be done (None
+    # until this server has the timings to tell; see services/eta.py).
+    eta_seconds: Optional[int] = None
+    eta_at: Optional[datetime] = None
 
     # Legacy fields (for backwards compatibility)
     progress_percentage: Optional[int] = 0

@@ -13,6 +13,9 @@ export interface TranslationProgress {
   position?: number | null;
   /** NLLB-200 is being downloaded/loaded before translating (first use). */
   preparing?: boolean;
+  /** The server's estimate: seconds left and when it should be done (null: none yet). */
+  etaSeconds?: number | null;
+  etaAt?: string | null;
 }
 
 const isReady = (response: TranslateResponse) =>
@@ -75,6 +78,8 @@ export default function useTranslation(
       queued: task?.status === 'queued',
       position: task?.queue_position ?? null,
       preparing: response.engine === 'nllb' && task?.status === 'running' && !task.progress_total,
+      etaSeconds: task?.eta_seconds ?? null,
+      etaAt: task?.eta_at ?? null,
     };
   };
 

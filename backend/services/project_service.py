@@ -9,9 +9,10 @@ from typing import Optional
 
 import aiofiles.os
 from config import Settings
-from database import InsufficientTokensError
+from database import InsufficientTokensError, set_audio_seconds
 from fastapi import HTTPException, UploadFile
 from repositories.project_repository import ProjectRepository
+from utils.audio_info import wav_seconds
 
 from services.job_files import remove_job_files
 from services.runtime_settings_service import RuntimeSettingsService
@@ -182,6 +183,10 @@ class ProjectService:
             if await aiofiles.os.path.exists(stored):
                 await aiofiles.os.remove(stored)
             return {"file_name": upload.filename, "status": "no_tokens"}
+        # Its length, for the estimate of when the queue gets to it and is done.
+        await set_audio_seconds(
+            job_uuid, wav_seconds(os.path.join(self.settings.upload_dir, file_name))
+        )
         logger.info("Queued %s in project %s as job %s", file_name, project_uuid, job_uuid)
         return {"file_name": upload.filename, "status": "queued", "uuid": job_uuid}
 

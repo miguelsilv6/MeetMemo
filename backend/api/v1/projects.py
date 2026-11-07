@@ -3,6 +3,7 @@ Projects router: group several audios under one case, process them with the
 server-side queue, and delete everything when the project expires.
 """
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -21,6 +22,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Resp
 from pydantic import BaseModel, Field, field_validator
 from repositories.project_repository import ProjectRepository
 from runtime_settings import AUTO_DETECT, WHISPER_LANGUAGE_CODES
+from services.eta import eta_fields, job_remaining, load_step_rates, queue_remaining
 from services.project_service import MAX_FILES_PER_UPLOAD, ProjectService, audio_status
 from services.runtime_settings_service import RuntimeSettingsService
 
@@ -98,6 +100,7 @@ async def get_project(
     project_uuid: UUID,
     request: Request,
     repo: ProjectRepository = Depends(get_project_repository),
+    settings: Settings = Depends(get_settings),
 ) -> dict:
     """A project with the status of each of its audios."""
     project = await _project_or_404(repo, project_uuid)
@@ -105,7 +108,43 @@ async def get_project(
     current = queue.current_job if queue else None
     order = [job for job in await repo.queue_order() if job != current]
     audios = [audio_status(job, current, order) for job in await repo.jobs(project_uuid)]
+    await _add_estimates(repo, settings, audios, current, order)
     return {**project, "audios": audios}
+
+
+async def _add_estimates(
+    repo: ProjectRepository, settings: Settings, audios: list[dict],
+    current: Optional[str], order: list[str],
+) -> None:
+    """
+    How long each audio still being processed or waiting has left: the one
+    being processed, what it has left; one in the queue, what the audio being
+    processed and those queued ahead of it have left, then its own processing.
+    """
+    now = datetime.now(timezone.utc)
+    pending = [a for a in audios if a["status"] in ("processing", "queued")]
+    for audio in audios:
+        audio.update(eta_fields(None, now))
+    if not pending:
+        return
+    rows = await repo.estimate_rows(
+        list({*order, *([current] if current else []), *(a["uuid"] for a in pending)})
+    )
+    rates = await load_step_rates()
+    runtime = await RuntimeSettingsService(settings).get()
+    queued = queue_remaining(
+        rows.get(current) if current else None,
+        [rows[uuid] for uuid in order if uuid in rows],
+        rates, runtime, now,
+    )
+    for audio in pending:
+        if audio["status"] == "queued":
+            seconds = queued.get(audio["uuid"])
+        elif audio["uuid"] in rows:
+            seconds = job_remaining(rows[audio["uuid"]], rates, runtime, now)
+        else:
+            seconds = None
+        audio.update(eta_fields(seconds, now))
 
 
 @router.patch("/projects/{project_uuid}")

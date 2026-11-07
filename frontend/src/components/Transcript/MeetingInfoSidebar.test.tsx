@@ -316,3 +316,28 @@ describe('MeetingInfoSidebar summary error', () => {
     expect(screen.queryByTestId('summary-error')).not.toBeInTheDocument();
   });
 });
+
+describe('MeetingInfoSidebar summary estimate', () => {
+  const task = {
+    id: 1,
+    kind: 'summary' as const,
+    status: 'queued' as const,
+    progress_done: 0,
+    progress_total: 0,
+    queue_position: 2,
+    error_code: null,
+    error: null,
+    eta_seconds: 150,
+    eta_at: new Date(Date.now() + 150_000).toISOString(),
+  };
+
+  it('shows how long the summary still takes while it is made', () => {
+    renderSidebar({ generatingSummary: true, summaryTask: task });
+    expect(screen.getByTestId('eta')).toHaveTextContent(/About 3 min left/);
+  });
+
+  it('shows no estimate when no summary is being made', () => {
+    renderSidebar({ summaryTask: task });
+    expect(screen.queryByTestId('eta')).not.toBeInTheDocument();
+  });
+});

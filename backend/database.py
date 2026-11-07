@@ -120,7 +120,7 @@ TOKENS_SCHEMA_PATHS = [
     for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql",
                  "010_retranscription.sql",
                  # Not about tokens, but jobs columns every install needs at startup.
-                 "011_num_speakers.sql", "013_job_expiry.sql")
+                 "011_num_speakers.sql", "013_job_expiry.sql", "014_eta.sql")
 ]
 
 DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"
@@ -361,7 +361,9 @@ async def get_job(uuid: str) -> Optional[dict]:
             """SELECT uuid, file_name, status_code, processing_stage, error_message,
                       file_hash, workflow_state, current_step_progress,
                       transcription_data, diarization_data, model_name, language, created_at,
-                      project_uuid, user_uuid, num_speakers, expires_at
+                      project_uuid, user_uuid, num_speakers, expires_at,
+                      audio_seconds, step_started_at, step_model,
+                      transcription_data->>'channel_mode' AS channel_mode
                FROM jobs WHERE uuid = $1""",
             uuid
         )
@@ -631,16 +633,65 @@ async def get_job_by_hash(file_hash: str, user_uuid: str) -> Optional[dict]:
 # Workflow state management functions
 # ============================================================================
 
-async def update_workflow_state(uuid: str, new_state: str, progress: int = 0) -> None:
-    """Update job workflow state and reset step progress."""
+# Each processing step, and the state the job is left in once it is done.
+STEP_DONE_STATES = {"transcribing": "transcribed", "diarizing": "diarized", "aligning": "completed"}
+# The latest runs of each step and model kept to estimate the next ones.
+STEP_TIMINGS_KEPT = 50
+
+
+async def update_workflow_state(
+    uuid: str, new_state: str, progress: int = 0, step_model: Optional[str] = None
+) -> None:
+    """
+    Update job workflow state and reset step progress.
+
+    Entering a step notes when it started (and its ``step_model``); finishing
+    it records how long it took for the audio's length, which estimates the
+    next runs (see services/eta.py).
+    """
     async with get_db() as conn:
-        await conn.execute(
-            """UPDATE jobs
-               SET workflow_state = $1, current_step_progress = $2
-               WHERE uuid = $3""",
-            new_state, progress, uuid
-        )
+        async with conn.transaction():
+            previous = await conn.fetchrow(
+                """SELECT workflow_state, step_started_at, step_model, audio_seconds
+                   FROM jobs WHERE uuid = $1 FOR UPDATE""",
+                uuid,
+            )
+            step = previous["workflow_state"] if previous else None
+            if (
+                STEP_DONE_STATES.get(step) == new_state
+                and previous["step_started_at"] is not None
+                and previous["audio_seconds"]
+            ):
+                await conn.execute(
+                    """INSERT INTO step_timings (step, model, audio_seconds, seconds)
+                       VALUES ($1, $2, $3, EXTRACT(EPOCH FROM NOW() - $4::timestamptz))""",
+                    step, previous["step_model"] or "", previous["audio_seconds"],
+                    previous["step_started_at"],
+                )
+                await conn.execute(
+                    """DELETE FROM step_timings WHERE step = $1 AND model = $2 AND id NOT IN (
+                           SELECT id FROM step_timings WHERE step = $1 AND model = $2
+                           ORDER BY finished_at DESC, id DESC LIMIT $3)""",
+                    step, previous["step_model"] or "", STEP_TIMINGS_KEPT,
+                )
+            starting = new_state in STEP_DONE_STATES
+            await conn.execute(
+                """UPDATE jobs
+                   SET workflow_state = $1, current_step_progress = $2,
+                       step_started_at = CASE WHEN $4 THEN NOW() END,
+                       step_model = CASE WHEN $4 THEN $5 END
+                   WHERE uuid = $3""",
+                new_state, progress, uuid, starting, step_model or "",
+            )
     logger.debug("Updated workflow state for job %s to %s (%s%%)", uuid, new_state, progress)
+
+
+async def set_audio_seconds(uuid: str, seconds: Optional[float]) -> None:
+    """Note how long the job's audio is (when it could be read)."""
+    if not seconds or seconds <= 0:
+        return
+    async with get_db() as conn:
+        await conn.execute("UPDATE jobs SET audio_seconds = $2 WHERE uuid = $1", uuid, seconds)
 
 
 async def update_step_progress(uuid: str, progress: int) -> None:

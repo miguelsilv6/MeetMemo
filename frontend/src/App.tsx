@@ -161,7 +161,7 @@ function App() {
   );
 
   // Transcript polling (defined before useFileUpload that depends on it)
-  const { processingProgress, startPolling, stopPolling, setProcessingProgress } =
+  const { processingProgress, processingEta, startPolling, stopPolling, setProcessingProgress } =
     useTranscriptPolling(setTranscriptWithColors, setCurrentStep, null, setError);
 
   // File upload
@@ -512,7 +512,7 @@ function App() {
 
             {/* Step 2: Processing */}
             {currentStep === 'processing' && (
-              <ProcessingView processingProgress={processingProgress} />
+              <ProcessingView processingProgress={processingProgress} eta={processingEta} />
             )}
 
             {/* Step 3: Transcript */}
