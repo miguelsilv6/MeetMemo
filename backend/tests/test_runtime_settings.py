@@ -2,6 +2,7 @@
 import pytest
 from pydantic import ValidationError
 from runtime_settings import (
+    PORTUGUESE_WHISPER_MODELS,
     RuntimeSettings,
     allowed_whisper_models,
     default_runtime_settings,
@@ -106,3 +107,24 @@ def test_resolve_language():
     assert resolve_language("en", "pt") == "en"
     with pytest.raises(ValueError):
         resolve_language("klingon", "pt")
+
+
+def test_the_portuguese_whisper_model_is_off_by_default_and_only_an_allowed_one_can_be_chosen():
+    assert _defaults().portuguese_whisper_model is None
+    assert PORTUGUESE_WHISPER_MODELS == ("inesc-id/WhisperLv3-EP-X-CPP",)
+
+    chosen = RuntimeSettings(whisper_model_name="large-v3",
+                             portuguese_whisper_model=PORTUGUESE_WHISPER_MODELS[0])
+    assert chosen.portuguese_whisper_model == PORTUGUESE_WHISPER_MODELS[0]
+    # Blank means off; anything else would be fetched from Hugging Face as a repo id.
+    blank = RuntimeSettings(whisper_model_name="large-v3", portuguese_whisper_model="")
+    assert blank.portuguese_whisper_model is None
+    with pytest.raises(ValidationError, match="Portuguese Whisper model"):
+        RuntimeSettings(whisper_model_name="large-v3", portuguese_whisper_model="evil/repo")
+
+
+def test_a_saved_portuguese_model_that_is_no_longer_allowed_falls_back_to_off():
+    merged = merge_stored(_defaults(), {"portuguese_whisper_model": "removed/model", "beam_size": 3})
+
+    assert merged.portuguese_whisper_model is None
+    assert merged.beam_size == 3  # the rest of what was saved is kept

@@ -19,6 +19,7 @@ vi.mock('../../services/adminApi', async (importOriginal) => {
 
 const settings: RuntimeSettings = {
   whisper_model_name: 'large-v3',
+  portuguese_whisper_model: null,
   diarization_model: 'pyannote/speaker-diarization-3.1',
   beam_size: 5,
   temperature_fallback: true,
@@ -53,6 +54,7 @@ const settingsResponse: AdminSettingsResponse = {
   settings,
   defaults: settings,
   allowed_models: ['large-v3', 'turbo'],
+  allowed_portuguese_whisper_models: ['inesc-id/WhisperLv3-EP-X-CPP'],
   allowed_diarization_models: [
     'pyannote/speaker-diarization-3.1',
     'pyannote/speaker-diarization-community-1',
@@ -466,7 +468,7 @@ describe('AdminView', () => {
       'pyannote/speaker-diarization-community-1',
       'nvidia/Nemotron-3-Diarization',
     ]);
-    expect(screen.getByText(/without a restart/)).toBeInTheDocument();
+    expect(screen.getByText(/without a restart. The pyannote ones/)).toBeInTheDocument();
     expect(screen.getByText(/Nemotron 3 Diarization is light and fast/)).toBeInTheDocument();
     // No longer listed as restart-only configuration.
     openTab('System');
@@ -479,6 +481,41 @@ describe('AdminView', () => {
     await waitFor(() =>
       expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
         expect.objectContaining({ diarization_model: 'nvidia/Nemotron-3-Diarization' })
+      )
+    );
+  });
+
+  it('enables the Portuguese Whisper model, or turns it off again', async () => {
+    const EP = 'inesc-id/WhisperLv3-EP-X-CPP';
+    vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
+      settings: { ...settings, portuguese_whisper_model: EP },
+      changed: ['portuguese_whisper_model'],
+    });
+    await renderSignedIn();
+    openTab('Transcription');
+    const model = screen.getByLabelText('Whisper model for Portuguese');
+    expect(model).toHaveValue(''); // off
+    expect(
+      [...model.querySelectorAll('option')].map((option) => option.getAttribute('value'))
+    ).toEqual(['', EP]);
+    expect(screen.getByText(/the model above does every language/)).toBeInTheDocument();
+
+    fireEvent.change(model, { target: { value: EP } });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() =>
+      expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ portuguese_whisper_model: EP })
+      )
+    );
+
+    // Off again: sent as null (not an empty text), which the server reads as "not used".
+    fireEvent.change(screen.getByLabelText('Whisper model for Portuguese'), {
+      target: { value: '' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() =>
+      expect(adminApi.saveAdminSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ portuguese_whisper_model: null })
       )
     );
   });

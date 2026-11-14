@@ -397,6 +397,11 @@
           "label": "Whisper model",
           "help": "large-v3 is the most accurate; turbo is several times faster. A model is downloaded the first time it is used."
         },
+        "portuguese_whisper_model": {
+          "label": "Whisper model for Portuguese",
+          "off": "Off (the model above does every language)",
+          "help": "Used instead of the model above when the audio is in Portuguese (detected, or given). The model above still detects the language and transcribes the other languages. The European Portuguese model writes capitals, punctuation and the current spelling, and makes far fewer errors in European Portuguese; it is slightly worse in Brazilian Portuguese. It takes about 3 GB of VRAM (RAM on a CPU) on top of the general model, is downloaded on first use (3.1 GB) and its page gives no licence. Applies from the next audio, without a restart."
+        },
         "diarization_model": {
           "label": "Diarization model",
           "help": "Separates the speakers; the model used for the next audios. 3.1 is lighter; community-1 is more accurate but needs much more memory (~12 GB VRAM recommended). NVIDIA's Nemotron 3 Diarization is light and fast, supports up to 8 speakers and ignores the number of speakers given at upload. Applies from the next audio, without a restart. The pyannote ones require accepting the model's conditions on Hugging Face with the HF_TOKEN account; each is downloaded on first use."
@@ -954,7 +959,9 @@
     "automatic": "Automatic",
     "stereoAuto": "One speaker per channel",
     "stereoMix": "Mix to mono",
-    "phrasesCount": "{{count}} phrases removed as hallucination"
+    "phrasesCount": "{{count}} phrases removed as hallucination",
+    "detectionModel": "Language detected by",
+    "whisperModels": "Whisper models"
   },
   "saveStatus": {
     "saved": "Saved",

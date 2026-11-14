@@ -3,6 +3,8 @@ The transcription step: a file is decoded and filtered without touching the
 database (what the evaluation script uses), the language is detected over
 windows spread across the recording and then imposed on the transcription,
 and the pipeline step saves that same result with its progress and state.
+With the Portuguese model enabled in the admin panel, the general model
+detects the language and the Portuguese one transcribes Portuguese only.
 
 faster-whisper is replaced by a fake: the test dependencies do not include it.
 """
@@ -23,17 +25,22 @@ class _FakeWhisper:
     calls = []
     detections = []  # what detect_language answers, window after window
     detected_chunks = []
+    loaded = []  # the models loaded, in order
+    uses = []  # (model, what it did)
 
     def __init__(self, name, **options):
         self.name = name
         self.options = options
+        _FakeWhisper.loaded.append(name)
 
     def detect_language(self, audio=None, **_options):
+        _FakeWhisper.uses.append((self.name, "detect"))
         _FakeWhisper.detected_chunks.append(len(audio))
         probs = _FakeWhisper.detections.pop(0) if _FakeWhisper.detections else PT
         return probs[0][0], probs[0][1], probs
 
     def transcribe(self, audio, language=None, **options):
+        _FakeWhisper.uses.append((self.name, "transcribe"))
         _FakeWhisper.calls.append((audio, language, options))
         segments = [
             SimpleNamespace(id=1, start=0.0, end=4.0, text=" Bom dia.", avg_logprob=-0.2,
@@ -79,8 +86,9 @@ def _service_module(monkeypatch):
         monkeypatch.setitem(sys.modules, name, module)
     monkeypatch.delitem(sys.modules, "services.transcription_service", raising=False)
     module = importlib.import_module("services.transcription_service")
-    module._loaded_model = None  # pylint: disable=protected-access
+    module._loaded_models.clear()  # pylint: disable=protected-access
     _FakeWhisper.calls, _FakeWhisper.detections, _FakeWhisper.detected_chunks = [], [], []
+    _FakeWhisper.loaded, _FakeWhisper.uses = [], []
     _Fakes.audio_seconds, _Fakes.speech, _Fakes.decoded = 10, None, []
     yield module
     monkeypatch.delitem(sys.modules, "services.transcription_service", raising=False)
@@ -245,6 +253,7 @@ def test_the_pipeline_step_records_how_the_channels_were_used(service_module):
 
 class _JobRepo:
     def __init__(self):
+        self.step_model_changes = []
         self.saved = None
         self.states = []
         self.progress = []
@@ -264,6 +273,9 @@ class _JobRepo:
 
     async def set_audio_seconds(self, job_uuid, seconds):
         self.audio_seconds = seconds
+
+    async def set_step_model(self, job_uuid, step_model):
+        self.step_model_changes.append(step_model)
 
 
 def test_the_pipeline_step_saves_the_same_result(service_module):
@@ -343,3 +355,120 @@ def test_the_evaluation_script_checks_each_channels_language(service_module, mon
     assert "| pt ro | pt / ro | ✓ |" in report
     assert report.rstrip().endswith("| split |")
     assert [path.rsplit("/", 1)[-1] for path in _Fakes.decoded] == ["ch0.wav", "ch1.wav"]
+
+
+# --- The Portuguese model ---------------------------------------------------------
+
+EP = "inesc-id/WhisperLv3-EP-X-CPP"
+
+
+def test_the_general_model_detects_and_the_portuguese_one_transcribes_portuguese(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", None,
+                                   _runtime(portuguese_whisper_model=EP))
+
+    assert data["language"] == "pt"
+    assert _FakeWhisper.uses[-1] == (EP, "transcribe")
+    assert {name for name, action in _FakeWhisper.uses if action == "detect"} == {"large-v3"}
+    assert data["model_name"] == EP  # what made the transcript
+    assert data["detection_model"] == "large-v3"  # what detected its language
+    assert data["settings"]["portuguese_whisper_model"] == EP
+    # Both stay loaded for the next audio.
+    assert set(service_module._loaded_models) == {"large-v3", EP}  # pylint: disable=protected-access
+
+
+def test_other_languages_stay_with_the_general_model(service_module):
+    _FakeWhisper.detections = [[("en", 0.97)]]
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", None,
+                                   _runtime(portuguese_whisper_model=EP))
+
+    assert data["language"] == "en"
+    assert [use for use in _FakeWhisper.uses] == [("large-v3", "detect"),
+                                                  ("large-v3", "transcribe")]
+    assert data["model_name"] == "large-v3" and data["detection_model"] is None
+    assert EP not in _FakeWhisper.loaded  # not even loaded: it is only for Portuguese
+
+
+def test_a_language_given_as_portuguese_goes_straight_to_the_portuguese_model(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", "pt",
+                                   _runtime(portuguese_whisper_model=EP))
+
+    assert _FakeWhisper.uses == [(EP, "transcribe")]  # no detection
+    assert _FakeWhisper.loaded == [EP]
+    assert data["language_detection"] == {"forced": True}
+    assert data["detection_model"] is None and data["model_name"] == EP
+
+
+def test_a_language_given_as_another_is_not_sent_to_the_portuguese_model(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    service.transcribe_file("call.wav", "large-v3", "es", _runtime(portuguese_whisper_model=EP))
+
+    assert _FakeWhisper.uses == [("large-v3", "transcribe")]
+
+
+def test_without_the_portuguese_model_one_model_does_everything(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_file("call.wav", "large-v3", None, _runtime())
+
+    assert {name for name, _ in _FakeWhisper.uses} == {"large-v3"}
+    assert data["detection_model"] is None
+    assert data["settings"]["portuguese_whisper_model"] is None
+
+
+def test_turning_the_portuguese_model_off_frees_it(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+    service.transcribe_file("call.wav", "large-v3", None, _runtime(portuguese_whisper_model=EP))
+    assert EP in service_module._loaded_models  # pylint: disable=protected-access
+
+    service.transcribe_file("call.wav", "large-v3", None, _runtime())
+
+    assert set(service_module._loaded_models) == {"large-v3"}  # pylint: disable=protected-access
+
+
+def test_switching_the_general_model_keeps_the_portuguese_one(service_module):
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+    runtime = _runtime(portuguese_whisper_model=EP)
+    service.transcribe_file("call.wav", "large-v3", None, runtime)
+
+    service.transcribe_file("call.wav", "turbo", None, runtime)
+
+    assert set(service_module._loaded_models) == {"turbo", EP}  # pylint: disable=protected-access
+    assert _FakeWhisper.loaded == ["large-v3", EP, "turbo"]  # EP was not loaded twice
+
+
+def test_each_channel_picks_its_own_model_by_its_language(service_module):
+    # Left side Portuguese, right side Romanian.
+    _FakeWhisper.detections = [[("pt", 0.96)], [("ro", 0.9), ("pt", 0.05)]]
+    service = service_module.TranscriptionService(SETTINGS, job_repo=None)
+
+    data = service.transcribe_channels(["l.wav", "r.wav"], "large-v3", None,
+                                       _runtime(portuguese_whisper_model=EP))
+
+    assert [name for name, action in _FakeWhisper.uses if action == "transcribe"] == [
+        EP, "large-v3"]
+    channels = data["language_detection"]["channels"]
+    assert [(c["speaker"], c["model_name"]) for c in channels] == [
+        ("SPEAKER_00", EP), ("SPEAKER_01", "large-v3")]
+
+
+def test_the_step_is_timed_under_the_model_that_did_the_work(service_module):
+    repo = _JobRepo()
+    service = service_module.TranscriptionService(SETTINGS, repo)
+
+    portuguese = asyncio.run(service.transcribe(
+        "job", "call.wav", "large-v3", None, _runtime(portuguese_whisper_model=EP)))
+    assert portuguese["model_name"] == EP
+    assert repo.step_model_changes == [EP]
+
+    repo.step_model_changes.clear()
+    _FakeWhisper.detections = [[("en", 0.97)]]
+    asyncio.run(service.transcribe(
+        "job", "call.wav", "large-v3", None, _runtime(portuguese_whisper_model=EP)))
+    assert repo.step_model_changes == []  # the general model did it: nothing to change

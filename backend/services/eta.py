@@ -62,6 +62,10 @@ def step_model(step: str, job: dict, runtime) -> str:
     if job.get("workflow_state") == step and job.get("step_model") is not None:
         return job["step_model"]
     if step == "transcribing":
+        # Portuguese goes to the Portuguese model, when the audio is known to be
+        # (the language given at upload; a detected one is only known later).
+        if job.get("language") == "pt" and getattr(runtime, "portuguese_whisper_model", None):
+            return runtime.portuguese_whisper_model
         return job.get("model_name") or runtime.whisper_model_name
     if step == "diarizing":
         return "split" if job.get("channel_mode") == "split" else runtime.diarization_model

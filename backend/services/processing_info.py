@@ -14,6 +14,7 @@ from typing import Optional
 # The settings of the transcription step shown (the rest of the copy is the
 # prompts, retention, quotas and so on, which did not shape this audio).
 TRANSCRIPTION_SETTINGS = (
+    "portuguese_whisper_model",
     "beam_size",
     "temperature_fallback",
     "vad_filter",
@@ -45,6 +46,14 @@ def _settings(transcription: dict) -> Optional[dict]:
     return shown
 
 
+def _whisper_models(transcription: dict, job: dict) -> list[str]:
+    """Every Whisper model that transcribed the audio (a call split by channel may use two)."""
+    main = transcription.get("model_name") or job.get("model_name")
+    channels = (transcription.get("language_detection") or {}).get("channels") or []
+    models = [main, *(channel.get("model_name") for channel in channels)]
+    return list(dict.fromkeys(model for model in models if model))
+
+
 def processing_info(
     job: dict, transcription: Optional[dict], diarization: Optional[dict]
 ) -> dict:
@@ -57,6 +66,9 @@ def processing_info(
         "file_name": job["file_name"],
         "duration_seconds": transcription.get("duration") or job.get("audio_seconds"),
         "whisper_model": transcription.get("model_name") or job.get("model_name"),
+        "whisper_models": _whisper_models(transcription, job),
+        # The general model that detected the language, when the Portuguese one transcribed.
+        "detection_model": transcription.get("detection_model"),
         "language": None if language is None else {
             "code": language,
             "probability": transcription.get("language_probability"),

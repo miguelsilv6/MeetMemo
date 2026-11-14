@@ -41,7 +41,12 @@ from repositories.job_repository import JobRepository
 from repositories.project_repository import ProjectRepository
 from repositories.token_repository import NegativeBalanceError, TokenRepository
 from repositories.user_repository import UsernameTakenError, UserRepository
-from runtime_settings import MAX_DAILY_TOKENS, WHISPER_LANGUAGE_CODES, RuntimeSettings
+from runtime_settings import (
+    MAX_DAILY_TOKENS,
+    PORTUGUESE_WHISPER_MODELS,
+    WHISPER_LANGUAGE_CODES,
+    RuntimeSettings,
+)
 from services.expiry import extension_error, job_expires_at
 from services.llm_status import llm_status
 from services.processing_info import processing_info
@@ -178,6 +183,7 @@ async def get_runtime_settings(
         "defaults": service.defaults().model_dump(),
         "allowed_models": service.allowed_models(),
         "allowed_diarization_models": service.allowed_diarization_models(),
+        "allowed_portuguese_whisper_models": list(PORTUGUESE_WHISPER_MODELS),
         "languages": sorted(WHISPER_LANGUAGE_CODES),
         "restart_only": {
             "hardware_profile": system["resolved_profile"],

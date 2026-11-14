@@ -397,6 +397,11 @@
           "label": "Modelo Whisper",
           "help": "O large-v3 é o mais preciso; o turbo é várias vezes mais rápido. Cada modelo é descarregado na primeira utilização."
         },
+        "portuguese_whisper_model": {
+          "label": "Modelo Whisper para português",
+          "off": "Desligado (o modelo acima faz todos os idiomas)",
+          "help": "Usado no lugar do modelo acima quando o áudio é em português (detetado, ou indicado). O modelo acima continua a detetar o idioma e a transcrever os outros idiomas. O modelo de português europeu produz maiúsculas, pontuação e a grafia atual, e erra bastante menos em português de Portugal; no português do Brasil é ligeiramente pior. Ocupa cerca de 3 GB de VRAM (RAM em CPU) além do modelo geral, é descarregado na primeira utilização (3,1 GB) e a página do modelo não indica a licença. Aplica-se a partir do próximo áudio, sem reiniciar."
+        },
         "diarization_model": {
           "label": "Modelo de diarização",
           "help": "Separa os interlocutores; é o modelo usado nos áudios seguintes. O 3.1 é mais leve; o community-1 é mais preciso, mas precisa de muito mais memória (~12 GB de VRAM recomendados). O Nemotron 3 Diarization (NVIDIA) é leve e rápido, suporta até 8 interlocutores e não usa o número de interlocutores indicado no carregamento. Aplica-se a partir do próximo áudio, sem reiniciar. Os do pyannote exigem aceitar as condições do modelo no Hugging Face com a conta do HF_TOKEN; cada um é descarregado na primeira utilização."
@@ -954,7 +959,9 @@
     "automatic": "Automático",
     "stereoAuto": "Um interlocutor por canal",
     "stereoMix": "Misturar em mono",
-    "phrasesCount": "{{count}} frases removidas como alucinação"
+    "phrasesCount": "{{count}} frases removidas como alucinação",
+    "detectionModel": "Idioma detetado por",
+    "whisperModels": "Modelos Whisper"
   },
   "saveStatus": {
     "saved": "Gravado",

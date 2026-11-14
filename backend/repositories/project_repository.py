@@ -319,7 +319,7 @@ class ProjectRepository:
         async with get_db() as conn:
             rows = await conn.fetch(
                 """SELECT uuid, workflow_state, current_step_progress, audio_seconds,
-                          step_started_at, step_model, model_name,
+                          step_started_at, step_model, model_name, language,
                           transcription_data->>'channel_mode' AS channel_mode
                    FROM jobs WHERE uuid = ANY($1::uuid[])""",
                 uuids,

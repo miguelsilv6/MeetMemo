@@ -686,6 +686,15 @@ async def update_workflow_state(
     logger.debug("Updated workflow state for job %s to %s (%s%%)", uuid, new_state, progress)
 
 
+async def set_step_model(uuid: str, step_model: str) -> None:
+    """Change the model a step under way is timed under (when another one did the work)."""
+    async with get_db() as conn:
+        await conn.execute(
+            "UPDATE jobs SET step_model = $2 WHERE uuid = $1 AND step_started_at IS NOT NULL",
+            uuid, step_model,
+        )
+
+
 async def set_audio_seconds(uuid: str, seconds: Optional[float]) -> None:
     """Note how long the job's audio is (when it could be read)."""
     if not seconds or seconds <= 0:

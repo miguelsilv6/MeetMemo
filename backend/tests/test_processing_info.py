@@ -70,3 +70,32 @@ def test_an_audio_not_processed_yet_has_only_what_the_upload_gave():
     assert info["language"] is None
     assert info["settings"] is None
     assert info["channel_mode"] is None
+
+
+def test_it_says_which_model_detected_the_language_when_the_portuguese_one_transcribed():
+    ep = "inesc-id/WhisperLv3-EP-X-CPP"
+    transcription = {"model_name": ep, "detection_model": "large-v3", "language": "pt",
+                     "settings": stored_settings(portuguese_whisper_model=ep)}
+
+    info = processing_info(JOB, transcription, None)
+
+    assert (info["whisper_model"], info["whisper_models"]) == (ep, [ep])
+    assert info["detection_model"] == "large-v3"
+    assert info["settings"]["portuguese_whisper_model"] == ep
+
+
+def test_a_call_split_by_channel_lists_every_model_that_transcribed_it():
+    ep = "inesc-id/WhisperLv3-EP-X-CPP"
+    transcription = {"model_name": ep, "language": "pt", "language_detection": {"channels": [
+        {"speaker": "SPEAKER_00", "model_name": ep},
+        {"speaker": "SPEAKER_01", "model_name": "large-v3"}]}}
+
+    info = processing_info(JOB, transcription, None)
+
+    assert info["whisper_models"] == [ep, "large-v3"]
+    assert info["detection_model"] is None
+
+
+def test_an_audio_with_no_transcription_lists_the_model_it_was_given():
+    assert processing_info(JOB, None, None)["whisper_models"] == ["turbo"]
+    assert processing_info({**JOB, "model_name": None}, None, None)["whisper_models"] == []

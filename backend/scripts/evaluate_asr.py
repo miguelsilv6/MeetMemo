@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # pylint: disable=wrong-import-position
 from config import get_settings  # noqa: E402
 from runtime_settings import (  # noqa: E402
+    PORTUGUESE_WHISPER_MODELS,
     RuntimeSettings,
     allowed_whisper_models,
     resolve_language,
@@ -56,6 +57,11 @@ def parse_args(argv=None) -> argparse.Namespace:
     parser.add_argument(
         "--language",
         help="Force this language code (or 'auto') instead of the panel's default",
+    )
+    parser.add_argument(
+        "--portuguese-model",
+        help="Use this model for audio in Portuguese ('off': the general model does it), "
+             "instead of the admin panel's",
     )
     parser.add_argument(
         "--out",
@@ -118,15 +124,24 @@ def main(argv=None) -> int:  # pylint: disable=too-many-locals
     if model_name not in allowed_whisper_models(settings.whisper_model_name):
         logger.error("Unsupported model: %s", model_name)
         return 2
+    if args.portuguese_model:
+        if args.portuguese_model != "off" and args.portuguese_model not in PORTUGUESE_WHISPER_MODELS:
+            logger.error("Unsupported Portuguese model: %s", args.portuguese_model)
+            return 2
+        runtime = runtime.model_copy(update={"portuguese_whisper_model": (
+            None if args.portuguese_model == "off" else args.portuguese_model
+        )})
     language = resolve_language(args.language, runtime.default_language)
 
     # pylint: disable=import-outside-toplevel
     from repositories.job_repository import JobRepository
-    from services.transcription_service import TranscriptionService
+    from services.transcription_service import TranscriptionService, models_wanted
 
     service = TranscriptionService(settings, JobRepository())
     started = time.perf_counter()
-    service.get_model(model_name)
+    wanted = models_wanted(model_name, runtime)
+    for name in sorted(wanted):
+        service.get_model(name, wanted)
     load_seconds = time.perf_counter() - started
 
     with tempfile.TemporaryDirectory(prefix="meetmemo-eval-") as tmp:
@@ -160,6 +175,7 @@ def main(argv=None) -> int:  # pylint: disable=too-many-locals
         "Folder": str(folder),
         "Model": f"{model_name} ({settings.compute_type} on {settings.device}, "
                  f"loaded in {load_seconds:.1f}s)",
+        "Portuguese model": runtime.portuguese_whisper_model or "none (the model above)",
         "Language": language or "auto-detect",
         "Settings": "panel" if not args.defaults else "defaults",
         "Decoding": f"beam {runtime.beam_size}, temperature fallback "

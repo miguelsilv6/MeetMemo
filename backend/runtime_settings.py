@@ -35,6 +35,12 @@ logger = logging.getLogger(__name__)
 # treats any other string as a Hugging Face repo id or local path to load.
 WHISPER_MODELS = ("tiny", "base", "small", "medium", "large-v2", "large-v3", "turbo")
 
+# Whisper models fine-tuned for one language, which the panel may select to be
+# used instead of the general model when the audio is in that language (the
+# same allowlist reason: faster-whisper loads any other string as a repo id).
+# European Portuguese: capitalised, punctuated, post-Acordo output (INESC-ID).
+PORTUGUESE_WHISPER_MODELS = ("inesc-id/WhisperLv3-EP-X-CPP",)
+
 # NVIDIA's Nemotron 3 Diarization: not a pyannote pipeline, it runs through
 # Transformers (see services/nemotron_diarizer.py). Up to 8 speakers.
 NEMOTRON_DIARIZATION = "nvidia/Nemotron-3-Diarization"
@@ -92,6 +98,9 @@ class RuntimeSettings(BaseModel):
 
     # Model and decoding
     whisper_model_name: str = Field(min_length=1, max_length=200)
+    # Used instead of the model above for audio in Portuguese (detected, or
+    # given); None: the model above transcribes every language.
+    portuguese_whisper_model: Optional[str] = Field(default=None, max_length=200)
     # Speaker diarization (pyannote) pipeline; loaded on the next audio.
     diarization_model: str = Field(default=DIARIZATION_MODELS[0], min_length=1, max_length=200)
     beam_size: int = Field(default=5, ge=1, le=10)
@@ -193,6 +202,15 @@ class RuntimeSettings(BaseModel):
         if language not in WHISPER_LANGUAGE_CODES:
             raise ValueError("unsupported language code")
         return language
+
+    @field_validator("portuguese_whisper_model")
+    @classmethod
+    def _check_portuguese_model(cls, model: Optional[str]) -> Optional[str]:
+        if model in (None, ""):
+            return None
+        if model not in PORTUGUESE_WHISPER_MODELS:
+            raise ValueError("unsupported Portuguese Whisper model")
+        return model
 
     @model_validator(mode="after")
     def _check_vad_hysteresis(self) -> "RuntimeSettings":

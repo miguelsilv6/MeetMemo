@@ -49,6 +49,7 @@ docker cp meetmemo-backend:/app/benchmark/results ./results
 | Option | Effect |
 |---|---|
 | `--model large-v3` | Use this Whisper model instead of the admin panel's |
+| `--portuguese-model off` | Use this model for audio in Portuguese (or `off`: the general model does it), instead of the panel's |
 | `--language pt` | Force a language (or `auto`) instead of the panel's default |
 | `--defaults` | Ignore the panel settings saved in the database and use the defaults |
 | `--out DIR` | Write the results to `DIR` (default `<folder>/results/<date-time>`) |
@@ -71,5 +72,7 @@ Each run writes:
 - **WER** (word error rate) is the substitutions, insertions and deletions needed to turn the transcript into the reference, divided by the number of reference words.
 - **CER** is the same measure on characters.
 - The summary's WER and CER are corpus-wide: total errors over total reference words. Long recordings therefore weigh more than short ones.
+
+To compare the European Portuguese model with the general one, run it twice on your Portuguese recordings, with `--portuguese-model off` and then `--portuguese-model inesc-id/WhisperLv3-EP-X-CPP`. The reports' WER ignores capitals and punctuation, so they compare what was recognised, not the formatting; the Portuguese model's output also uses the current spelling (the references should too).
 
 To compare two configurations, run the script twice on the same folder, for example with `--model turbo` and then `--model large-v3`, and compare the two reports.

@@ -8,7 +8,7 @@ improvement over openai-whisper.
 import asyncio
 import logging
 import threading
-from typing import Callable
+from typing import Callable, Collection
 
 import numpy as np
 from config import Settings
@@ -33,12 +33,28 @@ PROGRESS_START = 10
 PROGRESS_END = 90
 PROGRESS_REPORT_STEP = 5
 
-# One loaded model per process. A service instance is created per request, so
-# a per-instance cache would reload the model from disk for every job; keeping
-# a single slot also frees the old model when the admin panel switches models
-# (two large models side by side can exhaust RAM on a CPU host).
+# The loaded models, per process. A service instance is created per request, so
+# a per-instance cache would reload the model from disk for every job. Only the
+# models still wanted are kept (one, or two with the Portuguese model on): the
+# old one is freed when the admin panel switches models (two large models side
+# by side that nobody asks for can exhaust RAM on a CPU host).
 _model_lock = threading.Lock()
-_loaded_model: tuple[str, WhisperModel] | None = None  # pylint: disable=invalid-name
+_loaded_models: dict[str, WhisperModel] = {}
+
+
+def models_wanted(model_name: str, runtime: RuntimeSettings) -> set[str]:
+    """The Whisper models to keep loaded: the general one, and the Portuguese one if enabled."""
+    return {model_name, runtime.portuguese_whisper_model} - {None}
+
+
+def decoding_model(model_name: str, language: str | None, runtime: RuntimeSettings) -> str:
+    """
+    The model that transcribes ``language``: the Portuguese model for
+    Portuguese (when the admin enabled it), the general model otherwise.
+    """
+    if language == "pt" and runtime.portuguese_whisper_model:
+        return runtime.portuguese_whisper_model
+    return model_name
 
 
 class TranscriptionService:
@@ -55,23 +71,31 @@ class TranscriptionService:
         self.settings = settings
         self.job_repo = job_repo
 
-    def get_model(self, model_name: str) -> WhisperModel:
+    def get_model(self, model_name: str, keep: Collection[str] = ()) -> WhisperModel:
         """
-        Get the process-wide faster-whisper model, loading it if needed.
+        Get a process-wide faster-whisper model, loading it if needed.
+
+        Normally one model is kept in memory. With the Portuguese model
+        enabled in the admin panel two are (the general one detects the
+        language and transcribes the other languages), so the caller says in
+        ``keep`` which others are still wanted: every other loaded model is
+        dropped, before the next one is loaded.
 
         Args:
             model_name: Name of the Whisper model (turbo, large-v3, base, small, etc.)
+            keep: Other models to keep loaded
 
         Returns:
             Loaded WhisperModel instance
         """
-        global _loaded_model  # pylint: disable=global-statement
         with _model_lock:
-            if _loaded_model is not None and _loaded_model[0] == model_name:
-                return _loaded_model[1]
+            wanted = {model_name, *keep}
+            for name in [name for name in _loaded_models if name not in wanted]:
+                logger.info("Releasing faster-whisper model: %s", name)
+                del _loaded_models[name]
+            if model_name in _loaded_models:
+                return _loaded_models[model_name]
 
-            # Drop the previous model before loading the next one.
-            _loaded_model = None
             logger.info("Loading faster-whisper model: %s", model_name)
 
             available = available_cpu_count()
@@ -89,7 +113,7 @@ class TranscriptionService:
                 )
 
             model = WhisperModel(model_name, **options)
-            _loaded_model = (model_name, model)
+            _loaded_models[model_name] = model
             logger.info(
                 "faster-whisper model %s loaded successfully on %s with %s precision%s",
                 model_name,
@@ -110,6 +134,7 @@ class TranscriptionService:
         language: str | None,
         options: dict,
         on_progress: Callable[[int], None] | None = None,
+        keep: Collection[str] = (),
     ):
         """
         Load the model and fully decode the audio. Runs in a worker thread.
@@ -118,7 +143,7 @@ class TranscriptionService:
         so the generator must be drained here too - draining it on the event
         loop would block every other request for the whole transcription.
         """
-        model = self.get_model(model_name)
+        model = self.get_model(model_name, keep)
         segments_gen, info = model.transcribe(audio, language=language, **options)
 
         segments = []
@@ -160,7 +185,7 @@ class TranscriptionService:
         Returns None when no speech is found (the transcription then falls
         back to faster-whisper's own detection).
         """
-        model = self.get_model(model_name)
+        model = self.get_model(model_name, models_wanted(model_name, runtime))
         if runtime.vad_filter:
             speech = get_speech_timestamps(audio, VadOptions(
                 onset=runtime.vad_onset,
@@ -215,9 +240,14 @@ class TranscriptionService:
         if language is None:
             detection = self.detect_language(audio, model_name, runtime)
         chosen = language or (detection["language"] if detection else None)
+        # The general model detects the language (and transcribes every
+        # language but Portuguese); the Portuguese model, if enabled, only
+        # transcribes Portuguese.
+        decoder = decoding_model(model_name, chosen, runtime)
 
         raw_segments, info = self._decode(
-            audio, model_name, chosen, transcribe_options(runtime), on_progress
+            audio, decoder, chosen, transcribe_options(runtime), on_progress,
+            models_wanted(model_name, runtime),
         )
         segments, removed = filter_segments(
             split_segments_at_pauses(raw_segments), runtime.filter_rules()
@@ -239,7 +269,12 @@ class TranscriptionService:
             # Kept for auditability: what was dropped and why, and exactly
             # which model and settings produced this transcript.
             "removed_segments": removed,
-            "model_name": model_name,
+            "model_name": decoder,
+            # The model that detected the language, when another one did
+            # (None: the language was given, or the same model did both).
+            "detection_model": (
+                model_name if detection and not language and decoder != model_name else None
+            ),
             "settings": runtime.model_dump(),
         }
 
@@ -343,6 +378,11 @@ class TranscriptionService:
             # The decoder's own measure of the audio's length, which the timing
             # of this step and the estimates of the next ones are based on.
             await self.job_repo.set_audio_seconds(job_uuid, transcription_data.get("duration"))
+            used = transcription_data.get("model_name")
+            if used and used != model_name:
+                # The Portuguese model did the work: its time is not the general
+                # model's, so the timing is kept under its name.
+                await self.job_repo.set_step_model(job_uuid, used)
 
             # Update state to transcribed
             await self.job_repo.update_step_progress(job_uuid, 100)

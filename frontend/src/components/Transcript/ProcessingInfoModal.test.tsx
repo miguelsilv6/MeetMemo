@@ -17,12 +17,15 @@ const INFO: JobProcessingInfo = {
   file_name: 'call.wav',
   duration_seconds: 125.4,
   whisper_model: 'large-v3',
+  whisper_models: ['large-v3'],
+  detection_model: null,
   language: { code: 'pt', probability: 0.93, forced: false },
   channel_mode: 'mono',
   num_speakers: 2,
   diarization_model: 'nvidia/Nemotron-3-Diarization',
   diarization_by_channels: false,
   settings: {
+    portuguese_whisper_model: null,
     beam_size: 7,
     temperature_fallback: true,
     vad_filter: false,
@@ -123,6 +126,45 @@ describe('ProcessingInfoModal', () => {
 
     await screen.findByText('large-v3');
     expect(adminApi.getJobProcessing).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ProcessingInfoModal with the Portuguese model', () => {
+  const EP = 'inesc-id/WhisperLv3-EP-X-CPP';
+
+  it('says which model transcribed and which one detected the language', async () => {
+    vi.mocked(adminApi.getJobProcessing).mockResolvedValue({
+      ...INFO,
+      whisper_model: EP,
+      whisper_models: [EP],
+      detection_model: 'large-v3',
+      settings: { ...INFO.settings, portuguese_whisper_model: EP },
+    });
+    renderModal();
+
+    const body = await screen.findByTestId('processing-info');
+    const row = (label: string) => within(body).getByText(label).closest('tr') as HTMLElement;
+    expect(await within(body).findAllByText(EP)).toHaveLength(2); // the model, and the setting
+    expect(within(row('Whisper model')).getByText(EP)).toBeInTheDocument();
+    expect(within(row('Language detected by')).getByText('large-v3')).toBeInTheDocument();
+    expect(within(row('Whisper model for Portuguese')).getByText(EP)).toBeInTheDocument();
+  });
+
+  it('lists both models for a call split by channel, and shows the setting off', async () => {
+    vi.mocked(adminApi.getJobProcessing).mockResolvedValue({
+      ...INFO,
+      channel_mode: 'split',
+      whisper_model: EP,
+      whisper_models: [EP, 'large-v3'],
+    });
+    renderModal();
+
+    const body = await screen.findByTestId('processing-info');
+    expect(await within(body).findByText(`${EP} · large-v3`)).toBeInTheDocument();
+    expect(within(body).getByText('Whisper models')).toBeInTheDocument();
+    expect(within(body).queryByText('Language detected by')).not.toBeInTheDocument();
+    const off = within(body).getByText('Whisper model for Portuguese').closest('tr') as HTMLElement;
+    expect(within(off).getByText('Off')).toBeInTheDocument();
   });
 });
 
