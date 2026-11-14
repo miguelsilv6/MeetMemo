@@ -10,6 +10,7 @@ import {
   FileText,
   RotateCcw,
   RefreshCw,
+  Info,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSpeakerColor } from '../../utils/speakerColors';
@@ -17,6 +18,7 @@ import { getLanguageName } from '../../constants/languages';
 import { getConfidenceVariant, isLowConfidence } from '../../utils/confidence';
 import RetranscribeModal from './RetranscribeModal';
 import ReprocessModal from './ReprocessModal';
+import ProcessingInfoModal from './ProcessingInfoModal';
 import * as api from '../../services/api';
 import type { LlmTask, SelectedFile, Summary, Transcript } from '../../types/api';
 
@@ -57,6 +59,7 @@ export default function MeetingInfoSidebar({
   const { t } = useTranslation();
   const [showRetranscribe, setShowRetranscribe] = useState(false);
   const [showReprocess, setShowReprocess] = useState(false);
+  const [showProcessingInfo, setShowProcessingInfo] = useState(false);
   const detection = transcript?.language_detection ?? null;
   const channels = detection?.channels ?? [];
   // A call transcribed per channel: any side's doubts count.
@@ -71,8 +74,20 @@ export default function MeetingInfoSidebar({
 
   return (
     <Card className="sticky-sidebar">
-      <Card.Header>
+      <Card.Header className="d-flex align-items-center justify-content-between">
         <h5 className="mb-0">{t('meetingInfo.title')}</h5>
+        {isAdmin && jobId && (
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0"
+            onClick={() => setShowProcessingInfo(true)}
+            aria-label={t('processingInfo.open')}
+            title={t('processingInfo.open')}
+          >
+            <Info size={18} />
+          </Button>
+        )}
       </Card.Header>
       <Card.Body>
         <div className="meeting-info mb-4">
@@ -277,6 +292,13 @@ export default function MeetingInfoSidebar({
           )}
         </div>
       </Card.Body>
+      {isAdmin && jobId && (
+        <ProcessingInfoModal
+          show={showProcessingInfo}
+          onHide={() => setShowProcessingInfo(false)}
+          jobId={jobId}
+        />
+      )}
       {onReprocess && (
         <ReprocessModal
           show={showReprocess}
