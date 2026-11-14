@@ -56,6 +56,7 @@ const settingsResponse: AdminSettingsResponse = {
   allowed_diarization_models: [
     'pyannote/speaker-diarization-3.1',
     'pyannote/speaker-diarization-community-1',
+    'nvidia/Nemotron-3-Diarization',
   ],
   languages: ['en', 'pt'],
   restart_only: {
@@ -451,7 +452,7 @@ describe('AdminView', () => {
 
   it('chooses the diarization model from the allowed ones, without a restart', async () => {
     vi.mocked(adminApi.saveAdminSettings).mockResolvedValue({
-      settings: { ...settings, diarization_model: 'pyannote/speaker-diarization-community-1' },
+      settings: { ...settings, diarization_model: 'nvidia/Nemotron-3-Diarization' },
       changed: ['diarization_model'],
     });
     await renderSignedIn();
@@ -460,19 +461,24 @@ describe('AdminView', () => {
     expect(model).toHaveValue('pyannote/speaker-diarization-3.1');
     expect(
       [...model.querySelectorAll('option')].map((option) => option.getAttribute('value'))
-    ).toEqual(['pyannote/speaker-diarization-3.1', 'pyannote/speaker-diarization-community-1']);
+    ).toEqual([
+      'pyannote/speaker-diarization-3.1',
+      'pyannote/speaker-diarization-community-1',
+      'nvidia/Nemotron-3-Diarization',
+    ]);
     expect(screen.getByText(/without a restart/)).toBeInTheDocument();
+    expect(screen.getByText(/Nemotron 3 Diarization is light and fast/)).toBeInTheDocument();
     // No longer listed as restart-only configuration.
     openTab('System');
     expect(screen.queryByText(/Diarization model:/)).toBeNull();
     openTab('Transcription');
     fireEvent.change(screen.getByLabelText('Diarization model'), {
-      target: { value: 'pyannote/speaker-diarization-community-1' },
+      target: { value: 'nvidia/Nemotron-3-Diarization' },
     });
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
     await waitFor(() =>
       expect(adminApi.saveAdminSettings).toHaveBeenCalledWith(
-        expect.objectContaining({ diarization_model: 'pyannote/speaker-diarization-community-1' })
+        expect.objectContaining({ diarization_model: 'nvidia/Nemotron-3-Diarization' })
       )
     );
   });

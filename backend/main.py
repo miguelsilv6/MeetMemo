@@ -264,9 +264,9 @@ async def lifespan(fastapi_app: FastAPI):
 
         try:
             diarization_service.get_pipeline(runtime.diarization_model)
-            logger.info("PyAnnote pipeline %s preloaded successfully", runtime.diarization_model)
+            logger.info("Diarization model %s preloaded successfully", runtime.diarization_model)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.error("Failed to preload PyAnnote pipeline: %s", e)
+            logger.error("Failed to preload the diarization model: %s", e)
 
         # Start cleanup scheduler
         cleanup_service = CleanupService(

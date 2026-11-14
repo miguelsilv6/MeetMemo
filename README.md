@@ -37,7 +37,7 @@ A meeting transcription application that runs entirely offline. It converts spee
 |---------|-------------|
 | **Audio Recording & Upload** | Record meetings directly in browser or upload files (MP3, WAV, M4A, FLAC, WebM, OGG) |
 | **Speech Recognition** | faster-whisper with CTranslate2 (4x speedup, 99+ languages) |
-| **Speaker Diarization** | PyAnnote.audio 3.1 for automatic speaker identification and labeling |
+| **Speaker Diarization** | PyAnnote.audio 3.1 / community-1, or NVIDIA Nemotron 3 Diarization (chosen in the admin panel) for automatic speaker identification and labeling |
 | **Audio Playback & Sync** | Built-in audio player with transcript synchronization - click any segment to jump to that timestamp |
 | **AI Summarization** | LLM-powered summaries with key points, action items, and insights, made in the background on the server (the page shows the queue and progress; it can be closed meanwhile, and a slow model is never cut off by a proxy timeout) |
 | **Real-time Progress** | Live status updates and job management for long-running tasks |
@@ -85,6 +85,15 @@ always overrides the profile.
 > The `high` profile uses **pyannote community-1**, which is more accurate but
 > needs ~12 GB VRAM and a one-time license acceptance on Hugging Face. On smaller
 > GPUs, stick with `balanced` (or let `auto` decide).
+
+**Nemotron 3 Diarization.** The administrator can also choose
+[NVIDIA Nemotron 3 Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization)
+as the diarization model (**Transcription** tab of the admin panel; it applies
+from the next audio, with no restart). It is one end-to-end model (100 M
+parameters, OpenMDW licence, no Hugging Face conditions to accept), runs far
+faster than real time even on a CPU, and supports up to 8 speakers. It has no
+setting for the number of speakers, so the number given at upload is ignored
+with it. It runs through Transformers (5.18 or newer, see `requirements.txt`).
 
 ### Installation
 

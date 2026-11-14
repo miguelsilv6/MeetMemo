@@ -35,12 +35,17 @@ logger = logging.getLogger(__name__)
 # treats any other string as a Hugging Face repo id or local path to load.
 WHISPER_MODELS = ("tiny", "base", "small", "medium", "large-v2", "large-v3", "turbo")
 
-# Diarization pipelines the panel may select (the same allowlist reason: any
-# other string would be fetched from Hugging Face as a repo id). Both are gated:
-# their conditions must be accepted with the HF_TOKEN account.
+# NVIDIA's Nemotron 3 Diarization: not a pyannote pipeline, it runs through
+# Transformers (see services/nemotron_diarizer.py). Up to 8 speakers.
+NEMOTRON_DIARIZATION = "nvidia/Nemotron-3-Diarization"
+
+# Diarization models the panel may select (the same allowlist reason: any
+# other string would be fetched from Hugging Face as a repo id). The pyannote
+# ones are gated: their conditions must be accepted with the HF_TOKEN account.
 DIARIZATION_MODELS = (
     "pyannote/speaker-diarization-3.1",
     "pyannote/speaker-diarization-community-1",
+    NEMOTRON_DIARIZATION,
 )
 
 # Language codes accepted by faster-whisper 1.1.0 (faster_whisper.tokenizer).
