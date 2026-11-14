@@ -44,6 +44,7 @@ from repositories.user_repository import UsernameTakenError, UserRepository
 from runtime_settings import MAX_DAILY_TOKENS, WHISPER_LANGUAGE_CODES, RuntimeSettings
 from services.expiry import extension_error, job_expires_at
 from services.llm_status import llm_status
+from services.processing_info import processing_info
 from services.runtime_settings_service import RuntimeSettingsService
 from services.user_service import UserService
 from sessions import close_admin_sessions, open_admin_session
@@ -463,6 +464,23 @@ def _check_extension(current: datetime, new: datetime) -> None:
     error = extension_error(current, new)
     if error:
         raise HTTPException(status_code=422, detail=error)
+
+
+@router.get("/jobs/{job_uuid}/processing")
+async def job_processing_info(
+    job_uuid: UUID,
+    _admin: dict = Depends(require_admin),
+    jobs: JobRepository = Depends(get_job_repository),
+) -> dict:
+    """How an audio was processed: its models, language and the settings used."""
+    job = await jobs.get(str(job_uuid))
+    if not job:
+        raise HTTPException(status_code=404, detail="Audio not found")
+    return processing_info(
+        job,
+        await jobs.get_transcription(str(job_uuid)),
+        await jobs.get_diarization(str(job_uuid)),
+    )
 
 
 @router.put("/jobs/{job_uuid}/expiry", dependencies=[Depends(require_admin_header)])

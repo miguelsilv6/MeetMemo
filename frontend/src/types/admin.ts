@@ -176,3 +176,43 @@ export interface LlmStatus {
   /** The HTTP status when error_code is "http". */
   error_status: number | null;
 }
+
+/** The transcription settings a stored audio ran with (a subset of RuntimeSettings). */
+export type ProcessingSettings = Partial<
+  Pick<
+    RuntimeSettings,
+    | 'beam_size'
+    | 'temperature_fallback'
+    | 'vad_filter'
+    | 'vad_onset'
+    | 'vad_offset'
+    | 'vad_min_silence_ms'
+    | 'vad_speech_pad_ms'
+    | 'hallucination_silence_threshold'
+    | 'low_confidence_avg_logprob'
+    | 'low_confidence_no_speech_prob'
+    | 'low_confidence_compression_ratio'
+    | 'audio_highpass'
+    | 'audio_loudnorm'
+    | 'stereo_mode'
+    | 'default_language'
+    | 'language_detection_windows'
+  >
+> & { hallucination_phrases_count?: number };
+
+/** How an audio was processed (administrator): what its steps stored. */
+export interface JobProcessingInfo {
+  file_name: string;
+  duration_seconds: number | null;
+  whisper_model: string | null;
+  language: { code: string; probability: number | null; forced: boolean } | null;
+  /** "split" (one speaker per channel) or "mono"; null before transcription. */
+  channel_mode: string | null;
+  /** Speakers given at upload, if any. */
+  num_speakers: number | null;
+  diarization_model: string | null;
+  /** One speaker per channel: no diarization model took part. */
+  diarization_by_channels: boolean;
+  /** Null for an audio processed before the settings were kept with it. */
+  settings: ProcessingSettings | null;
+}

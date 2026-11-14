@@ -9,6 +9,7 @@ import type {
   UserContent,
   UserTokenState,
   AuditEntry,
+  JobProcessingInfo,
   LlmStatus,
   RuntimeSettings,
   SaveSettingsResponse,
@@ -149,6 +150,11 @@ export function changeUserTokens(
   note: string | null
 ): Promise<UserTokenState> {
   return adminRequest(`/users/${uuid}/tokens`, { method: 'POST', body: { delta, note } });
+}
+
+/** How an audio was processed: its models, language and the settings it ran with. */
+export function getJobProcessing(uuid: string): Promise<JobProcessingInfo> {
+  return adminRequest(`/jobs/${uuid}/processing`);
 }
 
 /** Keep an audio (outside a project) until a later date (ISO, at most a year from now). */
