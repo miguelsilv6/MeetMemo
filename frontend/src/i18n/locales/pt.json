@@ -78,7 +78,7 @@
     "subtitle": "A nossa IA está a transcrever o áudio e a identificar os interlocutores",
     "stepUploaded": "Áudio carregado com sucesso",
     "stepTranscribing": "A transcrever com Whisper AI...",
-    "stepDiarizing": "A identificar interlocutores com PyAnnote (passo mais demorado)",
+    "stepDiarizing": "A identificar interlocutores (passo mais demorado)",
     "stepAligning": "A alinhar interlocutores com o texto",
     "etaNotice": "O tempo de processamento depende do hardware: numa GPU demora normalmente alguns minutos por cada 10 minutos de áudio; num CPU pode demorar tanto como a própria gravação, ou mais."
   },
@@ -399,7 +399,7 @@
         },
         "diarization_model": {
           "label": "Modelo de diarização",
-          "help": "Separa os interlocutores. O 3.1 é mais leve; o community-1 é mais preciso, mas precisa de muito mais memória (~12 GB de VRAM recomendados). Aplica-se a partir do próximo áudio, sem reiniciar. Ambos exigem aceitar as condições do modelo no Hugging Face com a conta do HF_TOKEN; cada um é descarregado na primeira utilização."
+          "help": "Separa os interlocutores; é o modelo usado nos áudios seguintes. O 3.1 é mais leve; o community-1 é mais preciso, mas precisa de muito mais memória (~12 GB de VRAM recomendados). O Nemotron 3 Diarization (NVIDIA) é leve e rápido, suporta até 8 interlocutores e não usa o número de interlocutores indicado no carregamento. Aplica-se a partir do próximo áudio, sem reiniciar. Os do pyannote exigem aceitar as condições do modelo no Hugging Face com a conta do HF_TOKEN; cada um é descarregado na primeira utilização."
         },
         "beam_size": {
           "label": "Beam size",

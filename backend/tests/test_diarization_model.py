@@ -1,9 +1,11 @@
 """
-The diarization model chosen in the admin panel: only allowlisted pipelines
-(plus the env's) can be chosen, one pipeline is kept per process and reused
+The diarization model chosen in the admin panel: only allowlisted models
+(plus the env's) can be chosen, one model is kept per process and reused
 by every audio, switching loads the new one before releasing the old one, a
 model that cannot be loaded leaves the current one in place with an error
 that says what to do, and each diarization records the model that made it.
+The models are PyAnnote pipelines or NVIDIA's Nemotron 3 Diarization (loaded
+through Transformers, with no setting for the number of speakers).
 
 torch, torchaudio and pyannote are replaced by fakes: the test dependencies
 do not include them.
@@ -17,17 +19,18 @@ import pytest
 from runtime_settings import DIARIZATION_MODELS, allowed_diarization_models
 from services.runtime_settings_service import RuntimeSettingsService
 
-V31, COMMUNITY = DIARIZATION_MODELS
+V31, COMMUNITY, NEMOTRON = DIARIZATION_MODELS
 
 
 # --- Allowlist ------------------------------------------------------------------
 
 
 def test_only_known_pipelines_and_the_envs_can_be_chosen():
-    assert allowed_diarization_models(V31) == [V31, COMMUNITY]
-    assert allowed_diarization_models("my-org/diarization") == [V31, COMMUNITY,
+    assert NEMOTRON == "nvidia/Nemotron-3-Diarization"
+    assert allowed_diarization_models(V31) == [V31, COMMUNITY, NEMOTRON]
+    assert allowed_diarization_models("my-org/diarization") == [V31, COMMUNITY, NEMOTRON,
                                                                 "my-org/diarization"]
-    assert allowed_diarization_models(None) == [V31, COMMUNITY]
+    assert allowed_diarization_models(None) == [V31, COMMUNITY, NEMOTRON]
 
 
 class _Repo:
@@ -58,6 +61,22 @@ def test_the_default_is_the_envs_pipeline_and_a_choice_is_saved_and_audited():
     assert changed == ["diarization_model"]
     _, actor, changes = service.repo.saved
     assert (actor, changes) == ("admin", [("diarization_model", COMMUNITY, V31)])
+
+
+def test_the_admin_can_make_nemotron_the_default_for_the_next_audios():
+    service = _service()
+    current = asyncio.run(service.get())
+
+    changed = asyncio.run(service.update(
+        current.model_copy(update={"diarization_model": NEMOTRON}), "admin"))
+
+    assert changed == ["diarization_model"]
+    values, _, changes = service.repo.saved
+    assert values["diarization_model"] == NEMOTRON
+    assert changes == [("diarization_model", COMMUNITY, NEMOTRON)]
+    # Saved, it is what the next audio uses.
+    again = _service(stored=values)
+    assert asyncio.run(again.get()).diarization_model == NEMOTRON
 
 
 def test_an_unknown_pipeline_is_refused_and_a_stale_one_falls_back():
@@ -99,6 +118,35 @@ class _FakePipeline:
         return SimpleNamespace(speaker_diarization=annotation)
 
 
+class _FakeTransformersModel:
+    """What transformers' Auto classes load, for NemotronDiarizer.load."""
+
+    def __init__(self, name):
+        self.name = name
+        self.device = None
+
+    def to(self, device):
+        self.device = device
+        return self
+
+    def eval(self):
+        return self
+
+
+class _FakeAutoModel:
+    @classmethod
+    def from_pretrained(cls, name, token=None):
+        if name in _FakePipeline.failing:
+            raise OSError("no connection")
+        return _FakeTransformersModel(name)
+
+
+class _FakeAutoProcessor:
+    @classmethod
+    def from_pretrained(cls, name, token=None):
+        return SimpleNamespace(name=name, token=token)
+
+
 @pytest.fixture(name="diarization")
 def _diarization_module(monkeypatch):
     """services.diarization_service imported against fake torch/torchaudio/pyannote."""
@@ -111,8 +159,12 @@ def _diarization_module(monkeypatch):
     pyannote = ModuleType("pyannote")
     pyannote_audio = ModuleType("pyannote.audio")
     pyannote_audio.Pipeline = _FakePipeline
+    transformers = ModuleType("transformers")
+    transformers.AutoModelForAudioFrameClassification = _FakeAutoModel
+    transformers.AutoProcessor = _FakeAutoProcessor
     for name, module in (("torch", torch), ("torchaudio", torchaudio),
-                         ("pyannote", pyannote), ("pyannote.audio", pyannote_audio)):
+                         ("pyannote", pyannote), ("pyannote.audio", pyannote_audio),
+                         ("transformers", transformers)):
         monkeypatch.setitem(sys.modules, name, module)
     monkeypatch.delitem(sys.modules, "services.diarization_service", raising=False)
     module = importlib.import_module("services.diarization_service")
@@ -229,3 +281,82 @@ def test_the_number_of_speakers_given_at_upload_reaches_pyannote(diarization):
 
     asyncio.run(service.diarize("job", "call.wav", COMMUNITY))  # not given: pyannote decides
     assert pipeline.options == {}
+
+
+# --- Nemotron 3 Diarization -----------------------------------------------------
+
+
+@pytest.fixture(name="nemotron")
+def _nemotron_module(diarization, monkeypatch):
+    """The service with the Nemotron model's inference replaced: turns it 'hears'."""
+    heard = []
+
+    class _Heard(diarization.NemotronDiarizer):
+        def diarize(self, waveform, sample_rate):
+            heard.append((waveform, sample_rate))
+            return [(0.0, 2.0, "SPEAKER_00"), (1.5, 4.0, "SPEAKER_01")]
+
+    monkeypatch.setattr(diarization, "NemotronDiarizer", _Heard)
+    diarization.heard = heard
+    return diarization
+
+
+def test_nemotron_is_loaded_through_transformers_not_pyannote(nemotron):
+    service = _make(nemotron)
+
+    model = service.get_pipeline(NEMOTRON)
+
+    assert isinstance(model, nemotron.NemotronDiarizer)
+    assert model.model.name == NEMOTRON and model.model.device == "device:cpu"
+    assert model.processor.token == "hf"
+    assert _FakePipeline.instances == []  # no pyannote pipeline was loaded
+    assert _make(nemotron).get_pipeline(NEMOTRON) is model  # shared by every request
+
+
+def test_switching_between_pyannote_and_nemotron_releases_the_old_one(nemotron):
+    pyannote = _make(nemotron).get_pipeline(COMMUNITY)
+    nemo = _make(nemotron).get_pipeline(NEMOTRON)
+    assert nemotron._loaded_pipeline == (NEMOTRON, nemo)  # pylint: disable=protected-access
+
+    back = _make(nemotron).get_pipeline(COMMUNITY)
+    assert back is not pyannote  # the old pipeline was released: loaded again
+    assert nemotron._loaded_pipeline == (COMMUNITY, back)  # pylint: disable=protected-access
+
+
+def test_nemotron_that_cannot_load_leaves_the_current_model_and_says_what_to_do(nemotron):
+    current = _make(nemotron).get_pipeline(V31)
+    _FakePipeline.failing.add(NEMOTRON)
+
+    with pytest.raises(nemotron.DiarizationModelError) as error:
+        _make(nemotron).get_pipeline(NEMOTRON)
+
+    message = str(error.value)
+    assert f"https://huggingface.co/{NEMOTRON}" in message
+    assert "transformers is 5.18 or newer" in message
+    assert "accept its conditions" not in message.lower()  # not a gated pyannote model
+    assert _make(nemotron).get_pipeline(V31) is current
+
+
+def test_a_diarization_with_nemotron_records_its_turns_and_model(nemotron):
+    repo = _JobRepo()
+    # Three speakers asked for at upload: this model has no such setting.
+    data = asyncio.run(_make(nemotron, repo).diarize("job", "call.wav", NEMOTRON, 3))
+
+    assert data == {"model": NEMOTRON, "segments": [
+        {"start": 0.0, "end": 2.0, "speaker": "SPEAKER_00"},
+        {"start": 1.5, "end": 4.0, "speaker": "SPEAKER_01"},  # overlapping speech kept
+    ]}
+    assert repo.saved == data and repo.states[-1] == "diarized"
+    assert nemotron.heard == [("waveform", 16000)]  # the audio as loaded: it makes it mono
+    assert _FakePipeline.instances == []
+
+
+def test_a_call_split_by_channel_does_not_load_nemotron_either(nemotron):
+    repo = _JobRepo({"channel_mode": "split", "segments": [
+        {"start": 0.0, "end": 2.0, "text": " Estou?", "speaker": "SPEAKER_00"}]})
+
+    data = asyncio.run(_make(nemotron, repo).diarize("job", "call.wav", NEMOTRON))
+
+    assert data["model"] == "channels"
+    assert nemotron.heard == []
+    assert nemotron._loaded_pipeline is None  # pylint: disable=protected-access

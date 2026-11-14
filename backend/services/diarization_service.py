@@ -1,8 +1,8 @@
 """
-Diarization service using PyAnnote.
+Diarization service: PyAnnote pipelines or NVIDIA Nemotron 3 Diarization.
 
-This service handles PyAnnote pipeline loading, caching, and speaker diarization
-processing with progress tracking. The pipeline is the one the admin panel
+This service handles model loading, caching, and speaker diarization
+processing with progress tracking. The model is the one the admin panel
 selects (runtime setting diarization_model), loaded on first use.
 """
 import asyncio
@@ -17,24 +17,28 @@ from config import Settings
 from database import update_error
 from pyannote.audio import Pipeline
 from repositories.job_repository import JobRepository
+from runtime_settings import NEMOTRON_DIARIZATION
 from utils.channels import channel_diarization
+
+from services.nemotron_diarizer import NemotronDiarizer
 
 logger = logging.getLogger(__name__)
 
-# One loaded pipeline per process. A service instance is created per request,
-# so a per-instance cache would reload the pipeline from disk for every audio.
+# One loaded model per process. A service instance is created per request,
+# so a per-instance cache would reload the model from disk for every audio.
 # Switching models (admin panel) loads the new one first and only then frees
 # the old one, so a model that cannot be loaded leaves the current one in place.
 _pipeline_lock = threading.Lock()
-_loaded_pipeline: tuple[str, Pipeline] | None = None  # pylint: disable=invalid-name
+# pylint: disable-next=invalid-name
+_loaded_pipeline: tuple[str, Pipeline | NemotronDiarizer] | None = None
 
 
 class DiarizationModelError(Exception):
-    """The diarization pipeline could not be loaded."""
+    """The diarization model could not be loaded."""
 
 
 class DiarizationService:
-    """Service for speaker diarization using PyAnnote."""
+    """Service for speaker diarization (PyAnnote or Nemotron 3 Diarization)."""
 
     def __init__(self, settings: Settings, job_repo: JobRepository):
         """
@@ -47,13 +51,14 @@ class DiarizationService:
         self.settings = settings
         self.job_repo = job_repo
 
-    def get_pipeline(self, model_name: Optional[str] = None) -> Pipeline:
+    def get_pipeline(self, model_name: Optional[str] = None) -> Pipeline | NemotronDiarizer:
         """
-        Get the process-wide PyAnnote pipeline for ``model_name`` (the env's
-        PYANNOTE_MODEL_NAME when None), loading it if needed. Blocking.
+        Get the process-wide diarization model ``model_name`` (the env's
+        PYANNOTE_MODEL_NAME when None): a PyAnnote pipeline, or the Nemotron 3
+        Diarization model. Loads it if needed. Blocking.
 
         Raises:
-            DiarizationModelError: The pipeline could not be loaded (e.g. the
+            DiarizationModelError: The model could not be loaded (e.g. the
                 gated model's conditions were not accepted on Hugging Face).
         """
         global _loaded_pipeline  # pylint: disable=global-statement
@@ -62,29 +67,44 @@ class DiarizationService:
             if _loaded_pipeline is not None and _loaded_pipeline[0] == model_name:
                 return _loaded_pipeline[1]
 
-            logger.info("Loading PyAnnote speaker diarization pipeline %s", model_name)
+            logger.info("Loading speaker diarization model %s", model_name)
             try:
-                pipeline = Pipeline.from_pretrained(model_name, token=self.settings.hf_token)
-                if pipeline is None:
-                    raise RuntimeError("no access to the model")
-                pipeline = pipeline.to(torch.device(self.settings.device))
+                if model_name == NEMOTRON_DIARIZATION:
+                    pipeline = NemotronDiarizer.load(
+                        model_name, self.settings.hf_token, torch.device(self.settings.device)
+                    )
+                else:
+                    pipeline = Pipeline.from_pretrained(model_name, token=self.settings.hf_token)
+                    if pipeline is None:
+                        raise RuntimeError("no access to the model")
+                    pipeline = pipeline.to(torch.device(self.settings.device))
             except Exception as e:  # pylint: disable=broad-exception-caught
+                if model_name == NEMOTRON_DIARIZATION:
+                    hint = (
+                        "Check that the server can download it from Hugging Face "
+                        f"(https://huggingface.co/{model_name}) and that the installed "
+                        "transformers is 5.18 or newer, or choose another diarization "
+                        "model in the admin panel."
+                    )
+                else:
+                    hint = (
+                        "Accept its conditions on Hugging Face "
+                        f"(https://huggingface.co/{model_name}) with the account of HF_TOKEN, "
+                        "or choose another diarization model in the admin panel."
+                    )
                 raise DiarizationModelError(
-                    f"Could not load the diarization model {model_name}: {e}. "
-                    "Accept its conditions on Hugging Face "
-                    f"(https://huggingface.co/{model_name}) with the account of HF_TOKEN, "
-                    "or choose another diarization model in the admin panel."
+                    f"Could not load the diarization model {model_name}: {e}. {hint}"
                 ) from e
 
             previous, _loaded_pipeline = _loaded_pipeline, (model_name, pipeline)
             if previous is not None:
-                logger.info("Releasing diarization pipeline %s", previous[0])
+                logger.info("Releasing diarization model %s", previous[0])
                 del previous
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             logger.info(
-                "PyAnnote pipeline %s loaded successfully on %s (%d torch CPU threads)",
+                "Diarization model %s loaded successfully on %s (%d torch CPU threads)",
                 model_name,
                 self.settings.device,
                 torch.get_num_threads(),
@@ -142,30 +162,35 @@ class DiarizationService:
                 # pyannote from splitting one voice into two (or merging two).
                 options = {"num_speakers": num_speakers} if num_speakers else {}
 
-                def _load_and_diarize():
+                def _load_and_diarize() -> list[tuple[float, float, str]]:
                     pipeline = self.get_pipeline(model_name)
                     waveform, sample_rate = torchaudio.load(file_path)
-                    return pipeline({"waveform": waveform, "sample_rate": sample_rate}, **options)
-                diarization = await loop.run_in_executor(None, _load_and_diarize)
+                    if isinstance(pipeline, NemotronDiarizer):
+                        # No setting for the number of speakers: it decides.
+                        return pipeline.diarize(waveform, sample_rate)
+                    diarization = pipeline(
+                        {"waveform": waveform, "sample_rate": sample_rate}, **options
+                    )
+                    # pyannote 4.x returns a DiarizeOutput; itertracks is on the inner Annotation
+                    return [
+                        (turn.start, turn.end, speaker)
+                        for turn, _, speaker in
+                        diarization.speaker_diarization.itertracks(yield_label=True)
+                    ]
+                turns = await loop.run_in_executor(None, _load_and_diarize)
 
                 await self.job_repo.update_step_progress(job_uuid, 90)
                 logger.info("Diarization complete for job %s", job_uuid)
 
-                # Convert diarization to serializable format
-                # pyannote 4.x returns a DiarizeOutput; itertracks is on the inner Annotation
-                # The model is kept with the result, so it is known which
-                # pipeline made each diarization.
+                # Serializable format. The model is kept with the result, so
+                # it is known which model made each diarization.
                 diarization_data = {
                     "model": model_name,
-                    "segments": [],
+                    "segments": [
+                        {"start": start, "end": end, "speaker": speaker}
+                        for start, end, speaker in turns
+                    ],
                 }
-
-                for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
-                    diarization_data["segments"].append({
-                        "start": turn.start,
-                        "end": turn.end,
-                        "speaker": speaker
-                    })
 
             # Save diarization data to database
             await self.job_repo.save_diarization(job_uuid, diarization_data)

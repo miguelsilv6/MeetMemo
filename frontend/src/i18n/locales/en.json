@@ -78,7 +78,7 @@
     "subtitle": "Our AI is transcribing audio and identifying speakers",
     "stepUploaded": "Audio uploaded successfully",
     "stepTranscribing": "Transcribing with Whisper AI...",
-    "stepDiarizing": "Identifying speakers with PyAnnote (slowest step)",
+    "stepDiarizing": "Identifying speakers (slowest step)",
     "stepAligning": "Aligning speakers with text",
     "etaNotice": "Processing time depends on your hardware: on a GPU it usually takes a few minutes per 10 minutes of audio; on a CPU it can take as long as the recording itself, or longer."
   },
@@ -399,7 +399,7 @@
         },
         "diarization_model": {
           "label": "Diarization model",
-          "help": "Separates the speakers. 3.1 is lighter; community-1 is more accurate but needs much more memory (~12 GB VRAM recommended). Applies from the next audio, without a restart. Both require accepting the model's conditions on Hugging Face with the HF_TOKEN account; each is downloaded on first use."
+          "help": "Separates the speakers; the model used for the next audios. 3.1 is lighter; community-1 is more accurate but needs much more memory (~12 GB VRAM recommended). NVIDIA's Nemotron 3 Diarization is light and fast, supports up to 8 speakers and ignores the number of speakers given at upload. Applies from the next audio, without a restart. The pyannote ones require accepting the model's conditions on Hugging Face with the HF_TOKEN account; each is downloaded on first use."
         },
         "beam_size": {
           "label": "Beam size",
