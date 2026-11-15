@@ -6,6 +6,8 @@ export type StereoMode = 'auto' | 'mix';
 
 export interface RuntimeSettings {
   whisper_model_name: string;
+  /** Used instead of the model above for audio in Portuguese; null: not used. */
+  portuguese_whisper_model: string | null;
   diarization_model: string;
   beam_size: number;
   temperature_fallback: boolean;
@@ -54,6 +56,7 @@ export interface AdminSettingsResponse {
   defaults: RuntimeSettings;
   allowed_models: string[];
   allowed_diarization_models: string[];
+  allowed_portuguese_whisper_models: string[];
   languages: string[];
   restart_only: RestartOnlyConfig;
   fixed_prompts: FixedPrompts;
@@ -181,6 +184,7 @@ export interface LlmStatus {
 export type ProcessingSettings = Partial<
   Pick<
     RuntimeSettings,
+    | 'portuguese_whisper_model'
     | 'beam_size'
     | 'temperature_fallback'
     | 'vad_filter'
@@ -205,6 +209,10 @@ export interface JobProcessingInfo {
   file_name: string;
   duration_seconds: number | null;
   whisper_model: string | null;
+  /** Every Whisper model that transcribed it (a call split by channel may use two). */
+  whisper_models: string[];
+  /** The general model that detected the language, when the Portuguese one transcribed. */
+  detection_model: string | null;
   language: { code: string; probability: number | null; forced: boolean } | null;
   /** "split" (one speaker per channel) or "mono"; null before transcription. */
   channel_mode: string | null;

@@ -14,6 +14,7 @@ interface ProcessingInfoModalProps {
 
 /** The settings shown, in this order; their labels are the admin panel's. */
 const SETTINGS_ORDER = [
+  'portuguese_whisper_model',
   'beam_size',
   'temperature_fallback',
   'vad_filter',
@@ -125,9 +126,20 @@ function ProcessingInfo({ jobId }: { jobId: string }) {
       <h6>{t('processingInfo.processing')}</h6>
       <table className="table table-sm mb-4">
         <tbody>
-          <Row label={t('processingInfo.whisperModel')}>
-            {info.whisper_model ?? t('processingInfo.notRecorded')}
+          <Row
+            label={t(
+              info.whisper_models.length > 1
+                ? 'processingInfo.whisperModels'
+                : 'processingInfo.whisperModel'
+            )}
+          >
+            {info.whisper_models.length > 0
+              ? info.whisper_models.join(' · ')
+              : t('processingInfo.notRecorded')}
           </Row>
+          {info.detection_model && (
+            <Row label={t('processingInfo.detectionModel')}>{info.detection_model}</Row>
+          )}
           <Row label={t('processingInfo.diarizationModel')}>{diarizationText(info, t)}</Row>
           <Row label={t('processingInfo.language')}>{languageText(info, t)}</Row>
           <Row label={t('processingInfo.recording')}>

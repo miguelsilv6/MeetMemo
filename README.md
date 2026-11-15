@@ -86,6 +86,15 @@ always overrides the profile.
 > needs ~12 GB VRAM and a one-time license acceptance on Hugging Face. On smaller
 > GPUs, stick with `balanced` (or let `auto` decide).
 
+**European Portuguese model.** The administrator can enable a second Whisper
+model, used **only for audio in Portuguese** (**Transcription** tab, "Whisper
+model for Portuguese"; off by default): INESC-ID's
+[WhisperLv3-EP-X-CPP](https://huggingface.co/inesc-id/WhisperLv3-EP-X-CPP),
+Whisper large-v3 fine-tuned on European Portuguese, with capitals, punctuation
+and the current spelling. The general model still detects the language and
+transcribes the others. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for
+its memory cost and licence note.
+
 **Nemotron 3 Diarization.** The administrator can also choose
 [NVIDIA Nemotron 3 Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization)
 as the diarization model (**Transcription** tab of the admin panel; it applies

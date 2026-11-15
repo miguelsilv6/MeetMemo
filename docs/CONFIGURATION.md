@@ -52,6 +52,16 @@ Set `WHISPER_MODEL_NAME` environment variable:
 | **`turbo`** | **~6GB** | **Fast** | **High** | **Default - Best balance** |
 | `large-v3` | ~10GB | Very Slow | Highest+ | 10-20% better than large-v2 |
 
+### Whisper model for Portuguese
+
+The administrator can enable a second model that transcribes **Portuguese only** (admin panel, **Transcription** tab, "Whisper model for Portuguese"; off by default, applied from the next audio, no restart). Today the choice is `inesc-id/WhisperLv3-EP-X-CPP`, Whisper large-v3 fine-tuned by INESC-ID on 425 h of European Portuguese (CAMÕES benchmark, WER 12.3 against 19–25 for the original large-v3). It writes capitals, punctuation and the current spelling. Its model page gives no licence: check it before using it beyond research.
+
+- The general model (`WHISPER_MODEL_NAME`, or the panel's) still **detects the language** and transcribes every other language. The Portuguese model is only used when the language is Portuguese, detected or given (at upload, or the panel's default language). A call with one speaker per channel chooses channel by channel.
+- Both models stay loaded: about 3 GB of VRAM (RAM on a CPU) more than the general model alone. The model is 3.1 GB and is downloaded on its first use.
+- The detection does not tell European from Brazilian Portuguese, so Brazilian audio also goes to this model, where it is slightly worse than with the original large-v3.
+- Each audio records the model that transcribed it (and the one that detected its language); the administrator's information button shows them.
+- To compare with and without it on your own recordings, see [EVALUATION.md](EVALUATION.md): `--portuguese-model off` and then `--portuguese-model inesc-id/WhisperLv3-EP-X-CPP`.
+
 ### Compute Type Configuration
 
 Control inference precision with `COMPUTE_TYPE` environment variable:

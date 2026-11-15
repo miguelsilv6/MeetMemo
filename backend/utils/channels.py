@@ -109,6 +109,7 @@ def merge_channels(parts: list[dict]) -> dict:
             "probability": part["language_probability"],
             "flags": detection.get("flags", []),
             "forced": bool(detection.get("forced")),
+            "model_name": part.get("model_name"),
             "speech_seconds": round(speech[n], 1),
         })
     detection = {**(parts[main].get("language_detection") or {}), "channels": channels}
@@ -124,7 +125,8 @@ def merge_channels(parts: list[dict]) -> dict:
             {**segment, "channel": n}
             for n, part in enumerate(parts) for segment in part["removed_segments"]
         ],
-        "model_name": parts[0]["model_name"],
+        "model_name": parts[main]["model_name"],
+        "detection_model": parts[main].get("detection_model"),
         "settings": parts[0]["settings"],
     }
 

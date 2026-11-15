@@ -123,3 +123,18 @@ def test_the_channels_are_the_diarization():
         {"start": 0.0, "end": 3.0, "speaker": "SPEAKER_00"},
         {"start": 3.5, "end": 5.5, "speaker": "SPEAKER_01"},
     ]}
+
+
+def test_each_channel_keeps_the_model_that_transcribed_it():
+    left = _part([(0.0, 2.0, " Estou?")], "pt", 0.97)  # the less speech
+    right = _part([(0.0, 5.0, " Hello there.")], "en", 0.95)
+    left["model_name"], left["detection_model"] = "inesc-id/WhisperLv3-EP-X-CPP", "large-v3"
+    right["model_name"] = "large-v3"
+
+    merged = merge_channels([left, right])
+
+    channels = merged["language_detection"]["channels"]
+    assert [c["model_name"] for c in channels] == ["inesc-id/WhisperLv3-EP-X-CPP", "large-v3"]
+    # The transcript's own model is the one of the channel with the most speech.
+    assert merged["model_name"] == "large-v3"
+    assert merged["detection_model"] is None

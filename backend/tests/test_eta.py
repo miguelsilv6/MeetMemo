@@ -55,6 +55,18 @@ def test_a_step_taking_longer_than_expected_has_nothing_left_but_the_next():
     assert job_remaining(on_time, RATES, RUNTIME, NOW) == 100 + 6
 
 
+def test_portuguese_audio_is_timed_under_the_portuguese_model():
+    ep = "inesc-id/WhisperLv3-EP-X-CPP"
+    runtime = SimpleNamespace(whisper_model_name="large-v3", diarization_model="pyannote/3.1",
+                              portuguese_whisper_model=ep)
+    assert step_model("transcribing", job("uploaded", language="pt"), runtime) == ep
+    # Another language, or none given (detected later), is the general model's.
+    assert step_model("transcribing", job("uploaded", language="en"), runtime) == "large-v3"
+    assert step_model("transcribing", job("uploaded"), runtime) == "large-v3"
+    # Off: the general model, whatever the language.
+    assert step_model("transcribing", job("uploaded", language="pt"), RUNTIME) == "large-v3"
+
+
 def test_a_call_split_by_channel_is_diarized_at_the_split_speed():
     assert step_model("diarizing", job("transcribed", channel_mode="split"), RUNTIME) == "split"
     assert job_remaining(job("transcribed", channel_mode="split"), RATES, RUNTIME, NOW) == 6

@@ -21,6 +21,7 @@ from database import (
     save_diarization_data,
     save_transcription_data,
     set_audio_seconds,
+    set_step_model,
     update_file_name,
     update_status,
     update_step_progress,
@@ -116,6 +117,10 @@ class JobRepository:
                 model), which its timing is estimated and recorded by
         """
         await update_workflow_state(uuid, state, progress, step_model)
+
+    async def set_step_model(self, uuid: str, step_model: str) -> None:
+        """Another model did the step under way: its timing is kept under that one."""
+        await set_step_model(uuid, step_model)
 
     async def set_audio_seconds(self, uuid: str, seconds: Optional[float]) -> None:
         """Note how long the job's audio is (when it could be read)."""

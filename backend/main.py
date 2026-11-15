@@ -46,7 +46,7 @@ from services.project_queue import ProjectQueue
 from services.project_service import ProjectService
 from services.runtime_settings_service import RuntimeSettingsService
 from services.summary_service import SummaryService
-from services.transcription_service import TranscriptionService
+from services.transcription_service import TranscriptionService, models_wanted
 from services.user_service import purge_ownerless
 
 # Load environment variables
@@ -257,8 +257,10 @@ async def lifespan(fastapi_app: FastAPI):
 
         runtime = await RuntimeSettingsService(app_settings).get()
         try:
-            transcription_service.get_model(runtime.whisper_model_name)
-            logger.info("Whisper model %s preloaded successfully", runtime.whisper_model_name)
+            wanted = models_wanted(runtime.whisper_model_name, runtime)
+            for name in sorted(wanted):
+                transcription_service.get_model(name, wanted)
+                logger.info("Whisper model %s preloaded successfully", name)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Failed to preload Whisper model: %s", e)
 
