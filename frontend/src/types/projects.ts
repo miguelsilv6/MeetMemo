@@ -47,6 +47,13 @@ export interface ProjectAudio {
   language_probability?: number | null;
   /** When the audio was imported into the project. */
   created_at: string;
+  /** From its call record (TranslatedPRI.xml): who called whom, when; null without one. */
+  call?: {
+    caller: string | null;
+    callee: string | null;
+    start: string | null;
+    duration_seconds: number | null;
+  } | null;
 }
 
 export interface ProjectDetail extends Project {

@@ -112,6 +112,12 @@ def get_llm_task_repository():
     return LlmTaskRepository()
 
 
+def get_call_record_repository():
+    """Get CallRecordRepository instance (an audio's TranslatedPRI.xml)."""
+    from repositories.call_record_repository import CallRecordRepository
+    return CallRecordRepository()
+
+
 def get_cue_point_repository():
     """Get CuePointRepository instance (marked instants of an audio)."""
     from repositories.cue_point_repository import CuePointRepository

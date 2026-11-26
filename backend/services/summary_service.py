@@ -183,6 +183,7 @@ class SummaryService:
         transcript: str,
         custom_prompt: Optional[str] = None,
         system_prompt: Optional[str] = None,
+        call_context: Optional[str] = None,
     ) -> str:
         """
         Summarize transcript using LLM, always in European Portuguese.
@@ -192,6 +193,8 @@ class SummaryService:
             custom_prompt: Optional custom user prompt
             system_prompt: Optional custom system prompt (the language
                 rule is always appended to it)
+            call_context: Who called whom, when and for how long (from the
+                audio's call record), put before the transcript
 
         Returns:
             Summary text in markdown format
@@ -233,8 +236,9 @@ A gravação é demasiado curta para gerar um resumo detalhado da reunião."""
         )
 
         request = custom_prompt or prompts.summary_request
+        context = f"{call_context}\n\n" if call_context else ""
         final_user_prompt = (
-            f"{request}\n\n{transcript}\n\n{prompts.language_reminder}"
+            f"{request}\n\n{context}{transcript}\n\n{prompts.language_reminder}"
         )
         final_user_prompt = _without_thinking(model_name, final_user_prompt)
 

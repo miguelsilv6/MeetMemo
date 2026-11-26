@@ -11,6 +11,7 @@ vi.mock('../../services/adminApi', () => ({
 }));
 vi.mock('../../services/api', () => ({
   getJobStatus: vi.fn().mockResolvedValue({ expires_at: null }),
+  getCallRecord: vi.fn().mockResolvedValue(null),
 }));
 
 const INFO: JobProcessingInfo = {

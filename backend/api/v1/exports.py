@@ -9,10 +9,16 @@ import os
 import aiofiles
 from access import authorize_path, require_request_header
 from config import Settings, get_settings
-from dependencies import get_export_service, get_job_repository, get_summary_service
+from dependencies import (
+    get_call_record_repository,
+    get_export_service,
+    get_job_repository,
+    get_summary_service,
+)
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from models import ExportRequest
+from repositories.call_record_repository import CallRecordRepository, summary_context
 from repositories.job_repository import JobRepository
 from services.export_service import ExportService
 from services.summary_service import SummaryService
@@ -89,12 +95,20 @@ async def _get_summary_content(
     # Generate new summary
     transcript_json = await _get_transcript_json(uuid, job, settings)
     formatted_transcript = format_transcript_for_llm(transcript_json)
-    summary = await summary_service.summarize(formatted_transcript)
+    summary = await summary_service.summarize(
+        formatted_transcript, call_context=await summary_context(uuid)
+    )
 
     # Cache for future use
     await summary_service.save_summary(uuid, summary)
 
     return summary
+
+
+async def _call_summary(records: CallRecordRepository, job_uuid: str):
+    """The main fields of the audio's call record (None without one), for the export."""
+    record = await records.get(job_uuid)
+    return record["data"].get("summary") if record else None
 
 
 @router.post("/jobs/{uuid}/exports/markdown", status_code=200)
@@ -104,7 +118,8 @@ async def export_markdown(  # pylint: disable=too-many-arguments,too-many-positi
     job_repo: JobRepository = Depends(get_job_repository),
     export_service: ExportService = Depends(get_export_service),
     summary_service: SummaryService = Depends(get_summary_service),
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
+    records: CallRecordRepository = Depends(get_call_record_repository),
 ):
     """
     Export job as Markdown (summary + transcript).
@@ -134,7 +149,8 @@ async def export_markdown(  # pylint: disable=too-many-arguments,too-many-positi
             meeting_title,
             summary_content,
             transcript_json,
-            generated_on
+            generated_on,
+            call_record=await _call_summary(records, uuid),
         )
 
         # Generate filename
@@ -159,12 +175,13 @@ async def export_markdown(  # pylint: disable=too-many-arguments,too-many-positi
 
 
 @router.post("/jobs/{uuid}/exports/transcript/docx", status_code=200)
-async def export_transcript_docx(
+async def export_transcript_docx(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     uuid: str,
     request: ExportRequest = None,
     job_repo: JobRepository = Depends(get_job_repository),
     export_service: ExportService = Depends(get_export_service),
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
+    records: CallRecordRepository = Depends(get_call_record_repository),
 ):
     """
     Export transcript-only Word document (no AI summary).
@@ -192,7 +209,8 @@ async def export_transcript_docx(
         docx_buffer = export_service.generate_transcript_docx_export(
             meeting_title,
             transcript_json,
-            generated_on
+            generated_on,
+            call_record=await _call_summary(records, uuid),
         )
 
         # Generate filename
@@ -224,12 +242,13 @@ async def export_transcript_docx(
 
 
 @router.post("/jobs/{uuid}/exports/transcript/markdown", status_code=200)
-async def export_transcript_markdown(
+async def export_transcript_markdown(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     uuid: str,
     request: ExportRequest = None,
     job_repo: JobRepository = Depends(get_job_repository),
     export_service: ExportService = Depends(get_export_service),
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
+    records: CallRecordRepository = Depends(get_call_record_repository),
 ):
     """
     Export transcript-only Markdown (no AI summary).
@@ -257,7 +276,8 @@ async def export_transcript_markdown(
         markdown_buffer = export_service.generate_transcript_markdown_export(
             meeting_title,
             transcript_json,
-            generated_on
+            generated_on,
+            call_record=await _call_summary(records, uuid),
         )
 
         # Generate filename

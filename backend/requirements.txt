@@ -27,3 +27,6 @@ aiofiles==23.2.1
 asyncpg==0.29.0
 pydub==0.25.1
 python-docx==1.2.0
+# Reading the TranslatedPRI.xml of intercepted audios without XML tricks (no DTD,
+# entities or external references).
+defusedxml==0.7.1

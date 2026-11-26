@@ -1,5 +1,5 @@
 import { Badge, Button, ProgressBar } from '@govtechsg/sgds-react';
-import { FileText, RotateCcw, Trash2 } from 'lucide-react';
+import { FileText, Phone, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ProjectAudio } from '../../types/projects';
 import DetectedLanguage from '../Common/DetectedLanguage';
@@ -7,6 +7,7 @@ import SortOrderSelect from '../Common/SortOrderSelect';
 import { formatDateTime } from '../../utils/projectDates';
 import { sortByDate, useSortOrder } from '../../utils/sortOrder';
 import EtaText from '../Common/EtaText';
+import { formatCallDuration } from '../../utils/callRecord';
 
 const SORT_STORAGE_KEY = 'meetmemo-project-audios-sort';
 
@@ -72,6 +73,18 @@ export default function ProjectAudioList({
                 </Button>
               ) : (
                 audio.file_name
+              )}
+              {audio.call && (
+                <small className="d-block text-muted" data-testid="audio-call">
+                  <Phone size={12} className="me-1" />
+                  {t('callRecord.listLine', {
+                    caller: audio.call.caller ?? '?',
+                    callee: audio.call.callee ?? '?',
+                  })}
+                  {audio.call.start && ` · ${audio.call.start}`}
+                  {audio.call.duration_seconds !== null &&
+                    ` · ${formatCallDuration(audio.call.duration_seconds)}`}
+                </small>
               )}
             </div>
             <div className="project-audio-date small">

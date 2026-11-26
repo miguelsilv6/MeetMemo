@@ -178,3 +178,80 @@ describe('useFileUpload upload limit', () => {
     expect(api.uploadAudio).toHaveBeenCalled();
   });
 });
+
+describe('useFileUpload.handleFolderSelect', () => {
+  const inFolder = (path: string, type = '') => {
+    const file = new File(['x'], path.slice(path.lastIndexOf('/') + 1), { type });
+    Object.defineProperty(file, 'webkitRelativePath', { value: path });
+    return file;
+  };
+  const choose = (files: File[]) =>
+    ({ target: { files } }) as unknown as React.ChangeEvent<HTMLInputElement>;
+
+  it('uploads the audio of a product folder, then its TranslatedPRI.xml', async () => {
+    vi.mocked(api.uploadAudio).mockResolvedValue({ uuid: 'new-job', status_code: 202 });
+    vi.mocked(api.uploadCallRecord).mockResolvedValue({} as never);
+    const { hook, startPolling } = setup();
+    const audio = inFolder('2414/__CLIENT__/e153c371.wav', 'audio/wav');
+    const xml = inFolder('2414/TranslatedPRI.xml');
+
+    await act(async () => {
+      hook.result.current.handleFolderSelect(
+        choose([inFolder('2414/RawData/e153.vsf'), audio, xml, inFolder('2414/Pri.json')])
+      );
+    });
+
+    expect(api.uploadAudio).toHaveBeenCalledWith(audio, null, 'auto', null);
+    expect(api.uploadCallRecord).toHaveBeenCalledWith('new-job', xml);
+    expect(startPolling).toHaveBeenCalledWith('new-job');
+    expect(hook.result.current.selectedFile).toBe(audio);
+  });
+
+  it('uploads an audio without a record when the folder has none', async () => {
+    vi.mocked(api.uploadAudio).mockResolvedValue({ uuid: 'j', status_code: 202 });
+    const { hook } = setup();
+
+    await act(async () => {
+      hook.result.current.handleFolderSelect(choose([inFolder('p/__CLIENT__/a.wav')]));
+    });
+
+    expect(api.uploadAudio).toHaveBeenCalled();
+    expect(api.uploadCallRecord).not.toHaveBeenCalled();
+  });
+
+  it('keeps processing the audio when its record is refused, and says so', async () => {
+    vi.mocked(api.uploadAudio).mockResolvedValue({ uuid: 'j', status_code: 202 });
+    vi.mocked(api.uploadCallRecord).mockRejectedValue(new Error('Not a readable XML file'));
+    const { hook, setError, startPolling } = setup();
+
+    await act(async () => {
+      hook.result.current.handleFolderSelect(
+        choose([inFolder('p/__CLIENT__/a.wav'), inFolder('p/TranslatedPRI.xml')])
+      );
+    });
+
+    expect(startPolling).toHaveBeenCalledWith('j');
+    expect(setError).toHaveBeenLastCalledWith(
+      'Could not import the TranslatedPRI.xml: Not a readable XML file'
+    );
+  });
+
+  it('refuses a folder with no audio or with several', async () => {
+    const { hook, setError } = setup();
+
+    act(() => {
+      hook.result.current.handleFolderSelect(choose([inFolder('p/TranslatedPRI.xml')]));
+    });
+    expect(setError).toHaveBeenLastCalledWith('The chosen folder has no audio.');
+
+    act(() => {
+      hook.result.current.handleFolderSelect(
+        choose([inFolder('c/1/__CLIENT__/a.wav'), inFolder('c/2/__CLIENT__/b.wav')])
+      );
+    });
+    expect(setError).toHaveBeenLastCalledWith(
+      'The folder has 2 audios. For several audios, use a project.'
+    );
+    expect(api.uploadAudio).not.toHaveBeenCalled();
+  });
+});

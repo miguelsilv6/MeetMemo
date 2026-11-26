@@ -12,6 +12,8 @@ interface UploadViewProps {
   uploading: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   handleFileSelect: (event: ChangeEvent<HTMLInputElement>) => void;
+  folderInputRef?: RefObject<HTMLInputElement | null>;
+  handleFolderSelect?: (event: ChangeEvent<HTMLInputElement>) => void;
   handleDragOver: (e: DragEvent<HTMLDivElement>) => void;
   handleDrop: (e: DragEvent<HTMLDivElement>) => void;
   recentJobs: RecentJob[];
@@ -42,6 +44,8 @@ export default function UploadView({
   uploading,
   fileInputRef,
   handleFileSelect,
+  folderInputRef,
+  handleFolderSelect,
   handleDragOver,
   handleDrop,
   recentJobs,
@@ -102,6 +106,8 @@ export default function UploadView({
                 uploading={uploading}
                 fileInputRef={fileInputRef}
                 handleFileSelect={handleFileSelect}
+                folderInputRef={folderInputRef}
+                handleFolderSelect={handleFolderSelect}
                 handleDragOver={handleDragOver}
                 handleDrop={handleDrop}
                 selectedLanguage={selectedLanguage}

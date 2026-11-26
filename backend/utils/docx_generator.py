@@ -6,11 +6,14 @@ documents in a plain dialogue format, using python-docx.
 """
 from datetime import datetime
 from io import BytesIO
+from typing import Optional
 
 from config import Settings, get_settings
 from docx import Document
 from docx.shared import RGBColor
 
+from utils.call_record_text import TITLE as CALL_RECORD_TITLE
+from utils.call_record_text import call_record_lines
 from utils.formatters import format_speaker_name
 
 
@@ -18,10 +21,12 @@ def generate_transcript_docx(
     meeting_title: str,
     transcript_data: list,
     generated_on: str = None,
-    settings: Settings = None
+    settings: Settings = None,
+    call_record: Optional[dict] = None,
 ) -> BytesIO:
     """
-    Generate a Word (.docx) transcript-only document (no AI summary).
+    Generate a Word (.docx) transcript-only document (no AI summary), with a
+    table of the call's data first when the audio has a call record.
 
     Each segment is rendered as a single dialogue line in chronological
     order, formatted as "Speaker: text" (no timestamps), e.g.:
@@ -58,6 +63,17 @@ def generate_transcript_docx(
     subtitle_run = subtitle.add_run(f"Generated on {generated_on}")
     subtitle_run.italic = True
     subtitle_run.font.color.rgb = RGBColor(0x7F, 0x8C, 0x8D)
+
+    lines = call_record_lines(call_record)
+    if lines:
+        document.add_heading(CALL_RECORD_TITLE, level=2)
+        table = document.add_table(rows=0, cols=2)
+        table.style = "Table Grid"
+        for label, value in lines:
+            label_cell, value_cell = table.add_row().cells
+            label_cell.paragraphs[0].add_run(label).bold = True
+            value_cell.text = value
+        document.add_paragraph()
 
     for entry in transcript_data:
         text = (entry.get('text') or '').strip()
