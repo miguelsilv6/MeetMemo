@@ -8,6 +8,7 @@ import {
 } from '../utils/fileNaming';
 import type {
   ApiError,
+  CallRecord,
   CuePoint,
   JobStatus,
   PublicConfig,
@@ -184,6 +185,28 @@ export async function apiCall<T = unknown>(
 }
 
 // Upload audio file
+/** The audio's call record (TranslatedPRI.xml), or null when it has none. */
+export async function getCallRecord(uuid: string): Promise<CallRecord | null> {
+  try {
+    return await apiCall<CallRecord>(`/jobs/${uuid}/call-record`);
+  } catch (err) {
+    if ((err as ApiError).status === 404) return null;
+    throw err;
+  }
+}
+
+/** Import the audio's TranslatedPRI.xml (replacing the one it had). */
+export async function uploadCallRecord(uuid: string, file: File): Promise<CallRecord> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return await apiCall<CallRecord>(`/jobs/${uuid}/call-record`, { method: 'PUT', body: formData });
+}
+
+/** Where the call record's file can be downloaded, exactly as it was imported. */
+export function callRecordFileUrl(uuid: string): string {
+  return `${API_BASE_URL}/jobs/${uuid}/call-record/file`;
+}
+
 export async function uploadAudio(
   file: File,
   model: string | null = null,

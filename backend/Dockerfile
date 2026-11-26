@@ -32,6 +32,13 @@ COPY requirements.txt /app/requirements.txt
 # Install Python dependencies
 RUN pip install --break-system-packages -r requirements.txt
 
+# huggingface_hub 2.x downloads models through httpx2, which needs Brotli 1.2+
+# to decode compressed responses; the base image ships an older Brotli, with
+# which every first download of a model fails ("process() takes no keyword
+# arguments"). Installed over it: pip may not be able to remove the base
+# image's copy.
+RUN pip install --break-system-packages --ignore-installed "brotli>=1.2.0"
+
 # Copy application code
 COPY . /app
 

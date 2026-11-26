@@ -48,6 +48,7 @@ from services.runtime_settings_service import RuntimeSettingsService
 from services.summary_service import SummaryService
 from services.transcription_service import TranscriptionService, models_wanted
 from services.user_service import purge_ownerless
+from utils.dependency_checks import dependency_problems
 
 # Load environment variables
 load_dotenv('.env')
@@ -192,6 +193,8 @@ async def lifespan(fastapi_app: FastAPI):
     global logger  # pylint: disable=global-statement
     logger = configure_logging(app_settings)
     logger.info("Starting MeetMemo API with configured logging...")
+    for problem in dependency_problems():
+        logger.error(problem)
 
     # Log the resolved hardware profile and ML configuration so operators can
     # see what was auto-detected (or overridden) at a glance.

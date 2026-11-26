@@ -930,6 +930,65 @@
     "starting": "A recomeçar…",
     "failed": "Não foi possível recomeçar o processamento."
   },
+  "callRecord": {
+    "title": "Dados da chamada",
+    "none": "Sem dados da chamada.",
+    "attach": "Associar TranslatedPRI.xml",
+    "replace": "Substituir XML",
+    "showAll": "Ver todos os dados",
+    "importing": "A importar…",
+    "importFailed": "Não foi possível importar o TranslatedPRI.xml: {{reason}}",
+    "guidMismatch": "O GUID do ficheiro ({{guid}}) não corresponde ao nome deste áudio. Confirma que é o ficheiro certo.",
+    "timesAsInFile": "As horas são as do ficheiro, sem conversão de fuso horário (o ficheiro não o indica).",
+    "allFields": "Todos os campos do ficheiro ({{count}})",
+    "provenance": "Origem",
+    "imported": "{{name}}, importado por {{who}} em {{when}}.",
+    "replaced": "Substituiu {{name}} (SHA-256 {{sha256}}), por {{who}} em {{when}}.",
+    "download": "Descarregar o XML original",
+    "listLine": "{{caller}} → {{callee}}",
+    "fields": {
+      "product_id": "Produto",
+      "target_product_number": "Nº de produto do alvo",
+      "product_type": "Tipo de produto",
+      "product_subtype": "Subtipo",
+      "protocol": "Protocolo",
+      "start": "Início",
+      "end": "Fim",
+      "duration_seconds": "Duração",
+      "answered_at": "Atendida às",
+      "direction": "Direção",
+      "caller": "De",
+      "callee": "Para",
+      "recorded": "Conteúdo gravado",
+      "end_reason": "Motivo do fim",
+      "case": "Caso",
+      "subcase": "Subcaso",
+      "target": "Alvo",
+      "target_number": "Número do alvo",
+      "interception_id": "ID da interceção",
+      "interception_criterion": "Critério de interceção"
+    },
+    "groups": {
+      "participants": "Participantes",
+      "cells": "Células",
+      "events": "Eventos",
+      "files": "Ficheiros do produto"
+    },
+    "folder": {
+      "chooseProduct": "Escolher pasta do produto",
+      "productHint": "O áudio de __CLIENT__ com o TranslatedPRI.xml da pasta (dados da chamada). Só o áudio e esse ficheiro são enviados.",
+      "chooseCase": "Escolher pasta",
+      "caseHint": "Uma pasta com uma ou mais pastas de produto: cada áudio de __CLIENT__ vai com o seu TranslatedPRI.xml.",
+      "noAudio": "A pasta escolhida não tem nenhum áudio.",
+      "noAudioName": "Pasta",
+      "manyAudios": "A pasta tem {{count}} áudios. Para vários áudios, usa um projeto."
+    },
+    "upload": {
+      "imported": "dados da chamada importados",
+      "failed": "dados da chamada não importados: {{reason}}",
+      "notAttached": "dados da chamada não associados (o áudio já existia)"
+    }
+  },
   "processingInfo": {
     "open": "Informações de processamento",
     "title": "Como este áudio foi processado",

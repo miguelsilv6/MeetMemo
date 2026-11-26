@@ -120,7 +120,8 @@ TOKENS_SCHEMA_PATHS = [
     for name in ("006_tokens.sql", "007_daily_tokens.sql", "009_unlimited_tokens.sql",
                  "010_retranscription.sql",
                  # Not about tokens, but jobs columns every install needs at startup.
-                 "011_num_speakers.sql", "013_job_expiry.sql", "014_eta.sql")
+                 "011_num_speakers.sql", "013_job_expiry.sql", "014_eta.sql",
+                 "015_call_records.sql")
 ]
 
 DEFAULT_TOKENS_TIMEZONE = "Europe/Lisbon"

@@ -170,6 +170,8 @@ function App() {
     uploading,
     fileInputRef,
     handleFileSelect,
+    folderInputRef,
+    handleFolderSelect,
     handleDragOver,
     handleDrop,
     handleUpload,
@@ -490,6 +492,8 @@ function App() {
                 uploading={uploading}
                 fileInputRef={fileInputRef}
                 handleFileSelect={handleFileSelect}
+                folderInputRef={folderInputRef}
+                handleFolderSelect={handleFolderSelect}
                 handleDragOver={handleDragOver}
                 handleDrop={handleDrop}
                 recentJobs={recentJobs}

@@ -6,9 +6,11 @@ for meeting summaries and transcripts.
 """
 from datetime import datetime
 from io import BytesIO
+from typing import Optional
 
 from config import Settings, get_settings
 
+from utils.call_record_text import call_record_markdown
 from utils.formatters import format_speaker_name, format_timestamp
 
 
@@ -17,10 +19,12 @@ def generate_summary_markdown(
     summary_content: str,
     transcript_data: list,
     generated_on: str = None,
-    settings: Settings = None
+    settings: Settings = None,
+    call_record: Optional[dict] = None,
 ) -> BytesIO:
     """
-    Generate a Markdown document with summary and transcript.
+    Generate a Markdown document with summary and transcript (and the call's
+    data first, when the audio has a call record).
 
     Args:
         meeting_title: Meeting title/filename
@@ -48,6 +52,7 @@ def generate_summary_markdown(
     # Build markdown content
     markdown_content = f"# {meeting_title}\n\n"
     markdown_content += f"*Generated on {generated_on}*\n\n"
+    markdown_content += call_record_markdown(call_record)
 
     # Summary section
     if summary_content:
@@ -71,10 +76,12 @@ def generate_transcript_markdown(
     meeting_title: str,
     transcript_data: list,
     generated_on: str = None,
-    settings: Settings = None
+    settings: Settings = None,
+    call_record: Optional[dict] = None,
 ) -> BytesIO:
     """
-    Generate a transcript-only Markdown document (no AI summary).
+    Generate a transcript-only Markdown document (no AI summary), with the
+    call's data first when the audio has a call record.
 
     Args:
         meeting_title: Meeting title/filename
@@ -101,6 +108,7 @@ def generate_transcript_markdown(
     # Build markdown content
     markdown_content = f"# {meeting_title}\n\n"
     markdown_content += f"*Generated on {generated_on}*\n\n"
+    markdown_content += call_record_markdown(call_record)
     markdown_content += "## Transcript\n\n"
 
     # Transcript section

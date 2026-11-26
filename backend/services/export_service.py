@@ -7,6 +7,7 @@ for generating summary and transcript exports in Word and Markdown formats.
 import json
 import logging
 from io import BytesIO
+from typing import Optional
 
 from config import Settings
 from repositories.export_repository import ExportRepository
@@ -66,7 +67,8 @@ class ExportService:
         meeting_title: str,
         summary_content: str,
         transcript_json: str,
-        generated_on: str = None
+        generated_on: str = None,
+        call_record: Optional[dict] = None,
     ) -> BytesIO:
         """
         Generate Markdown export with summary and transcript.
@@ -87,14 +89,16 @@ class ExportService:
             summary_content,
             transcript_data,
             generated_on,
-            self.settings
+            self.settings,
+            call_record=call_record,
         )
 
     def generate_transcript_markdown_export(
         self,
         meeting_title: str,
         transcript_json: str,
-        generated_on: str = None
+        generated_on: str = None,
+        call_record: Optional[dict] = None,
     ) -> BytesIO:
         """
         Generate Markdown export with transcript only (no summary).
@@ -113,14 +117,16 @@ class ExportService:
             meeting_title,
             transcript_data,
             generated_on,
-            self.settings
+            self.settings,
+            call_record=call_record,
         )
 
     def generate_transcript_docx_export(
         self,
         meeting_title: str,
         transcript_json: str,
-        generated_on: str = None
+        generated_on: str = None,
+        call_record: Optional[dict] = None,
     ) -> BytesIO:
         """
         Generate DOCX export with transcript only (no summary).
@@ -139,7 +145,8 @@ class ExportService:
             meeting_title,
             transcript_data,
             generated_on,
-            self.settings
+            self.settings,
+            call_record=call_record,
         )
 
     async def process_export_job(

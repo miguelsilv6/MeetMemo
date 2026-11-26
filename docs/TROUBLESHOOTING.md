@@ -102,6 +102,25 @@ meetmemo-backend:
 docker exec meetmemo-backend python -c "import whisper; whisper.load_model('turbo')"
 ```
 
+### "process() takes no keyword arguments" when a model is first used
+
+**Symptom:** A transcription (or diarization, or translation) fails with `process() takes no keyword arguments`, the first time a model is used. The backend log shows `huggingface_hub` → `httpx2/_decoders.py` in the traceback, and at startup an error that "the installed Brotli is older than 1.2".
+
+**Cause:** `huggingface_hub` 2.x downloads through `httpx2`, which needs Brotli 1.2+ to decode compressed responses. The PyTorch base image ships an older Brotli. Models already in the cache keep working; only downloads fail.
+
+**Solution:** Rebuild the image (the Dockerfile installs a newer Brotli):
+
+```bash
+docker compose up -d --build
+```
+
+Or, without rebuilding (lost when the container is recreated):
+
+```bash
+docker compose exec meetmemo-backend pip install --break-system-packages --ignore-installed "brotli>=1.2.0"
+docker compose restart meetmemo-backend
+```
+
 ### PyAnnote Model Access Denied
 
 **Symptom:** `401 Unauthorized` or `Access denied` for PyAnnote models.

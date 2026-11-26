@@ -27,6 +27,7 @@ import aiofiles
 import aiofiles.os
 import httpx
 from fastapi import HTTPException
+from repositories.call_record_repository import summary_context
 from utils.file_utils import get_transcript_path
 from utils.formatters import format_transcript_for_llm
 
@@ -208,6 +209,7 @@ async def summarize(settings, summary_service, job: dict, params: dict) -> None:
         format_transcript_for_llm(text),
         params.get("custom_prompt"),
         params.get("system_prompt"),
+        call_context=await summary_context(str(job["uuid"])),
     )
     if await transcript_digest(settings, job) != digest:
         raise TranscriptChangedError(job["uuid"])

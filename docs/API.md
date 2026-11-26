@@ -294,6 +294,51 @@ Update speaker names.
 Speakers are only renamed through this endpoint, by the user. There is no
 automatic (LLM-based) speaker naming.
 
+## Call Records
+
+The `TranslatedPRI.xml` of an intercepted audio (the product's case, target,
+start and end, caller and callee, cells and events). One per audio; only its
+owner or the administrator reach it. The file is parsed without a DTD
+(`defusedxml`), at most 1 MB, and its root must be `<Produto>`.
+
+### GET /jobs/{uuid}/call-record
+
+The audio's call record, or 404 if it has none:
+
+```json
+{
+  "source_name": "TranslatedPRI.xml",
+  "sha256": "…",
+  "imported_by": "ana",
+  "imported_at": "2026-11-26T15:00:00Z",
+  "history": [],
+  "guid_matches_audio": true,
+  "data": {
+    "attributes": {"Caso": "…", "Hora_de_início": "17-11-2026 20:31:50", "…": "…"},
+    "elements": [{"tag": "Etiqueta", "attributes": {"Hora": "…", "Tipo": "Atendida"}}],
+    "summary": {"caller": "…", "callee": "…", "start": "…", "end": "…",
+                "duration_seconds": 58, "answered_at": "…", "case": "…", "…": "…"}
+  }
+}
+```
+
+`attributes` holds every attribute of `<Produto>`, `elements` every child
+element in file order, `summary` the main fields (the duration worked out from
+the start and end, `answered_at` from the "Atendida" event). Times are as the
+file writes them (no time zone). `guid_matches_audio` says whether the file's
+`GUID` names the audio (the audio in `__CLIENT__` is named after it).
+
+### PUT /jobs/{uuid}/call-record
+
+Import the file (multipart field `file`). Returns the record as above; 422 if
+the file is not a readable `TranslatedPRI.xml`. Replacing a record keeps the
+replaced file's name, SHA-256, importer and time in `history`; the same file
+again changes nothing.
+
+### GET /jobs/{uuid}/call-record/file
+
+The file exactly as it was imported (`application/xml`).
+
 ## Exports (Synchronous)
 
 > **Note:** Export endpoints use POST requests (not GET) to support optional request body parameters like `generated_on` timestamp. This is a breaking change from v1.0 which used GET requests.

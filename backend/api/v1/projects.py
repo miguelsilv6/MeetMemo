@@ -17,9 +17,14 @@ from access import (
 )
 from config import Settings, get_settings
 from database import InsufficientTokensError
-from dependencies import get_audio_service, get_project_repository
+from dependencies import (
+    get_audio_service,
+    get_call_record_repository,
+    get_project_repository,
+)
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field, field_validator
+from repositories.call_record_repository import CallRecordRepository
 from repositories.project_repository import ProjectRepository
 from runtime_settings import AUTO_DETECT, WHISPER_LANGUAGE_CODES
 from services.eta import eta_fields, job_remaining, load_step_rates, queue_remaining
@@ -101,15 +106,24 @@ async def get_project(
     request: Request,
     repo: ProjectRepository = Depends(get_project_repository),
     settings: Settings = Depends(get_settings),
+    records: CallRecordRepository = Depends(get_call_record_repository),
 ) -> dict:
-    """A project with the status of each of its audios."""
+    """A project with the status of each of its audios (and who called whom)."""
     project = await _project_or_404(repo, project_uuid)
     queue = _queue(request)
     current = queue.current_job if queue else None
     order = [job for job in await repo.queue_order() if job != current]
     audios = [audio_status(job, current, order) for job in await repo.jobs(project_uuid)]
     await _add_estimates(repo, settings, audios, current, order)
+    calls = await records.summaries([audio["uuid"] for audio in audios])
+    for audio in audios:
+        summary = calls.get(audio["uuid"])
+        audio["call"] = {key: summary.get(key) for key in CALL_LIST_FIELDS} if summary else None
     return {**project, "audios": audios}
+
+
+# What the list of a project's audios shows of each call record.
+CALL_LIST_FIELDS = ("caller", "callee", "start", "duration_seconds")
 
 
 async def _add_estimates(

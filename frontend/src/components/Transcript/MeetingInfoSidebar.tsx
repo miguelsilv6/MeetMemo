@@ -1,4 +1,5 @@
 import AudioExpiry from './AudioExpiry';
+import CallRecordSection from './CallRecordSection';
 import EtaText from '../Common/EtaText';
 import { useState } from 'react';
 import { Alert, Card, Button, Badge } from '@govtechsg/sgds-react';
@@ -103,6 +104,7 @@ export default function MeetingInfoSidebar({
               isAdmin={isAdmin}
             />
           )}
+          {jobId && <CallRecordSection key={`call-${jobId}`} jobId={jobId} />}
           <div className="info-item mb-3">
             <small className="text-muted">{t('meetingInfo.duration')}</small>
             <div>

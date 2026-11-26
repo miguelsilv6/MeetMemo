@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import * as api from '../services/api';
 import { normalizeTranscript } from '../utils/transcript';
 import { exceedsUploadLimit, sizeInMb } from '../utils/uploadLimit';
+import { findProducts } from '../utils/productFolders';
 import type { SelectedFile } from '../types/api';
 import type {
   SetCurrentStep,
@@ -47,6 +48,9 @@ export default function useFileUpload(
   // Largest file accepted, in MB (set in the admin panel); null until known.
   const [maxUploadMb, setMaxUploadMb] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+  // The TranslatedPRI.xml of the audio being uploaded (chosen with its product folder).
+  const pendingCallRecord = useRef<File | null>(null);
 
   // Refuse a file over the limit here rather than after uploading it.
   const rejectIfTooLarge = (file: File): boolean => {
@@ -59,12 +63,46 @@ export default function useFileUpload(
   // Handle file selection
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    pendingCallRecord.current = null;
     if (file && !rejectIfTooLarge(file)) {
       setSelectedFile(file);
       // Immediately show processing UI
       setCurrentStep('processing');
       setProcessingProgress(10);
       handleUpload(file);
+    }
+  };
+
+  // A product folder: its audio (in __CLIENT__) with its TranslatedPRI.xml.
+  const handleFolderSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const products = findProducts(Array.from(event.target.files ?? []));
+    if (folderInputRef.current) folderInputRef.current.value = '';
+    if (products.length === 0) {
+      setError(t('callRecord.folder.noAudio'));
+      return;
+    }
+    if (products.length > 1) {
+      setError(t('callRecord.folder.manyAudios', { count: products.length }));
+      return;
+    }
+    const [{ audio, callRecord }] = products;
+    if (rejectIfTooLarge(audio)) return;
+    pendingCallRecord.current = callRecord;
+    setSelectedFile(audio);
+    setCurrentStep('processing');
+    setProcessingProgress(10);
+    handleUpload(audio);
+  };
+
+  // The call record chosen with the audio goes with the audio just created.
+  const attachPendingCallRecord = async (uuid: string) => {
+    const record = pendingCallRecord.current;
+    pendingCallRecord.current = null;
+    if (!record) return;
+    try {
+      await api.uploadCallRecord(uuid, record);
+    } catch (err) {
+      setError(t('callRecord.importFailed', { reason: (err as Error).message }));
     }
   };
 
@@ -81,6 +119,7 @@ export default function useFileUpload(
     if (uploading) return;
 
     const file = e.dataTransfer.files[0];
+    pendingCallRecord.current = null;
     if (file && !rejectIfTooLarge(file)) {
       setSelectedFile(file);
       setCurrentStep('processing');
@@ -125,6 +164,7 @@ export default function useFileUpload(
         selectedSpeakers
       );
       setJobId(response.uuid);
+      await attachPendingCallRecord(response.uuid);
 
       // Backend returns 202 immediately and processes in background
       if (response.status_code === 202 || response.status_code === '202') {
@@ -163,6 +203,8 @@ export default function useFileUpload(
     uploading,
     fileInputRef,
     handleFileSelect,
+    folderInputRef,
+    handleFolderSelect,
     handleDragOver,
     handleDrop,
     handleUpload,

@@ -1,6 +1,6 @@
 import type { ChangeEvent, DragEvent, RefObject } from 'react';
-import { Card, Form } from '@govtechsg/sgds-react';
-import { Upload as UploadIcon } from 'lucide-react';
+import { Button, Card, Form } from '@govtechsg/sgds-react';
+import { FolderOpen, Upload as UploadIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { WHISPER_LANGUAGES } from '../../constants/languages';
 import SpeakerCountSelect from './SpeakerCountSelect';
@@ -9,6 +9,9 @@ interface FileUploadCardProps {
   uploading: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   handleFileSelect: (event: ChangeEvent<HTMLInputElement>) => void;
+  /** Choosing a product folder: its audio with its TranslatedPRI.xml. */
+  folderInputRef?: RefObject<HTMLInputElement | null>;
+  handleFolderSelect?: (event: ChangeEvent<HTMLInputElement>) => void;
   handleDragOver: (e: DragEvent<HTMLDivElement>) => void;
   handleDrop: (e: DragEvent<HTMLDivElement>) => void;
   selectedLanguage: string | null;
@@ -24,6 +27,8 @@ export default function FileUploadCard({
   uploading,
   fileInputRef,
   handleFileSelect,
+  folderInputRef,
+  handleFolderSelect,
   handleDragOver,
   handleDrop,
   selectedLanguage,
@@ -93,6 +98,28 @@ export default function FileUploadCard({
           accept=".mp3,.wav,.m4a,.webm,.ogg,.flac,.aac"
           style={{ display: 'none' }}
         />
+        {folderInputRef && handleFolderSelect && (
+          <div className="mb-3">
+            <Button
+              variant="outline-primary"
+              size="sm"
+              disabled={uploading}
+              onClick={() => folderInputRef.current?.click()}
+            >
+              <FolderOpen size={16} className="me-1" />
+              {t('callRecord.folder.chooseProduct')}
+            </Button>
+            <small className="d-block text-muted mt-1">{t('callRecord.folder.productHint')}</small>
+            <input
+              type="file"
+              ref={folderInputRef}
+              onChange={handleFolderSelect}
+              aria-label={t('callRecord.folder.chooseProduct')}
+              style={{ display: 'none' }}
+              {...{ webkitdirectory: '', directory: '' }}
+            />
+          </div>
+        )}
         {uploading && (
           <div className="text-center">
             <span

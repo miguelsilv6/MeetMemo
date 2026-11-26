@@ -930,6 +930,65 @@
     "starting": "Restarting…",
     "failed": "The processing could not be restarted."
   },
+  "callRecord": {
+    "title": "Call data",
+    "none": "No call data.",
+    "attach": "Attach TranslatedPRI.xml",
+    "replace": "Replace XML",
+    "showAll": "See all the data",
+    "importing": "Importing…",
+    "importFailed": "Could not import the TranslatedPRI.xml: {{reason}}",
+    "guidMismatch": "The file's GUID ({{guid}}) does not match this audio's name. Check it is the right file.",
+    "timesAsInFile": "Times are the file's, with no time zone conversion (the file gives none).",
+    "allFields": "Every field of the file ({{count}})",
+    "provenance": "Origin",
+    "imported": "{{name}}, imported by {{who}} on {{when}}.",
+    "replaced": "Replaced {{name}} (SHA-256 {{sha256}}), by {{who}} on {{when}}.",
+    "download": "Download the original XML",
+    "listLine": "{{caller}} → {{callee}}",
+    "fields": {
+      "product_id": "Product",
+      "target_product_number": "Target product no.",
+      "product_type": "Product type",
+      "product_subtype": "Subtype",
+      "protocol": "Protocol",
+      "start": "Start",
+      "end": "End",
+      "duration_seconds": "Duration",
+      "answered_at": "Answered at",
+      "direction": "Direction",
+      "caller": "From",
+      "callee": "To",
+      "recorded": "Recorded content",
+      "end_reason": "End reason",
+      "case": "Case",
+      "subcase": "Subcase",
+      "target": "Target",
+      "target_number": "Target number",
+      "interception_id": "Interception ID",
+      "interception_criterion": "Interception criterion"
+    },
+    "groups": {
+      "participants": "Participants",
+      "cells": "Cells",
+      "events": "Events",
+      "files": "Product files"
+    },
+    "folder": {
+      "chooseProduct": "Choose product folder",
+      "productHint": "The audio in __CLIENT__ with the folder's TranslatedPRI.xml (call data). Only the audio and that file are sent.",
+      "chooseCase": "Choose folder",
+      "caseHint": "A folder with one or more product folders: each audio in __CLIENT__ goes with its TranslatedPRI.xml.",
+      "noAudio": "The chosen folder has no audio.",
+      "noAudioName": "Folder",
+      "manyAudios": "The folder has {{count}} audios. For several audios, use a project."
+    },
+    "upload": {
+      "imported": "call data imported",
+      "failed": "call data not imported: {{reason}}",
+      "notAttached": "call data not attached (the audio already existed)"
+    }
+  },
   "processingInfo": {
     "open": "Processing information",
     "title": "How this audio was processed",

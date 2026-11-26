@@ -20,6 +20,7 @@ from dependencies import (
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import FileResponse
 from models import CreateExportRequest, ExportJobResponse, ExportJobStatusResponse
+from repositories.call_record_repository import CallRecordRepository, summary_context
 from repositories.export_repository import ExportRepository
 from repositories.job_repository import JobRepository
 from services.export_service import ExportService
@@ -97,7 +98,9 @@ async def _process_export_job_task(  # pylint: disable=too-many-arguments,too-ma
                 summary_content = cached_summary
             else:
                 formatted_transcript = format_transcript_for_llm(transcript_json)
-                summary_content = await summary_service.summarize(formatted_transcript)
+                summary_content = await summary_service.summarize(
+                    formatted_transcript, call_context=await summary_context(job_uuid)
+                )
                 await summary_service.save_summary(job_uuid, summary_content)
 
         await export_repo.update_progress(export_uuid, 50)
@@ -106,14 +109,17 @@ async def _process_export_job_task(  # pylint: disable=too-many-arguments,too-ma
         file_buffer: BytesIO
         file_ext: str
 
+        record = await CallRecordRepository().get(job_uuid)
+        call_record = record["data"].get("summary") if record else None
+
         if export_type == 'markdown':
             file_buffer = export_service.generate_summary_markdown_export(
-                meeting_title, summary_content, transcript_json
+                meeting_title, summary_content, transcript_json, call_record=call_record
             )
             file_ext = 'md'
         elif export_type == 'transcript_markdown':
             file_buffer = export_service.generate_transcript_markdown_export(
-                meeting_title, transcript_json
+                meeting_title, transcript_json, call_record=call_record
             )
             file_ext = 'md'
         else:

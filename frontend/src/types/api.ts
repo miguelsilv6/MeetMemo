@@ -247,3 +247,61 @@ export interface ApiError extends Error {
   category?: string;
   responseData?: unknown;
 }
+
+/** The main fields of an audio's call record (TranslatedPRI.xml). */
+export interface CallRecordSummary {
+  product_id: string | null;
+  target_product_number: string | null;
+  product_type: string | null;
+  product_subtype: string | null;
+  protocol: string | null;
+  /** As written in the file ("17-11-2026 20:31:50"): it gives no time zone. */
+  start: string | null;
+  end: string | null;
+  duration_seconds: number | null;
+  answered_at: string | null;
+  direction: string | null;
+  caller: string | null;
+  callee: string | null;
+  recorded: string | null;
+  end_reason: string | null;
+  case: string | null;
+  subcase: string | null;
+  target: string | null;
+  target_number: string | null;
+  interception_id: string | null;
+  interception_criterion: string | null;
+  guid: string | null;
+}
+
+/** A child element of the record (participant, cell, event, file...). */
+export interface CallRecordElement {
+  tag: string;
+  attributes: Record<string, string>;
+}
+
+/** A call record replaced by another. */
+export interface CallRecordHistoryEntry {
+  source_name: string;
+  sha256: string;
+  imported_by: string | null;
+  imported_at: string;
+  replaced_by: string | null;
+  replaced_at: string;
+}
+
+/** An audio's call record: the TranslatedPRI.xml imported with it. */
+export interface CallRecord {
+  source_name: string;
+  sha256: string;
+  imported_by: string | null;
+  imported_at: string;
+  history: CallRecordHistoryEntry[];
+  /** Whether the record's GUID names the audio; null when it has none. */
+  guid_matches_audio: boolean | null;
+  data: {
+    attributes: Record<string, string>;
+    elements: CallRecordElement[];
+    summary: CallRecordSummary;
+  };
+}
